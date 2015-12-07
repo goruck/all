@@ -131,8 +131,8 @@ function sendKeyInSession(intent, session, callback) {
     var shouldEndSession = false;
     var speechOutput = "";
     var tls = require('tls');
-    var PORT = 4746;
-    var HOST = '98.207.176.132'; // todo: use FQDN instead of IP
+    var PORT = XXX;
+    var HOST = 'XXX.XXX.XXX.XXX'; // todo: use FQDN instead of IP
     
     var options = {
         host: HOST,
@@ -200,8 +200,8 @@ function getStatusFromSession(intent, session, callback) {
     var speechOutput = "";
     var read = "";
     var tls = require('tls');
-    var PORT = 4746;
-    var HOST = '98.207.176.132'; // todo: use FQDN instead of IP
+    var PORT = XXX;
+    var HOST = 'XXX.XXX.XXX.XXX'; // todo: use FQDN instead of IP
     
     var options = {
         host: HOST,
