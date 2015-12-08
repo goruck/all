@@ -3,10 +3,10 @@
  * 
  * This sample demonstrates a simple skill built with the Amazon Alexa Skills Kit.
  * 
- * For details see https://github.com/goruck.
+ * For details see https://github.com/goruck/all
  *
  * For additional samples, visit the Alexa Skills Kit Getting Started guide at
- * http://amzn.to/1LGWsLG.
+ * http://amzn.to/1LGWsLG
  * 
  * Lindo St. Angel 2015.
  */
@@ -131,8 +131,8 @@ function sendKeyInSession(intent, session, callback) {
     var shouldEndSession = false;
     var speechOutput = "";
     var tls = require('tls');
-    var PORT = 4746;
-    var HOST = '98.207.176.132'; // todo: use FQDN instead of IP
+    var PORT = XXXX;
+    var HOST = 'XXX.XXX.XXX.XXX'; // todo: use FQDN instead of IP
     
     var options = {
         host: HOST,
@@ -200,8 +200,8 @@ function getStatusFromSession(intent, session, callback) {
     var speechOutput = "";
     var read = "";
     var tls = require('tls');
-    var PORT = 4746;
-    var HOST = '98.207.176.132'; // todo: use FQDN instead of IP
+    var PORT = XXXX;
+    var HOST = 'XXX.XXX.XXX.XXX'; // todo: use FQDN instead of IP
     
     var options = {
         host: HOST,
