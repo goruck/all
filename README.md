@@ -1,5 +1,5 @@
 # Overview
-## Alexa Lambda Linux (ALL) is a HW/SW reference design meant to enable quick prototyping and realization of the control and monitoring of things using Amazon Alexa Voice Services.
+## Alexa Lambda Linux (ALL) is a HW/SW reference design meant to enable quick prototyping and realization of the control and monitoring of things using Amazon Alexa Voice Services. The reference design has been used to control and monitor a home security system as a proof of concept. 
 
 ## System Architecture
 ![all](https://cloud.githubusercontent.com/assets/12125472/11692383/0e4a623e-9e54-11e5-8a78-b6fdf3eb9ba2.png)
