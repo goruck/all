@@ -14,12 +14,13 @@ End to end SSL/TLS integration | Customer data security
 [all blockdia.pdf](https://github.com/goruck/all/files/57052/all.blockdia.pdf)
 
 ## Prototype Output to Terminal
+![screenshot from 2015-12-09 19 46 40](https://cloud.githubusercontent.com/assets/12125472/11706514/3819320c-9eae-11e5-95d0-af8bdee6ed24.png)
+Note connections to AWS Lambda triggered by Alexa
 
 ## Prototype Current State
 
 ## Keybus to GPIO I/F Unit
-![screenshot from 2015-12-09 19 46 40](https://cloud.githubusercontent.com/assets/12125472/11706514/3819320c-9eae-11e5-95d0-af8bdee6ed24.png)
-Note connections to AWS Lambda triggered by Alexa
+
 
 ## System Overview
 [all overview.pdf](https://github.com/goruck/all/files/57059/all.overview.pdf)
