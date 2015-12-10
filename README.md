@@ -11,7 +11,6 @@ End to end SSL/TLS integration | Customer data security
 
 ## System Architecture
 ![all](https://cloud.githubusercontent.com/assets/12125472/11692383/0e4a623e-9e54-11e5-8a78-b6fdf3eb9ba2.png)
-[all blockdia.pdf](https://github.com/goruck/all/files/57052/all.blockdia.pdf)
 
 ## Prototype Output to Terminal
 ![screenshot from 2015-12-09 19 46 40](https://cloud.githubusercontent.com/assets/12125472/11706514/3819320c-9eae-11e5-95d0-af8bdee6ed24.png)
@@ -22,8 +21,10 @@ Note connections to AWS Lambda triggered by Alexa
 ![proto pic2](https://cloud.githubusercontent.com/assets/12125472/11706679/b0fb6950-9eaf-11e5-95be-3d668412c5e2.png)
 Planning to move interface circuits from breadboard to board that fits in Raspberry PI housing 
 
-## Keybus to GPIO I/F Unit
+## Keybus to GPIO I/F Unit Schematic
+![netbus-gpio-if2](https://cloud.githubusercontent.com/assets/12125472/11706723/416ad890-9eb0-11e5-976f-e48f492587b6.png)
+![netbus-gpio-if1](https://cloud.githubusercontent.com/assets/12125472/11706728/47b519f4-9eb0-11e5-8f12-56c11d6d14d0.png)
 
-
-## System Overview
+## PDFs of Block Diagram and System Overview
+[all blockdia.pdf](https://github.com/goruck/all/files/57052/all.blockdia.pdf)
 [all overview.pdf](https://github.com/goruck/all/files/57059/all.overview.pdf)
