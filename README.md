@@ -18,6 +18,9 @@ End to end SSL/TLS integration | Customer data security
 Note connections to AWS Lambda triggered by Alexa
 
 ## Prototype Current State
+![proto pic1](https://cloud.githubusercontent.com/assets/12125472/11706674/a8721fcc-9eaf-11e5-8707-f780ae4ef86a.png)
+![proto pic2](https://cloud.githubusercontent.com/assets/12125472/11706679/b0fb6950-9eaf-11e5-95be-3d668412c5e2.png)
+Planning to move interface circuits from breadboard to board that fits in Raspberry PI housing 
 
 ## Keybus to GPIO I/F Unit
 
