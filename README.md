@@ -23,7 +23,7 @@ I came up with the following high-level requirements that the project had to mee
 
 I felt that if the project met these requirements it would end up being useful to a very wide variety of voice applications. I also thought that I had to implement at one non-trivial real world application to prove that the design was robust and capable. Hence the last requirement. For that I choose to put a voice user interface on a commonly used home security system, the DSC Power832.
 
-The system would have both cloud and (home-side) device components. I selected Amazon's Alexa as the cloud speech service and Amazon Web Services' Lambda to handle any cloud side processing required to interface between Alexa and the home-side devices. Alexa seemed to be an obvious choice to me (after all I work for Amazon :)) and it costs nothing to develop voice applications via the [Alexa Skills Kit] (https://developer.amazon.com/appsandservices) which certainly were needed to control random things around the home. [Lambda] (https://aws.amazon.com/lambda/) is ideal for quickly handling bursty processing loads, which is exactly what is needed to control things with voice. It also has a free tier if you stay under a certain amount of processing and above that its still very inexpensive. So, Alexa and Lambda seemed to be reasonable cloud choices given my requirements.
+The system would have both cloud and (home-side) device components. I selected Amazon's Alexa as the cloud speech service and Amazon Web Services' Lambda to handle any cloud side processing required to interface between Alexa and the home-side devices. Alexa seemed to be an obvious choice to me (after all I work for Amazon :)) and it costs nothing to develop voice applications via the [Alexa Skills Kit] (https://developer.amazon.com/public/solutions/alexa/alexa-skills-kit) which certainly were needed to control random things around the home. [Lambda] (https://aws.amazon.com/lambda/) is ideal for quickly handling bursty processing loads, which is exactly what is needed to control things with voice. It also has a free tier if you stay under a certain amount of processing and above that its still very inexpensive. So, Alexa and Lambda seemed to be reasonable cloud choices given my requirements.
 
 I selected the [Raspberry Pi 2] (https://www.raspberrypi.org/blog/raspberry-pi-2-on-sale/) as the platform to develop the home-side device components. The platform has a powerful CPU, plenty RAM, a wide variety of physical interfaces, has support for many O/Ss, and is inexpensive. I thought about using an even lower cost platform like [Arduino] (https://www.arduino.cc/) but I felt that given its lower capabilities vis-a-vis the Raspberry PI that would limit the types of home-side applications I could develop on that alone. For example, I thought I would need to use GNU/Linux in this project for extensibility and rapid development reasons. Arduino isn't really meant for to run Linux but the Pi is. The downside of using the Pi plus a high-level OS like vanilla Linux is that you give up the ability to react to quickly changing events. On the other hand, the Arduino running bare metal code is a very capable real-time machine. To be as extensible as possible, I didn't want to rule out the possibility of developing a real-time voice controlled application and wanted to avoid complex device side architectures like using an Arduino to handle the fast events connected to a Pi to handle the complex events. That seemed to work against my requirements. So, I came up with the idea of using [real-time Linux] (https://rt.wiki.kernel.org/index.php/Main_Page) on the Pi which I thought best met my goals. But it does have the downside that I'm no longer using a standard kernel and real-time programming requires a bit more thought and care than standard application development in Linux userspace.
 
@@ -44,7 +44,55 @@ These components and the interconnections between them are shown in the diagram 
 # Design and Implementation of the Components
 
 ## Alexa Intent Schema / Utterance database
-TBA
+You need to have an Amazon applications developer account to get access to the [Alexa Skills Kit (ASK)] (https://developer.amazon.com/public/solutions/alexa/alexa-skills-kit), so I first created one at https://developer.amazon.com/appsandservices to get going. There's a [getting started guide] (https://developer.amazon.com/appsandservices/solutions/alexa/alexa-skills-kit/getting-started-guide) on the ASK site on how to create a new skill. I used that and the example skill *color* to create the skill used to control the alarm panel which I named *panel*. Amazon makes the creation of the skill pretty easy but you do have to think through the voice interaction a bit. I used the mental model of attaching a voice command to every button on the alarm's keypad and an extra command to give the status of the system which is simply the state of the lights on the keypad (e.g., armed, bypass, etc.) to help me create the skill. The Amazon kill dev tool takes you through the following steps in creating the skill:
+
+1. Skill Information - Invocation Name, Version, and Service Endpoint (the Lambda ARN in my case).
+2. Interaction Model - Intent Schema, Custom Slot Types, and Sample Utterances.
+3. Test.
+4. Description.
+5. Publishing Information.
+
+The Intent Schema for the *panel* skill is as follows:
+
+```javascript
+{
+  "intents": [
+    {
+      "intent": "MyNumIsIntent",
+      "slots": [
+        {
+          "name": "Keys",
+          "type": "LIST_OF_KEYS"
+        }
+      ]
+    },
+    {
+      "intent": "WhatsMyStatusIntent"
+    },
+    {
+      "intent": "AMAZON.HelpIntent"
+    }
+  ]
+}
+```
+
+Where "LIST_OF_KEYS" is a custom slot type defined as:
+
+```javascript
+0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | star | pound | stay | away
+```
+
+The sample utterances for the skill are:
+
+1. WhatsMyStatusIntent panel status
+2. WhatsMyStatusIntent status
+3. WhatsMyStatusIntent its status
+4. WhatsMyStatusIntent what is panel status
+5. WhatsMyStatusIntent what is the panel status
+6. WhatsMyStatusIntent what is the status
+7. MyNumIsIntent {Keys}
+
+The "LIST_OF_KEYS" slot enables the intent MyNumIsIntent to activate when Alex hears the name of the buttons on the keypad defined by the slot. The intent "WhatsMyStatusIntent" activates when Alexa hears any of the status related utterances listed above <sup>[2](#myfootnote2)</sup>. When the intents activate, they cause the service end point Lambda funcation to run and perform specific processing depending on the user intent. 
 
 ## AWS Lambda function
 TBA
@@ -93,3 +141,4 @@ Note: bypass capacitors not shown.
 [all overview.pdf](https://github.com/goruck/all/files/57059/all.overview.pdf)
 
 <a name="myfootnote1">1</a>: Footnote content goes here
+<a name="myfootnote2">2</a>: Footnote content goes here
