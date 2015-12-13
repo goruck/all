@@ -23,17 +23,17 @@ I came up with the following high-level requirements that the project had to mee
 
 I felt that if the project met these requirements it would end up being useful to a very wide variety of voice applications. I also thought that I had to implement at one non-trivial real world application to prove that the design was robust and capable. Hence the last requirement. For that I choose to put a voice user interface on a commonly used home security system, the DSC Power832.
 
-The system would have both cloud and (home-side) device components. I selected Amazon's Alexa as the cloud speech service and Amazon Web Services' Lambda to handle any cloud side processing required to interface between Alexa and the home-side devices. Alexa seemed to be an obvious choice to me (after all I work for Amazon :)) and it costs nothing to develop voice applications via the [Alexa Skills Kit] (https://developer.amazon.com/public/solutions/alexa/alexa-skills-kit) which certainly were needed to control random things around the home. [Lambda] (https://aws.amazon.com/lambda/) is ideal for quickly handling bursty processing loads, which is exactly what is needed to control things with voice. It also has a free tier if you stay under a certain amount of processing and above that its still very inexpensive. So, Alexa and Lambda seemed to be reasonable cloud choices given my requirements.
+The system would have both cloud and (home-side) device components. I selected Amazon's Alexa as the cloud speech service and Amazon Web Services' Lambda to handle any cloud side processing required to interface between Alexa and the home-side devices. Alexa seemed to be a good choice to me (its already integrated with Lambda and has a variety of voice endpoints including Echo and FireTV) and it costs nothing to develop voice applications via the [Alexa Skills Kit] (https://developer.amazon.com/public/solutions/alexa/alexa-skills-kit) which certainly were needed to control random things around the home. [Lambda] (https://aws.amazon.com/lambda/) is ideal for quickly handling bursty processing loads, which is exactly what is needed to control things with voice. It also has a free tier if you stay under a certain amount of processing and above that its still very inexpensive. So, Alexa and Lambda seemed to be reasonable cloud choices given my requirements.
 
-I selected the [Raspberry Pi 2] (https://www.raspberrypi.org/blog/raspberry-pi-2-on-sale/) as the platform to develop the home-side device components. The platform has a powerful CPU, plenty RAM, a wide variety of physical interfaces, has support for many O/Ss, and is inexpensive. I thought about using an even lower cost platform like [Arduino] (https://www.arduino.cc/) but I felt that given its lower capabilities vis-a-vis the Raspberry PI that would limit the types of home-side applications I could develop on that alone. For example, I thought I would need to use GNU/Linux in this project for extensibility and rapid development reasons. Arduino isn't really meant for to run Linux but the Pi is. The downside of using the Pi plus a high-level OS like vanilla Linux is that you give up the ability to react to quickly changing events. On the other hand, the Arduino running bare metal code is a very capable real-time machine. To be as extensible as possible, I didn't want to rule out the possibility of developing a real-time voice controlled application and wanted to avoid complex device side architectures like using an Arduino to handle the fast events connected to a Pi to handle the complex events. That seemed to work against my requirements. So, I came up with the idea of using [real-time Linux] (https://rt.wiki.kernel.org/index.php/Main_Page) on the Pi which I thought best met my goals. But it does have the downside that I'm no longer using a standard kernel and real-time programming requires a bit more thought and care than standard application development in Linux userspace.
+I selected the [Raspberry Pi 2] (https://www.raspberrypi.org/blog/raspberry-pi-2-on-sale/) as the platform to develop the home-side device components. The platform has a powerful CPU, plenty RAM, a wide variety of physical interfaces, has support for many O/Ss, and is inexpensive. I thought about using an even lower cost platform like [Arduino] (https://www.arduino.cc/) but I felt that given its lower capabilities vis-a-vis the Raspberry PI that would limit the types of home-side applications I could develop on that alone. For example, I thought I would need to use GNU/Linux in this project for extensibility and rapid development reasons. Arduino isn't really meant for to run Linux but the Pi is. The downside of using the Pi plus a high-level OS like vanilla Linux is that you give up the ability to react to quickly changing events. On the other hand, the Arduino running bare metal code is a very capable real-time machine. To be as extensible as possible, I did not want to rule out the possibility of developing a real-time voice controlled application and wanted to avoid complex device side architectures like using an Arduino to handle the fast events connected to a Pi to handle the complex events. That seemed to work against my requirements. So, I came up with the idea of using [real-time Linux] (https://rt.wiki.kernel.org/index.php/Main_Page) on the Pi which I thought best met my goals. But it does have the downside that I'm no longer using a standard kernel and real-time programming requires a bit more thought and care than standard application development in Linux userspace.
 
 I chose to focus on using the Pi's GPIOs to interface to the things around the home I wanted to add voice control to. I felt that this would allow me the maximum flexibility and with using real-time Linux, I thought I could run that interface fast. Its turned out that I was able to do GPIO reads and writes with less than +/- 1 us jitter, which is pretty amazing given that vanilla Linux at best can do about +/- 20 ms <sup>[1](#myfootnote1)</sup>. Of course, all the other physical interfaces (SPI, I2C, etc.) on the Pi are accessible though the normal Linux methods.
 
-So given my requirements and the analysis above, I arrived at a system architecture with the following components.
+So given my requirements and the analysis above, I arrived at a system architecture with the following components<sup>[2](#myfootnote2)</sup>.
 
 * An Alexa Intent Schema / Utterance database developed using ASK.
 * An AWS Lambda function in Node.js to handle the intent triggers from Alexa and send it back responses from the home device. 
-* A home client build on Raspberry PI running real-time Linux with an application developed in C running in userspace.
+* A home device built on Raspberry PI running real-time Linux with a server application developed in C running in userspace.
 * A hardware interface unit that handled the translation of the electrical signals between the Pi and the security system.
 * The DSC Power832 security system connected via its Keybus interface to the Pi's GPIOs via the interface unit.
 
@@ -92,17 +92,73 @@ The sample utterances for the skill are:
 6. WhatsMyStatusIntent what is the status
 7. MyNumIsIntent {Keys}
 
-The "LIST_OF_KEYS" slot enables the intent MyNumIsIntent to activate when Alex hears the name of the buttons on the keypad defined by the slot. The intent "WhatsMyStatusIntent" activates when Alexa hears any of the status related utterances listed above <sup>[2](#myfootnote2)</sup>. When the intents activate, they cause the service end point Lambda funcation to run and perform specific processing depending on the user intent. 
+The "LIST_OF_KEYS" slot enables the intent MyNumIsIntent to activate when Alex hears the name of the buttons on the keypad defined by the slot. The intent "WhatsMyStatusIntent" activates when Alexa hears any of the status related utterances listed above <sup>[3](#myfootnote3)</sup>. When the intents activate, they cause the service end point Lambda funcation to run and perform specific processing depending on the user intent. 
 
 ## AWS Lambda function
-TBA
+You need to have an Aamazon Web Services account to use Lambda. I already was an EC2 user, so I didn't have to set one up but if you can do so at https://aws.amazon.com/. Like all AWS products, there is good [documentation] (https://aws.amazon.com/lambda/) available on the AWS site that you should read to come up to speed on it, if not already familiar. I did that but I still found it challenging to use the product, mainly due to my unfamiliarity with javascript, Node, and asynchronous programming which are all essential to using Lambda. To get up to speed, I read a few books and articles including [*Sams Teach Yourself Node.js in 24 Hours*] (http://smile.amazon.com/dp/0672335956) by Ornbo, [*JavaScript: The Good Parts*] by Crockford (http://smile.amazon.com/dp/0596517742), and [*Asynchronous programming and continuation-passing style in JavaScript*] (http://www.2ality.com/2012/06/continuation-passing-style.html) by Rauschmayer. Over time, I understood how well suited Lambda and Node.js is to helping scale the cloud side to handle applications like voice control of things given how Lambda was designed to handle bursty applications and the non-blocking I/O benefits of Node.js.
 
-## Home Client
+I used the *color* skill and Lambda function example provided by ASK as a template to create the Lambda function for *panel*. Since I my Lambda function needed to talk to a remote Raspberry Pi server, I added that functionality as well as modifying the logic and speech responses to suit my application. One of the biggest challenges I had was where to place to callbacks that returned responses back to Alexa due to the async nature of Node.js. Once I figured that out, the rest was pretty easy. Here's a few key parts of the code which is listed in its entirety [elsewhere] (https://github.com/goruck/all/blob/master/lambda/all.js).
+
+The snippet below sets up the ability to use the tls method to open, read, and write a TCP socket that connects to the remote Pi server. the tls method provides both authentication and encryption between the Lambda client and the Pi server. 
+
+```javascript
+var tls = require('tls');
+var PORT = XXXX;
+var HOST = 'XXX.XXX.XXX.XXX'; // todo: use FQDN instead of IP
+    
+var options = {
+   host: HOST,
+   port: PORT,
+   rejectUnauthorized: false, // danger - MITM attack possible - todo: fix
+   key:"", // add for client-side auth - todo: add
+   cert:"",
+   ca:""
+};
+```
+
+I found a few challenges here due to using an IP address for the remote client instead of a FQDN and using self-signed TLS certificates. I'm currently working around this by setting *rejectUnauthorized* to false which allows an unauthenticated connection between Lambda client and the remote Pi server. This creates a potential man-in-the-middle vulnerability where the Lambda function could be tricked into connecting to a server other than the remote Pi. A fix for that will be in place soon. I'm also not currently using client side authentication which needs to be added for better end-to-end security, but in order to enable that I need to figure out a way to safely store the client credentials in Lambda which is a challenge since Lambda itself does not offer persistent storage and I don't want to hard code certificate data (in .PEM) in the Node.js code. I think there is a way to do this by storing the cert data in S3 and linking that to Lambda, this is something that I'll try soon. For now, I'm using other methods on the server side to make sure that only the clients I want connect to the Pi.
+
+The snippet below writes a value to the remote Pi server that gets translated into an alarm keypad command. 
+
+```javascript
+var socket = tls.connect(options, function() {
+   if(socket.authorized){
+     console.log('authorized');
+   }
+   else{
+      console.log('cert auth error: ', socket.authorizationError);
+   }
+   socket.write(num +'\n');
+   console.log('wrote ' +num);
+   socket.end;
+   console.log('disconnected from host ' +HOST);
+   callback(sessionAttributes,
+      buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+});
+```
+The snippets below read alarm status coming back from the Pi server and sends it back to Alexa. 
+
+```javascript
+socket.on('data', function(data) {
+   read += data.toString();
+});
+       
+socket.on('end', function() {
+   socket.end;
+   console.log('disconnected from host ' +HOST);
+   console.log('host data read: ' +read);
+   speechOutput = read;
+   callback(sessionAttributes,
+      buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+});
+```
+
+## Raspberry Pi Controller / Server
 
 ### Real-time Linux
 TBA
 
-### Application
+### Controller / Server Application
 TBA
 
 ### Startup
@@ -139,6 +195,7 @@ Note: bypass capacitors not shown.
 ## PDFs of Block Diagram and System Overview
 [all blockdia.pdf](https://github.com/goruck/all/files/57052/all.blockdia.pdf)
 [all overview.pdf](https://github.com/goruck/all/files/57059/all.overview.pdf)
-
-<a name="myfootnote1">1</a>: Footnote content goes here
-<a name="myfootnote2">2</a>: Footnote content goes here
+ 
+<a name="myfootnote1">1</a>: Footnote content about measuring GPIO jitter under Linux goes here
+<a name="myfootnote2">2</a>: Although this looks very waterfall-ish, in reality I iterated between architecture / design / test to arrive at the final systems architecture.
+<a name="myfootnote3">3</a>: Footnote content about Alexa bug responding to other utterances goes here
