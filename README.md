@@ -178,7 +178,20 @@ TBA
 TBA
 
 ## Keybus to GPIO Interface Unit
-TBA
+The keybus is a DSC proprietary serial bus that runs from the panel to the sensors and controller keypads in the house. I first had to understand this bus from an electrical and protocol point of view before I could interface the Pi to the panel. There isn't a lot of information on the keybus other than what's in the DSC installation manual and miscellaneous info on the Internet posted by fellow hackers. This is a two wire bus with clock and data, plus ground and the supply from the panel. The supply is 13.8 V (nominal) and the clock and data transition between 0 and 13.8 V. The large voltage swings make sense given that it provides good noise immunity against interference from long runs of the bus through the house. The DSC manual states the bus can supply a max of 550 mA. I added up the current from all the devices presently on the bus which came out to about 400 mA. This meant that my interface unit could draw no more than 150 mA. I kept that in mind as I designed the circuitry. 
+
+I used an oscilloscope to reverse engineer the protocol. Some screen-shots are shown below.
+
+![whole-word-ann](https://cloud.githubusercontent.com/assets/12125472/11801916/17eb6cf8-a29f-11e5-8d3c-5cd4d39ac7ed.gif)
+This shows an entire word with the start of new word marker, which is the clock being held high for a relatively long time. The clock is 1 KHz. The messages between the panel and keypads are of variable length. Data from the panel to the keypads is sent on the rising edge of the clock; data from the keypads to the panel is sent on the falling edge of the clock. The typical message from the panel to the keypads is 43 bits (43 ms in duration) and the start of the new word clock marker is about 29 ms. Thus, a typical message including start of new marker is about 72 ms. I've seen messages up to 62 bits long but they are not frequent. 
+
+![data-clock-close](https://cloud.githubusercontent.com/assets/12125472/11801938/55c9817c-a29f-11e5-82a7-1eac18a5abc4.gif)
+This shows a closer view of the clock and data, with data being sent to and from panel to keypad. 
+
+![hold](https://cloud.githubusercontent.com/assets/12125472/11801930/3978a8b8-a29f-11e5-85f2-fa0639eed443.gif)
+This shows setup and hold times between the clock and the data. I had to carefully set timers in the application code to adhere to these specific values for reliable data transfers to happen.
+
+TBA - circuit design. 
 
 # Development and Test environment
 TBA
@@ -186,7 +199,6 @@ TBA
 # Appendix
 
 ## DSC Power832 Overview
-TBA 
 
 ## Bill of materials and service cost considerations
 TBA
