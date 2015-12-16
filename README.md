@@ -178,20 +178,35 @@ TBA
 TBA
 
 ## Keybus to GPIO Interface Unit
-The keybus is a DSC proprietary serial bus that runs from the panel to the sensors and controller keypads in the house. I first had to understand this bus from an electrical and protocol point of view before I could interface the Pi to the panel. There isn't a lot of information on the keybus other than what's in the DSC installation manual and miscellaneous info on the Internet posted by fellow hackers. This is a two wire bus with clock and data, plus ground and the supply from the panel. The supply is 13.8 V (nominal) and the clock and data transition between 0 and 13.8 V. The large voltage swings make sense given that it provides good noise immunity against interference from long runs of the bus through the house. The DSC manual states the bus can supply a max of 550 mA. I added up the current from all the devices presently on the bus which came out to about 400 mA. This meant that my interface unit could draw no more than 150 mA. I kept that in mind as I designed the circuitry. 
 
-I used an oscilloscope to reverse engineer the protocol. Some screen-shots are shown below.
+### Keybus Electrical Charateristics
+The keybus is a DSC proprietary serial bus that runs from the panel to the sensors and controller keypads in the house. I first had to understand this bus from an electrical (and protocol point of view, see above) before I could interface the Pi to the panel. There isn't a lot of information on the keybus other than what's in the DSC installation manual and miscellaneous info on the Internet posted by fellow hackers. This is a two wire bus with clock and data, plus ground and the supply from the panel. The supply is 13.8 V (nominal) and the clock and data transition between 0 and 13.8 V. The large voltage swings make sense given that it provides good noise immunity against interference picked up from long runs of the bus through the house. The DSC manual states the bus supply can source a max of 550 mA. I added up the current from all the devices presently on the bus which came out to about 400 mA. This meant that my interface unit could draw no more than 150 mA. I kept that in mind as I designed the circuitry. 
+
+I used an oscilloscope to reverse engineer the protocol. Some screen-shots and my analysis from them are below.
 
 ![whole-word-ann](https://cloud.githubusercontent.com/assets/12125472/11801916/17eb6cf8-a29f-11e5-8d3c-5cd4d39ac7ed.gif)
-This shows an entire word with the start of new word marker, which is the clock being held high for a relatively long time. The clock is 1 KHz. The messages between the panel and keypads are of variable length. Data from the panel to the keypads is sent on the rising edge of the clock; data from the keypads to the panel is sent on the falling edge of the clock. The typical message from the panel to the keypads is 43 bits (43 ms in duration) and the start of the new word clock marker is about 29 ms. Thus, a typical message including start of new marker is about 72 ms. I've seen messages up to 62 bits long but they are not frequent. 
+This shows an entire word with the start of new word marker, which is the clock being held high for a relatively long time. The clock rate when active is 1 KHz. The messages between the panel and keypads are of variable length. The typical message from the panel to the keypads is 43 bits (43 ms in duration) and the start of the new word clock marker is about 15 ms. Thus, a typical message time including start of new marker is about 58 ms. I've seen messages up to 62 bits long but they are not frequent. 
 
 ![data-clock-close](https://cloud.githubusercontent.com/assets/12125472/11801938/55c9817c-a29f-11e5-82a7-1eac18a5abc4.gif)
-This shows a closer view of the clock and data, with data being sent to and from panel to keypad. 
+This shows a closer view of the clock and data, with data being sent between the panel and keypad and vise-versa. Data from the panel to the keypads transitions on the rising edge of the clock and becomes valid about 120 us later. Data from the keypads to the panel transitions at falling edge of the clock is likely registered in the panel on the next rising edge of the clock. The keypad data needs to be held for at least 25 us after the rising edge of the clock for it to be properly registered. I had to carefully set timers in the Pi's application code to adhere to these values for reliable data transfers to happen. The spikes at 2.5 and 4.5 ms are most likely due to the pull-up resistor on the data line in the panel causing it to be pulled high before the driver on the keypad has a chance to pull it low, which happens when the keypad sends a 0 bit to the panel.
 
-![hold](https://cloud.githubusercontent.com/assets/12125472/11801930/3978a8b8-a29f-11e5-85f2-fa0639eed443.gif)
-This shows setup and hold times between the clock and the data. I had to carefully set timers in the application code to adhere to these specific values for reliable data transfers to happen.
+From this data, I was reasonably able to conclude that the panel's data line is bidirectional (with direction switched by clock level) and pulled up internally when configured as an input. I needed to find out the strength of the pull-up in order to design the interface circuit correctly, so I did some more experiments and determined that it was approximately 5 KΩ.
 
-TBA - circuit design. 
+### Raspberry Pi GPIO Electrical Characteristics
+Now that I understood the panel side a bit better, I needed to get some more data on the electrical characteristics of the Pi's GPIOs. I could not really find the level of detail that I wanted from the Raspberry Pi standard information. But I did find some excellent information on the Mosaic Industries website [here](http://www.mosaic-industries.com/embedded-systems/microcontroller-projects/raspberry-pi/gpio-pin-electrical-specifications). I found this information to be super helpful in designing an interface that I was confident in. I've pasted some of the key points from the article below. 
+
+* These are 3.3 volt logic pins. A voltage near 3.3 V is interpreted as a logic one while a voltage near zero volts is a logic zero. A GPIO pin should never be connected to a voltage source greater than 3.3V or less than 0V, as prompt damage to the chip may occur as the input pin substrate diodes  conduct. There may be times when you may need to connect them to out ­of ­range voltages – in those cases the input pin current must be limited by an external resistor to a value that prevents harm to the chip. I recommend that you never source or sink more than 0.5 mA into an input pin.
+* To prevent excessive power dissipation in the chip, you should not source/sink more current from the pin than its programmed limit. So, if you have set the current capability to 2 mA, do not draw more than 2 mA from the pin.
+* Never demand that any output pin source or sink more than 16 mA.
+* Current sourced by the outputs is drawn from the 3.3 V supply, which can supply only 50 mA maximum. Consequently, the maximum you can source from all the GPIO outputs simultaneously is less than 50 mA. You may be able to draw transient currents beyond that limit as they are drawn from the bypass capacitors on the 3.3 V rail, but don't push the envelope! There isn't a similar limitation on sink current. You can sink up to 16 mA each into any number of GPIO pins simultaneously. However, transient sink currents do make demands on the board's bypass capacitors, so you may get into trouble if all outputs switch their maximum current synchronously.
+* Do not drive capacitive loads. Do not place a capacitive load directly across the pin. Limit current into any capacitive load to a maximum transient current of 16 mA. For example, if you use a low pass filter on an output pin, you must provide a series resistance of at least 3.3V/16mA = 200 Ω.
+
+### Interface Circuit Design
+Now that I had a good understanding of the panel keybus and Raspberry PI GPIO electrical characteristics, I could finally design the interface circuity. Since I wanted to electrically isolate the panel and Pi grounds, optoisolators were an obvious choice. But they do consume a fair amount of current so I had to buffer them instead of directly connecting them between the keybus and PI GPIOs. This added a bit more complexity but it was the only way yo keep the current consumption within range of both the panel and PI's capabilities. I had to use a high Current Transfer Ratio (CTR) optoisolator configured actively to drive a logic-level FET to pull down the data line with sufficient strength, the other optoisolaors are not high CTR (high CTR = $$). The interface schematic is shown below (at some point I will convert my hand drawing to a real CAD schematic). 
+
+![netbus-gpio-if2](https://cloud.githubusercontent.com/assets/12125472/11706723/416ad890-9eb0-11e5-976f-e48f492587b6.png)
+![netbus-gpio-if1](https://cloud.githubusercontent.com/assets/12125472/11706728/47b519f4-9eb0-11e5-8f12-56c11d6d14d0.png)
+Note: bypass capacitors not shown. 
 
 # Development and Test environment
 TBA
@@ -211,11 +226,6 @@ Note: connections to AWS Lambda triggered by Alexa
 ![proto pic1](https://cloud.githubusercontent.com/assets/12125472/11706674/a8721fcc-9eaf-11e5-8707-f780ae4ef86a.png)
 ![proto pic2](https://cloud.githubusercontent.com/assets/12125472/11706679/b0fb6950-9eaf-11e5-95be-3d668412c5e2.png)
 Note: planning to move interface circuits from breadboard to board that fits in Raspberry PI housing 
-
-## Keybus to GPIO I/F Unit Schematic
-![netbus-gpio-if2](https://cloud.githubusercontent.com/assets/12125472/11706723/416ad890-9eb0-11e5-976f-e48f492587b6.png)
-![netbus-gpio-if1](https://cloud.githubusercontent.com/assets/12125472/11706728/47b519f4-9eb0-11e5-8f12-56c11d6d14d0.png)
-Note: bypass capacitors not shown. 
 
 ## PDFs of Block Diagram and System Overview
 [all blockdia.pdf](https://github.com/goruck/all/files/57052/all.blockdia.pdf)
