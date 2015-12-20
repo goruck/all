@@ -224,7 +224,16 @@ So I decided to lock the *panel_io()* thread to its own CPU and let the other th
 
 With the threads pinning to the CPUs in this way and with the priority of *panel_io()* being greater than the other two threads in the application code (but not greater than the kernel's critical threads), the system exhibits robust real-time performance.
 
-The server uses openSSL for authentication and encyption. For development and test purposes, I used self-signed certificates and the IP address of the server instead of a Fully Qualified Domain Name. But production code should use certificates signed by a real CA and a FQDN for the server, registered with a DNS. The server also uses Tcp Wrapper for secure access. Tcp Wrapper uses the *hosts_ctl()* system call from libwrap library to limit client access via the rules defined in /etc/host.deny and /etc/host.allow files. I set the rules so that only clients with local IP addresses and AWS IP addresses are allowed access to the server.
+The server uses openSSL for authentication and encryption. For development and test purposes, I used self-signed certificates and the IP address of the server instead of a Fully Qualified Domain Name. I generated the cert and private key with the following commands.
+
+```bash
+$ openssl genrsa -out privateKey.key 2048
+$ openssl req -new -key privateKey.key -out privateKey.csr
+$ openssl x509 -req -in privateKey.csr -signkey privateKey.key -out certificate.crt -days 500 -extfile key.ext
+```
+Where key.ext contains "subjectAltName = IP:xxx.xxx.xxx.xxx" (replace with the IP address of your server). 
+
+Production code should use certificates signed by a real CA and a FQDN for the server, registered with a DNS. The server also uses TCP Wrapper daemon for secure access. TCP Wrapper uses the *hosts_ctl()* system call from libwrap library to limit client access via the rules defined in /etc/host.deny and /etc/host.allow files. I set the rules so that only clients with local IP addresses and AWS IP addresses are allowed access to the server.
 
 The application code needs to be compiled with the relevant libraries and executed with su privileges, per the following.
 
@@ -234,7 +243,47 @@ $ sudo ./kprw-server
 ```
 
 ### Startup
-TBA
+The Raspberry Pi is used here as an embedded system so it needs to come up automatically after power on, including after a possible loss of power. The application code defines the GPIOs as follows:
+
+```c
+#define PI_CLOCK_IN	(13)
+#define PI_DATA_IN	(5)
+#define PI_DATA_OUT	(6)
+```
+
+So I had to make sure these GPIOs would be in a safe state after power on and boot up. Per the Broadcom BCM2835 ARM Peripherals document, these GPIOs are configured as inputs at reset and the kernel doesn't change that during boot, so they won't cause any the keybus serial data line to be pulled down before the application code initializes them.
+
+I added the code below to /etc/rc.local so that the application code would automatically run after powering on the Pi.
+
+```bash
+/home/pi/all/rpi/kprw-server > /dev/null &
+```
+
+At some point I'll add some provisions to automatically restart the application code in the event of a crash.
+
+I've seen cases where the Pi's wifi would not automatically reconnect after it loses the connection. To address this, I created the script /usr/local/bin/wifi_rebooter.sh which is periodically by a cron job. The script and cron entry is shown below.
+
+```bash
+#!/bin/bash
+
+# IP for the server you wish to ping (8.8.8.8 is a public Google DNS server)
+SERVER=8.8.8.8
+
+# Only send two pings, sending output to /dev/null
+ping -c2 ${SERVER} > /dev/null
+
+# If the return code from ping ($?) is not 0 (meaning there was an error)
+if [ $? != 0 ]
+then
+    # Restart the wireless interface
+    ifdown --force wlan0
+    ifup wlan0
+fi
+```
+
+```bash
+*/5 * * * *   root    /usr/local/bin/wifi_rebooter.sh
+```
 
 ## Keybus to GPIO Interface Unit
 
