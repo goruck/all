@@ -8,7 +8,7 @@
  *
  * Tested with Raspberry Pi 2.
  *
- * Must run under linux PREEMPT_RT kernel 3.18.9-rt5-v7 and as sudo.
+ * Must run under linux PREEMPT_RT kernel 3.18.9-rt5-v7 and as su.
  *
  * See https://github.com/goruck/all for details. 
  *
@@ -878,9 +878,9 @@ int main(int argc, char *argv[])
   struct sched_param param_main, param_pio;
   struct utsname u;
   struct status pstat;
-  pthread_t pio_thread, mio_thread;
+  pthread_t pio_thread, mio_thread, main_thread;
   pthread_attr_t my_attr;
-  cpu_set_t cpuset_mio, cpuset_pio;
+  cpu_set_t cpuset_mio, cpuset_pio, cpuset_main;
   FILE *fd;
 
   // Check if running with real-time linux.
@@ -896,13 +896,17 @@ int main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
-  // todo: add checks if running with sudo priv and raspberry pi 2 hw. 
+  // todo: add checks if running with su priv and raspberry pi 2 hw. 
 
-  // CPU(s) for message i/o thread
+  // CPU(s) for main and message i/o threads
   CPU_ZERO(&cpuset_mio);
   CPU_SET(1, &cpuset_mio);
   CPU_SET(2, &cpuset_mio);
   CPU_SET(3, &cpuset_mio);
+  CPU_ZERO(&cpuset_main);
+  CPU_SET(1, &cpuset_main);
+  CPU_SET(2, &cpuset_main);
+  CPU_SET(3, &cpuset_main);
   // CPU(s) for panel i/o thread
   CPU_ZERO(&cpuset_pio);
   CPU_SET(0, &cpuset_pio);
@@ -911,6 +915,14 @@ int main(int argc, char *argv[])
   param_main.sched_priority = MAIN_PRI;
   if(sched_setscheduler(0, SCHED_FIFO, &param_main) == -1) {
     perror("sched_setscheduler failed\n");
+    exit(EXIT_FAILURE);
+  }
+
+  // set main thread cpu affinity
+  main_thread = pthread_self();
+  res = pthread_setaffinity_np(main_thread, sizeof(cpuset_main), &cpuset_main);
+  if (res != 0) {
+    perror("Main thread cpu affinity set failed\n");
     exit(EXIT_FAILURE);
   }
 
