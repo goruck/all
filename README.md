@@ -172,53 +172,27 @@ The distribution of the latency on the patched kernel as measure by Cyclictest i
 ![pi latency](https://cloud.githubusercontent.com/assets/12125472/11770022/4d3df3fe-a1a9-11e5-91b7-281b4b064da6.gif)
 
 ### Controller / Server Application
-The application code on the Pi emulates a DSC keypad controller running in the Linux system's userspace. The application code in its entirity can be found [here](https://github.com/goruck/all/blob/master/rpi/kprw-server.c) and in this section I've tried to capture important design considerations that are not obvious from the code itself or the comments. 
+The application code on the Pi emulates a DSC keypad controller running in the Linux system's userspace. The application code in its entirety can be found [here](https://github.com/goruck/all/blob/master/rpi/kprw-server.c) and in this section I've tried to capture important design considerations that are not obvious from the code itself or the comments. 
 
-The DSC system is closed and proprietary and besides the installation and programming information in the DSC manuals and what hackers have managed to figured out and posted on the Internet and GitHub, there isn't much information available about the protocol it uses to communicate with its keypads. Also, much of what I found on the Internet relies on using an IP interface bridge like this [one](http://www.eyezon.com/?page_id=176) from Eyezon. I could have used a bridge like this instead of my code on the Raspberry Pi but that would have made my reference design much less generic (and much less fun to develop). I did find a lot of useful information on how to hack the DSC system from [this](https://github.com/emcniece/Arduino-Keybus) GitHub repo, but the author, Mr. McNiece, used an Arduino which I ruled out (see above) and it was read-only. Still, it was very educational. Although these sources helped, I ended up doing a lot of reverse engineering to figure out the protocol used on the DSC Keybus. This mainly consisted of using an early version of my application code to examine the bits sent from the panel to the keypads and the keypads to the panel in response to keypad button presses and other events, like motion and door / window openings and closings. I found that the first two bytes of each message indicates its type, followed by a variable number of data bits including error protection. For example a message with its first two bytes equal to 0x05 is telling the keypad to illuminate specific status LEDs, such as BYPASS, READY, etc and a message type equal to 0xFF indicates keypad to panel data is being sent. See the *decode()* function in the application code for details regarding the various message types and thier contents.
+The DSC system is closed and proprietary and besides the installation and programming information in the DSC manuals and what hackers have managed to figured out and posted on the Internet and GitHub, there isn't much information available about the protocol it uses to communicate with its keypads. Also, much of what I found on the Internet relies on using an IP interface bridge like this [one](http://www.eyezon.com/?page_id=176) from Eyezon. I could have used a bridge like this instead of my code on the Raspberry Pi but that would have made my reference design much less generic (and much less fun to develop). I did find a lot of useful information on how to hack the DSC system from the [Arduino-Keybus](https://github.com/emcniece/Arduino-Keybus) GitHub repo, but it used an Arduino which I ruled out (see above) and it was read-only. Still, it was very educational. Although these sources helped, I ended up doing a lot of reverse engineering to figure out the protocol used on the DSC Keybus. This mainly consisted of using an early version of my application code to examine the bits sent from the panel to the keypads and the keypads to the panel in response to keypad button presses and other events, like motion and door / window openings and closings. I found that the first two bytes of each message indicates its type, followed by a variable number of data bits including error protection. For example a message with its first two bytes equal to 0x05 is telling the keypad to illuminate specific status LEDs, such as BYPASS, READY, etc and a message type equal to 0xFF indicates keypad to panel data is being sent. See the *decode()* function in the application code for details regarding the various message types and their contents.
 
 The application code consists of three main parts:
 
 * A thread called *panel_io()* that handles the bit-level processing needed to assemble messages from the keybus serial data. 
 * A thread called *msg_io()* that handles the message-level output processing.
-* A server running in the main thread that communicates with an external client for commands and status.
+* A server called *panserv()* running in the main thread that communicates with an external client for commands and status.
 
-The application code directly accesses the GPIO's registers for the fastest possible reads and writes. I based my code that implements this direct access on [this](http://elinux.org/RPi_GPIO_Code_Samples#Direct_register_access) information from Embedded Linux Wiki at elinux.org. 
+The application code directly accesses the GPIO's registers for the fastest possible reads and writes. I based my code that implements this direct access on [this](http://elinux.org/RPi_GPIO_Code_Samples#Direct_register_access) information from the Embedded Linux Wiki at elinux.org. The function *setup_io()* in the application code sets up a memory regions to access the GPIOs. I found the information in the Broadcom BCM2835 ARM Peripherals document very useful to understand how to safely access the Pi's processor peripherals. You can find it [here](http://elinux.org/RPi_Documentation) on the Embedded Linux Wiki site.
 
-Inter-thread communication is handled safely via a read FIFO and a write FIFO without any synchronization (e.g., using a mutext). I didn't want to use conventional thread synchronization methods since they would block the *panel_io()* thread. I don't have any way to tell the panel not to send data on the keybus, so if *panel_io()* was blocked, the application code would drop messages. I found a good solution to this problem in the article [Creating a Thread Safe Producer Consumer Queue in C++ Without Using Locks](http://blogs.msmvps.com/vandooren) by Vandooren, which is what I implemented with a few modifcations.
+Inter-thread communication is handled safely via read and write FIFOs without any synchronization (e.g., using a mutext). I didn't want to use conventional thread synchronization methods since they would block the *panel_io()* thread. I don't have any way to tell the panel not to send data on the keybus, so if *panel_io()* was blocked by another thread accessing a shared FIFO, the application code would drop messages. I found a good solution to this problem in the article [Creating a Thread Safe Producer Consumer Queue in C++ Without Using Locks](http://blogs.msmvps.com/vandooren) by Vandooren, which is what I implemented with a few modifications.
 
-Running code under real-time Linux requires a few special considerations. Again, I used the [real-time Linux](https://rt.wiki.kernel.org/index.php/Main_Page) wiki extensively to guide my efforts in this regard. I also referred to the excellent book [The Linux Programming Interface](http://man7.org/tlpi/) by Kerrisk to help me understand more deeply how real-time Linux works. I learned that there are three things needed to be set by a task in order to provide deterministic real time behavior (with relevant application code snippets inline):
+Running code under real-time Linux requires a few special considerations. Again, I used the [real-time Linux](https://rt.wiki.kernel.org/index.php/Main_Page) wiki extensively to guide my efforts in this regard. I also used the excellent book [The Linux Programming Interface](http://man7.org/tlpi/) by Kerrisk to help me understand more deeply how the Linux kernel schedules tasks. I learned that there are three things needed to be set by a task in order to provide deterministic real time behavior:
 
-1. Setting a real time scheduling policy and priority.
-```c
-// Declare ourself as a real time task
-  param_main.sched_priority = MAIN_PRI;
-  if(sched_setscheduler(0, SCHED_FIFO, &param_main) == -1) {
-    perror("sched_setscheduler failed\n");
-    exit(EXIT_FAILURE);
-  }
-```
-Note that the *panel_io()*, *message_io()*, and *main()* were all given the same scheduling policy (SCHED_FIFO) but I gave *panel()* a higher priority than *message_io()* and *main()*. I did that to make sure the bit-level processing had enough time to complete, but I did run into a complication described below. 
+1. Setting a real time scheduling policy and priority by use of the *sched_setscheduler()* system call and its pthread cousins. Note that *panel_io()*, *message_io()*, and *main()* were all given the same scheduling policy (SCHED_FIFO) but I gave *panel_io()* a higher priority than *message_io()* and *main()*. I did that to make sure the bit-level processing had enough time to complete, but I did run into a complication described below that I solved by attaching a CPU affinity to the threads.
+2. Locking memory so that page faults caused by virtual memory will not undermine deterministic behavior. This is done with the *mlockall()* system call. 
+3. Pre-faulting the stack, so that a future stack fault will not undermine deterministic behavior. This is done by simply accessing each element of the program's stack by use of the *memset()* system call. 
 
-2. Locking memory so that page faults caused by virtual memory will not undermine deterministic behavior.
-```c
-// Lock memory to prevent page faults
-  if(mlockall(MCL_CURRENT|MCL_FUTURE) == -1) {
-    perror("mlockall failed\n");
-    exit(EXIT_FAILURE);
-  }
-```
-
-3. Pre-faulting the stack, so that a future stack fault will not undermine deterministic behavior.
-```c
-// stack_prefault
-static void stack_prefault(void) {
-  unsigned char dummy[MAX_SAFE_STACK];
-  memset(dummy, 0, MAX_SAFE_STACK);
-  return;
-} // stack_prefault
-```
-
-I made extensive use of the *clock_nanosleep()* function from librt. It use is probably best shown in the *panel_io()* thread where it awakens the thread every INTERVAL (10 us) to read and write to the GPIOs driving the keybus clock and data lines (via the interface unit). The thread contains logic to detect the start of word marker, to detect high and low clock periods, and to control precisely when the GPIOs are read and written. For example, the snippet below causes the thread to wait for valid data before reading the GPIO.
+I made extensive use of the *clock_nanosleep()* function from librt. For example, its use is shown in the *panel_io()* thread where it awakens the thread every INTERVAL (10 us) to read and write to the GPIOs driving the keybus clock and data lines (via the interface unit). The thread contains logic to detect the start of word marker, to detect high and low clock periods, and to control precisely when the GPIOs are read and written. The snippet below taken from *panel_io()* causes the thread to wait for valid data before reading the GPIO.
 
 ```c
 t.tv_nsec += KSAMPLE_OFFSET;
@@ -227,24 +201,37 @@ clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &t, NULL); // wait KSAMPLE_OFFSE
 wordkr_temp = (GET_GPIO(PI_DATA_IN) == PI_DATA_HI) ? '0' : '1'; // invert
 ```
 
-Even though the *panel()* is given higher priority than the other two threads, other threads in the Linux kernel must have higher still priority for the overall system to funcation. So I was concerned that a higher priority kernel task could cause *panel_io()* to drop bits. I consulted the real-time Linux for a solution and found this:
+Even though the *panel_io()* is given higher priority than the other two threads, other critical threads in the Linux kernel must have higher still priority for the overall system to function. So I was concerned that a higher priority kernel task could cause *panel_io()* to drop bits. I consulted the real-time Linux wiki for a solution and found this:
 
-*In general, I/O is dangerous to keep in an RT code path. This is due to the nature of most filesystems and the fact that I/O devices will have to abide to the laws of physics (mechanical movement, voltage adjustments, <whatever an I/O device does to retrieve the magic bits from cold storage>). For this reason, if you have to access I/O in an RT-application, make sure to wrap it securely in a dedicated thread running on a disjoint CPU from the RT-application.* 
+*"In general, I/O is dangerous to keep in an RT code path. This is due to the nature of most filesystems and the fact that I/O devices will have to abide to the laws of physics (mechanical movement, voltage adjustments, <whatever an I/O device does to retrieve the magic bits from cold storage>). For this reason, if you have to access I/O in an RT-application, make sure to wrap it securely in a dedicated thread running on a disjoint CPU from the RT-application."* 
 
-So I decided to lock the *panel_io()* thread to its own CPU and let the other threads (including the kernel's) have free reign on the other three CPUs (its really great to have four CPUs at one's disposal). The code snippet below shows how that CPU pinning is done in the application code:
+So I decided to lock the *panel_io()* thread to its own CPU and let the other threads have free reign on the other three CPUs (its really great to have four CPUs at one's disposal). The application code sets the thread CPU affinity as shown below. 
 
 ```c
-// CPU(s) for message i/o thread
+// CPU(s) for main and message i/o threads
   CPU_ZERO(&cpuset_mio);
   CPU_SET(1, &cpuset_mio);
   CPU_SET(2, &cpuset_mio);
   CPU_SET(3, &cpuset_mio);
+  CPU_ZERO(&cpuset_main);
+  CPU_SET(1, &cpuset_main);
+  CPU_SET(2, &cpuset_main);
+  CPU_SET(3, &cpuset_main);
   // CPU(s) for panel i/o thread
   CPU_ZERO(&cpuset_pio);
   CPU_SET(0, &cpuset_pio);
 ```
 
-With the threads pinning to the CPUs in this way and with the priority of *panel()* being greater than the other two threads in the application code (but not greater than the kernel's threads), the system exhibits robust real-time performance. 
+With the threads pinning to the CPUs in this way and with the priority of *panel_io()* being greater than the other two threads in the application code (but not greater than the kernel's critical threads), the system exhibits robust real-time performance.
+
+The server uses openSSL for authentication and encyption. For development and test purposes, I used self-signed certificates and the IP address of the server instead of a Fully Qualified Domain Name. But production code should use certificates signed by a real CA and a FQDN for the server, registered with a DNS. The server also uses Tcp Wrapper for secure access. Tcp Wrapper uses the *hosts_ctl()* system call from libwrap library to limit client access via the rules defined in /etc/host.deny and /etc/host.allow files. I set the rules so that only clients with local IP addresses and AWS IP addresses are allowed access to the server.
+
+The application code needs to be compiled with the relevant libraries and executed with su privileges, per the following.
+
+```bash
+$ gcc -Wall -o kprw-server kprw-server.c -lrt -lpthread -lwrap -lssl -lcrypto
+$ sudo ./kprw-server
+```
 
 ### Startup
 TBA
