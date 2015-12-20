@@ -246,12 +246,13 @@ $ sudo ./kprw-server
 The Raspberry Pi is used here as an embedded system so it needs to come up automatically after power on, including after a possible loss of power. The application code defines the GPIOs as follows:
 
 ```c
-#define PI_CLOCK_IN	(13)
-#define PI_DATA_IN	(5)
-#define PI_DATA_OUT	(6)
+// GPIO pin mapping.
+#define PI_CLOCK_IN	(13) // BRCM GPIO13 / PI J8 Pin 33
+#define PI_DATA_IN	(5)  // BRCM GPIO05 / PI J8 Pin 29
+#define PI_DATA_OUT	(16) // BRCM GPIO16 / PI J8 Pin 36
 ```
 
-So I had to make sure these GPIOs would be in a safe state after power on and boot up. Per the Broadcom BCM2835 ARM Peripherals document, these GPIOs are configured as inputs at reset and the kernel doesn't change that during boot, so they won't cause any the keybus serial data line to be pulled down before the application code initializes them.
+I had to make sure these GPIOs would be in a safe state after power on and boot up. Per the Broadcom BCM2835 ARM Peripherals document, these GPIOs are configured as inputs at reset and the kernel doesn't change that during boot, so they won't cause any the keybus serial data line to be pulled down before the application code initializes them. BRCM GPIO16 is pulled down by a 10 KΩ resistor in the interface unit so that when its configured as an input, it won't float high. I selected BRCM GPIO16 for the active high signal that drives the keybus data line since that GPIO has the option of being driven low from an external pull down. Other GPIOs have optional pull-ups. Even though the pull resistors are disabled by default, I didn't want take a chance if software enabled the pull resistors by mistake. 
 
 I added the code below to /etc/rc.local so that the application code would automatically run after powering on the Pi.
 
@@ -312,7 +313,7 @@ Now that I understood the panel side a bit better, I needed to get some more dat
 * Do not drive capacitive loads. Do not place a capacitive load directly across the pin. Limit current into any capacitive load to a maximum transient current of 16 mA. For example, if you use a low pass filter on an output pin, you must provide a series resistance of at least 3.3V/16mA = 200 Ω.
 
 ### Interface Circuit Design
-Now that I had a good understanding of the panel keybus and Raspberry PI GPIO electrical characteristics, I could finally design the interface circuity. Since I wanted to electrically isolate the panel and Pi to prevent ground loops, optoisolators were an obvious choice. But they do consume a fair amount of current so I had to buffer them instead of directly connecting them between the keybus clock and data and PI GPIOs. This added a bit more complexity but it was the only way to keep the current consumption within range of both the panel and PI's capabilities. I had to use a high Current Transfer Ratio (CTR) optoisolator configured actively to drive a logic-level FET to pull down the data line with sufficient strength, the other optoisolaors are not high CTR (high CTR = $$). The interface schematic is shown below (at some point I will convert my hand drawing to a real CAD schematic). 
+Now that I had a good understanding of the panel keybus and Raspberry PI GPIO electrical characteristics, I could finally design the interface circuity. Since I wanted to electrically isolate the panel and Pi to prevent ground loops, optoisolators were an obvious choice. But they do consume a fair amount of current so I had to buffer them instead of directly connecting them between the keybus clock and data and PI GPIOs. This added a bit more complexity but it was the only way to keep the current consumption within range of both the panel and PI's capabilities. I had to use a high Current Transfer Ratio (CTR) optoisolator configured actively to drive a FET with logic-level gate voltage threshold to pull down the data line with sufficient strength, the other optoisolators are not high CTR (high CTR = $$). The interface schematic is shown below (at some point I will convert my hand drawing to a real CAD schematic). 
 
 ![netbus-gpio-if2](https://cloud.githubusercontent.com/assets/12125472/11706723/416ad890-9eb0-11e5-976f-e48f492587b6.png)
 ![netbus-gpio-if1](https://cloud.githubusercontent.com/assets/12125472/11706728/47b519f4-9eb0-11e5-8f12-56c11d6d14d0.png)
