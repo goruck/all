@@ -313,11 +313,10 @@ Now that I understood the panel side a bit better, I needed to get some more dat
 * Do not drive capacitive loads. Do not place a capacitive load directly across the pin. Limit current into any capacitive load to a maximum transient current of 16 mA. For example, if you use a low pass filter on an output pin, you must provide a series resistance of at least 3.3V/16mA = 200 Ω.
 
 ### Interface Circuit Design
-Now that I had a good understanding of the panel keybus and Raspberry PI GPIO electrical characteristics, I could finally design the interface circuity. Since I wanted to electrically isolate the panel and Pi to prevent ground loops, optoisolators were an obvious choice. But they do consume a fair amount of current so I had to buffer them instead of directly connecting them between the keybus clock and data and PI GPIOs. This added a bit more complexity but it was the only way to keep the current consumption within range of both the panel and PI's capabilities. I had to use a high Current Transfer Ratio (CTR) optoisolator configured actively to drive a FET with logic-level gate voltage threshold to pull down the data line with sufficient strength, the other optoisolators are not high CTR (high CTR = $$). The interface schematic is shown below (at some point I will convert my hand drawing to a real CAD schematic). 
+Now that I had a good understanding of the panel keybus and Raspberry PI GPIO electrical characteristics, I could finally design the interface circuity. Since I wanted to electrically isolate the panel and Pi to prevent ground loops, optoisolators were an obvious choice. But they do consume a fair amount of current so I had to buffer them instead of directly connecting them between the keybus clock and data and PI GPIOs. This added a bit more complexity but it was the only way to keep the current consumption within range of both the panel and PI's capabilities. I had to use a high Current Transfer Ratio (CTR) optoisolator configured actively to drive a FET with logic-level gate voltage threshold to pull down the data line with sufficient strength, the other optoisolators are not high CTR (high CTR = $$). The interface schematic is shown below (at some point I will convert my hand drawing to a real CAD schematic).
 
-![netbus-gpio-if2](https://cloud.githubusercontent.com/assets/12125472/11706723/416ad890-9eb0-11e5-976f-e48f492587b6.png)
-![netbus-gpio-if1](https://cloud.githubusercontent.com/assets/12125472/11706728/47b519f4-9eb0-11e5-8f12-56c11d6d14d0.png)
-Note: bypass capacitors not shown. 
+![keybus-gpio-if1](https://cloud.githubusercontent.com/assets/12125472/11919445/f16955be-a707-11e5-8c5d-1de31212bf9a.png)
+![keybus-gpio-if2](https://cloud.githubusercontent.com/assets/12125472/11919447/f453d4d4-a707-11e5-988a-f284c41c4085.png)
 
 # Development and Test environment
 TBA
