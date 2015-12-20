@@ -261,7 +261,7 @@ I added the code below to /etc/rc.local so that the application code would autom
 
 At some point I'll add some provisions to automatically restart the application code in the event of a crash.
 
-I've seen cases where the Pi's wifi would not automatically reconnect after it loses the connection. To address this, I created the script /usr/local/bin/wifi_rebooter.sh which is periodically by a cron job. The script and cron entry is shown below.
+I've seen cases where the Pi's wifi would not automatically reconnect after it loses the connection. To address this, I created the script /usr/local/bin/wifi_rebooter.sh which is run every 5 minutes by a cron job. This checks for network connectivity every 5 minutes and if the network is down, the wireless interface is automatically restarted. The script and cron entry is shown below.
 
 ```bash
 #!/bin/bash
@@ -293,9 +293,11 @@ The keybus is a DSC proprietary serial bus that runs from the panel to the senso
 I used an oscilloscope to reverse engineer the protocol. Some screen-shots and my analysis from them are below.
 
 ![whole-word-ann](https://cloud.githubusercontent.com/assets/12125472/11801916/17eb6cf8-a29f-11e5-8d3c-5cd4d39ac7ed.gif)
+
 This shows an entire word with the start of new word marker, which is the clock being held high for a relatively long time. The clock rate when active is 1 KHz. The messages between the panel and keypads are of variable length. The typical message from the panel to the keypads is 43 bits (43 ms in duration) and the start of the new word clock marker is about 15 ms. Thus, a typical message time including start of new marker is about 58 ms. I've seen messages up to 62 bits long but they are not frequent. 
 
 ![data-clock-close](https://cloud.githubusercontent.com/assets/12125472/11801938/55c9817c-a29f-11e5-82a7-1eac18a5abc4.gif)
+
 This shows a closer view of the clock and data, with data being sent between the panel and keypad and vise-versa. Data from the panel to the keypads transitions on the rising edge of the clock and becomes valid about 120 us later. Data from the keypads to the panel transitions at falling edge of the clock is likely registered in the panel on the next rising edge of the clock. The keypad data needs to be held for at least 25 us after the rising edge of the clock for it to be properly registered. I had to carefully set timers in the Pi's application code to adhere to these values for reliable data transfers to happen. The spikes at 2.5 and 4.5 ms are most likely due to the pull-up resistor on the data line in the panel causing it to be pulled high before the driver on the keypad has a chance to pull it low, which happens when the keypad sends a 0 bit to the panel.
 
 From this data, I was reasonably able to conclude that the panel's data line is bidirectional (with direction switched by clock level) and pulled up internally when configured as an input. I needed to find out the strength of the pull-up in order to design the interface circuit correctly, so I did some more experiments and determined that it was approximately 5 KΩ.
