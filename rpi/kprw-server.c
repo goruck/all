@@ -78,9 +78,9 @@
 #define GPIO_PULLCLK0 *(gpio+38) // Pull up/pull down clock (BCM Clock 0)
 
 // GPIO pin mapping.
-#define PI_CLOCK_IN	(13)
-#define PI_DATA_IN	(5)
-#define PI_DATA_OUT	(6)
+#define PI_CLOCK_IN	(13) // BRCM GPIO13 / PI J8 Pin 33
+#define PI_DATA_IN	(5)  // BRCM GPIO05 / PI J8 Pin 29
+#define PI_DATA_OUT	(16) // BRCM GPIO16 / PI J8 Pin 36
 
 // GPIO high and low level mapping macros.
 #define PI_CLOCK_HI (1<<PI_CLOCK_IN)
