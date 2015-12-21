@@ -12,6 +12,22 @@ Real-time Linux / user space app dev model | Low effort to control fast real-wor
 Raspberry PI, open source, AWS services | Low cost and quick deployment
 End to end SSL/TLS integration | Customer data security
 
+# Table of Contents
+1. [Requirements and System Architecture](https://github.com/goruck/all#requirements-and-system-architecture)
+2. [Design and Implementation of the Components](https://github.com/goruck/all#design-and-implementation-of-the-components)
+   1. [Alexa Intent Schema / Utterance database](https://github.com/goruck/all#alexa-intent-schema--utterance-database)
+   2. [AWS Lambda function](https://github.com/goruck/all#aws-lambda-function)
+   3. [Raspberry Pi Controller / Server](https://github.com/goruck/all#raspberry-pi-controller--server)
+      * [Real-time Linux](https://github.com/goruck/all#real-time-linux)
+      * [Controller / Server Application](https://github.com/goruck/all#controller--server-application)
+      * [Startup](https://github.com/goruck/all#startup)
+   4. [Keybus to GPIO Interface Unit](https://github.com/goruck/all#keybus-to-gpio-interface-unit)
+      * [Keybus Electrical and Timing Characteristics](https://github.com/goruck/all#keybus-electrical-and-timing-characteristics)
+      * [Raspberry Pi GPIO Electrical Characteristics](https://github.com/goruck/all#raspberry-pi-gpio-electrical-characteristics)
+      * [Interface Circuit Design](https://github.com/goruck/all#interface-circuit-design)
+3. [Development and Test environment](https://github.com/goruck/all#development-and-test-environment)
+4. [Appendix](https://github.com/goruck/all#appendix)
+
 # Requirements and System Architecture
 I came up with the following high-level requirements that the project had to meet.
 
@@ -27,9 +43,9 @@ The system would have both cloud and (home-side) device components. I selected A
 
 I selected the [Raspberry Pi 2](https://www.raspberrypi.org/blog/raspberry-pi-2-on-sale/) as the platform to develop the home-side device components. The platform has a powerful CPU, plenty RAM, a wide variety of physical interfaces, has support for many O/Ss, and is inexpensive. I thought about using an even lower cost platform like [Arduino](https://www.arduino.cc/) but I felt that given its lower capabilities vis-a-vis the Raspberry PI that would limit the types of home-side applications I could develop on that alone. For example, I thought I would need to use GNU/Linux in this project for extensibility and rapid development reasons. Arduino isn't really meant for to run Linux but the Pi is. The downside of using the Pi plus a high-level OS like vanilla Linux is that you give up the ability to react to quickly changing events. On the other hand, the Arduino running bare metal code is a very capable real-time machine. To be as extensible as possible, I did not want to rule out the possibility of developing a real-time voice controlled application and wanted to avoid complex device side architectures like using an Arduino to handle the fast events connected to a Pi to handle the complex events. That seemed to work against my requirements. So, I came up with the idea of using [real-time Linux](https://rt.wiki.kernel.org/index.php/Main_Page) on the Pi which I thought best met my goals. But it does have the downside that I'm no longer using a standard kernel and real-time programming requires a bit more thought and care than standard application development in Linux userspace.
 
-I chose to focus on using the Pi's GPIOs to interface to the things around the home I wanted to add voice control to. I felt that this would allow me the maximum flexibility and with using real-time Linux, I thought I could run that interface fast. Its turned out that I was able to do GPIO reads and writes with less than 60 us latency, which is pretty amazing given that vanilla Linux at best can do about 20 ms <sup>[1](#myfootnote1)</sup>. Of course, all the other physical interfaces (SPI, I2C, etc.) on the Pi are accessible though the normal Linux methods.
+I chose to focus on using the Pi's GPIOs to interface to the things around the home I wanted to add voice control to. I felt that this would allow me the maximum flexibility and with using real-time Linux, I thought I could run that interface fast. Its turned out that I was able to do GPIO reads and writes with less than 60 us latency, which is pretty amazing given that vanilla Linux at best can do about 20 ms based on my measurements using the [Wiring Pi](http://wiringpi.com/) library. Of course, all the other physical interfaces (SPI, I2C, etc.) on the Pi are accessible though the normal Linux methods.
 
-So given my requirements and the analysis above, I arrived at a system architecture with the following components<sup>[2](#myfootnote2)</sup>.
+So given my requirements and the analysis above, I arrived at a system architecture with the following components.
 
 * An Alexa Intent Schema / Utterance database developed using ASK.
 * An AWS Lambda function in Node.js to handle the intent triggers from Alexa and send it back responses from the home device. 
@@ -40,6 +56,8 @@ So given my requirements and the analysis above, I arrived at a system architect
 These components and the interconnections between them are shown in the diagram below.
 
 ![all](https://cloud.githubusercontent.com/assets/12125472/11692383/0e4a623e-9e54-11e5-8a78-b6fdf3eb9ba2.png)
+
+Note that although the development of the architecture looks very waterfall-ish, in reality I iterated between architecture / design / test to arrive at the final systems architecture.
 
 # Design and Implementation of the Components
 
@@ -92,7 +110,9 @@ The sample utterances for the skill are:
 6. WhatsMyStatusIntent what is the status
 7. MyNumIsIntent {Keys}
 
-The "LIST_OF_KEYS" slot enables the intent MyNumIsIntent to activate when Alex hears the name of the buttons on the keypad defined by the slot. The intent "WhatsMyStatusIntent" activates when Alexa hears any of the status related utterances listed above <sup>[3](#myfootnote3)</sup>. When the intents activate, they cause the service end point Lambda funcation to run and perform specific processing depending on the user intent. 
+The "LIST_OF_KEYS" slot enables the intent MyNumIsIntent to activate when Alex hears the name of the buttons on the keypad defined by the slot. The intent "WhatsMyStatusIntent" activates when Alexa hears any of the status related utterances listed above. When the intents activate, they cause the service end point Lambda funcation to run and perform specific processing depending on the user intent.
+
+The skill is invoked by saying to Alexa "ask panel" or "tell panel".
 
 ## AWS Lambda function
 You need to have an Aamazon Web Services account to use Lambda. I already was an EC2 user, so I didn't have to set one up but if you can do so at https://aws.amazon.com/. Like all AWS products, there is good [documentation](https://aws.amazon.com/lambda/) available on the AWS site that you should read to come up to speed on it, if not already familiar. I did that but I still found it challenging to use the product, mainly due to my unfamiliarity with javascript, Node, and asynchronous programming which are all essential to using Lambda. To get up to speed, I read a few books and articles including [*Sams Teach Yourself Node.js in 24 Hours*](http://smile.amazon.com/dp/0672335956) by Ornbo, [*JavaScript: The Good Parts*](http://smile.amazon.com/dp/0596517742) by Crockford, and [*Asynchronous programming and continuation-passing style in JavaScript*](http://www.2ality.com/2012/06/continuation-passing-style.html) by Rauschmayer. Over time, I understood how well suited Lambda and Node.js is to helping scale the cloud side to handle applications like voice control of things given how Lambda was designed to handle bursty applications and the non-blocking I/O benefits of Node.js.
@@ -264,6 +284,7 @@ At some point I'll add some provisions to automatically restart the application 
 
 I've seen cases where the Pi's wifi would not automatically reconnect after it loses the connection. To address this, I created the script /usr/local/bin/wifi_rebooter.sh which is run every 5 minutes by a cron job. This checks for network connectivity every 5 minutes and if the network is down, the wireless interface is automatically restarted. The script and cron entry is shown below.
 
+rebooter.sh:
 ```bash
 #!/bin/bash
 
@@ -281,14 +302,14 @@ then
     ifup wlan0
 fi
 ```
-
+Entry in root's crontab:
 ```bash
 */5 * * * *   root    /usr/local/bin/wifi_rebooter.sh
 ```
 
 ## Keybus to GPIO Interface Unit
 
-### Keybus Electrical and Timing Charateristics
+### Keybus Electrical and Timing Characteristics
 The keybus is a DSC proprietary serial bus that runs from the panel to the sensors and controller keypads in the house. I first had to understand this bus from an electrical, timing, and protocol point of view (see above) before I could interface the Pi to the panel. There isn't a lot of information on the keybus other than what's in the DSC installation manual and miscellaneous info on the Internet posted by fellow hackers. This is a two wire bus with clock and data, plus ground and the supply from the panel. The supply is 13.8 V (nominal) and the clock and data transition between 0 and 13.8 V. The large voltage swings make sense given that it provides good noise immunity against interference picked up from long runs of the bus through the house. The DSC manual states the bus supply can source a max of 550 mA. I added up the current from all the devices presently on the bus which came out to about 400 mA. This meant that my interface unit could draw no more than 150 mA. I kept that in mind as I designed the circuitry. 
 
 I used an oscilloscope to reverse engineer the protocol. Some screen-shots and my analysis from them are below.
@@ -319,14 +340,19 @@ Now that I had a good understanding of the panel keybus and Raspberry PI GPIO el
 ![keybus-gpio-if2](https://cloud.githubusercontent.com/assets/12125472/11919447/f453d4d4-a707-11e5-988a-f284c41c4085.png)
 
 # Development and Test environment
-TBA
+The Raspberry Pi was used headless throughout development and so I ssh'ed into it from my main Linux server to edit and debug the application code with gedit. I compiled the application code directly on the Raspberry Pi, given its small size it compiled quickly which obviated the need to setup a cross-compiler on the Linux server. I didn't have a need to frequently rebuild the Linux kernel from source, but if I did then a cross-complier would have been a big benefit.
+
+I used the ASK and Lambda test tools available in the SDK and Lambda status information from AWS Cloudwatch Logs extensively. 
 
 # Appendix
 
 ## DSC Power832 Overview
+Technical manuals and general overview information about the Power832 can be found on [DSC's](http://www.dsc.com/index.php?n=library&o=view_documents&id=1) website.
 
 ## Bill of materials and service cost considerations
-TBA
+The Raspberry Pi 2 (~$39), wifi dongle (~$10), plastic housing (~$10), expansion board (~$8), and the ICs passives (~$15) for the interface total about $82.
+
+The Lambda service cost will vary according to how often the Alexa skill is invoked. A typical Lambda session for the alarm prototype lasted less than 450 ms with AWS typically billing me for 500 ms (they round up to the nearest 100 ms) and used a maximum of 128 MB memory. At 128 MB memory usage, the first 3,200,000 seconds per month are free and after that its $0.000000208 per 100 ms. So this means that I can invoke the Alexa panel skill over 6 million times per month before I get charged! This assumes less than 1 GB per month external data is transfered to/from the Lambda function so that the Free tier is maintained. See the [AWS website](https://aws.amazon.com/lambda/pricing/) for complete pricing information. 
 
 ## Proof of Concept Output to Terminal
 ![screenshot from 2015-12-09 19 46 40](https://cloud.githubusercontent.com/assets/12125472/11706514/3819320c-9eae-11e5-95d0-af8bdee6ed24.png)
@@ -336,11 +362,3 @@ Note: connections to AWS Lambda triggered by Alexa
 ![proto pic1](https://cloud.githubusercontent.com/assets/12125472/11706674/a8721fcc-9eaf-11e5-8707-f780ae4ef86a.png)
 ![proto pic2](https://cloud.githubusercontent.com/assets/12125472/11706679/b0fb6950-9eaf-11e5-95be-3d668412c5e2.png)
 Note: planning to move interface circuits from breadboard to board that fits in Raspberry PI housing 
-
-## PDFs of Block Diagram and System Overview
-[all blockdia.pdf](https://github.com/goruck/all/files/57052/all.blockdia.pdf)
-[all overview.pdf](https://github.com/goruck/all/files/57059/all.overview.pdf)
- 
-<a name="myfootnote1">1</a>: Footnote content about measuring GPIO jitter under Linux goes here
-<a name="myfootnote2">2</a>: Although this looks very waterfall-ish, in reality I iterated between architecture / design / test to arrive at the final systems architecture.
-<a name="myfootnote3">3</a>: Footnote content about Alexa bug responding to other utterances goes here
