@@ -20,7 +20,7 @@ End to end SSL/TLS integration | Customer data security
    3. [Raspberry Pi Controller / Server](https://github.com/goruck/all#raspberry-pi-controller--server)
    4. [Keybus to GPIO Interface Unit](https://github.com/goruck/all#keybus-to-gpio-interface-unit)
 3. [Development and Test environment](https://github.com/goruck/all#development-and-test-environment)
-4. [Bill of materials and service cost considerations]()
+4. [Bill of materials and service cost considerations](https://github.com/goruck/all#bill-of-materials-and-service-cost-considerations)
 5. [Appendix](https://github.com/goruck/all#appendix)
 
 # Requirements and System Architecture
@@ -206,7 +206,7 @@ Inter-thread communication is handled safely via read and write FIFOs without an
 
 Running code under real-time Linux requires a few special considerations. Again, the [real-time Linux](https://rt.wiki.kernel.org/index.php/Main_Page) wiki was used extensively to guide the efforts in this regard. The excellent book [The Linux Programming Interface](http://man7.org/tlpi/) by Kerrisk also was very helpful to understand more deeply how the Linux kernel schedules tasks. There are three things needed to be set by a task in order to provide deterministic real time behavior:
 
-1. Setting a real time scheduling policy and priority by use of the *sched_setscheduler()* system call and its pthread cousins. Note that *panel_io()*, *message_io()*, and *main()* were all given the same scheduling policy (SCHED_FIFO) but I gave *panel_io()* a higher priority than *message_io()* and *main()*. I did that to make sure the bit-level processing had enough time to complete, but I did run into a complication described below that I solved by attaching a CPU affinity to the threads.
+1. Setting a real time scheduling policy and priority by use of the *sched_setscheduler()* system call and its pthread cousins. Note that *panel_io()*, *message_io()*, and *main()* were all given the same scheduling policy (SCHED_FIFO) but *panel_io()* has a higher priority than *message_io()* and *main()*. This was done to ensure that the bit-level processing would have enough time to complete. 
 2. Locking memory so that page faults caused by virtual memory will not undermine deterministic behavior. This is done with the *mlockall()* system call. 
 3. Pre-faulting the stack, so that a future stack fault will not undermine deterministic behavior. This is done by simply accessing each element of the program's stack by use of the *memset()* system call. 
 
@@ -219,7 +219,7 @@ clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &t, NULL); // wait KSAMPLE_OFFSE
 wordkr_temp = (GET_GPIO(PI_DATA_IN) == PI_DATA_HI) ? '0' : '1'; // invert
 ```
 
-Even though the *panel_io()* is given higher priority than the other two threads, other critical threads in the Linux kernel must have higher still priority for the overall system to function. So I was concerned that a higher priority kernel task could cause *panel_io()* to drop bits. The real-time Linux wiki suggests this solution:
+Even though the *panel_io()* is given higher priority than the other two threads, other critical threads in the Linux kernel must have higher still priority for the overall system to function. Therefore it is possible that a higher priority kernel task could preempt *panel_io()* and cause it to drop bits. The real-time Linux wiki suggests this solution:
 
 *"In general, I/O is dangerous to keep in an RT code path. This is due to the nature of most filesystems and the fact that I/O devices will have to abide to the laws of physics (mechanical movement, voltage adjustments, <whatever an I/O device does to retrieve the magic bits from cold storage>). For this reason, if you have to access I/O in an RT-application, make sure to wrap it securely in a dedicated thread running on a disjoint CPU from the RT-application."* 
 
@@ -272,7 +272,7 @@ The Raspberry Pi is used here as an embedded system so it needs to come up autom
 
 These GPIOs need to be in a safe state after power on and boot up. Per the Broadcom BCM2835 ARM Peripherals document, these GPIOs are configured as inputs at reset and the kernel doesn't change that during boot, so they won't cause any the keybus serial data line to be pulled down before the application code initializes them. BRCM GPIO16 is pulled down by a 10 KΩ resistor in the interface unit so that when its configured as an input, it won't float high. The BRCM GPIO16 was selected for the active high signal that drives the keybus data line since that GPIO has the option of being driven low from an external pull down. Other GPIOs have optional pull-ups. Even though the pull resistors are disabled by default, this removes the possibility of contention if software somehow enabled the pull resistors by mistake. 
 
-I added the code below to /etc/rc.local so that the application code would automatically run after powering on the Pi.
+The code below was added to /etc/rc.local so that the application code would automatically run after powering on the Pi.
 
 ```bash
 /home/pi/all/rpi/kprw-server > /dev/null &
