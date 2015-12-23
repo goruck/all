@@ -268,9 +268,9 @@ The Raspberry Pi is used here as an embedded system so it needs to come up autom
 #define PI_CLOCK_IN	(13) // BRCM GPIO13 / PI J8 Pin 33
 #define PI_DATA_IN	(5)  // BRCM GPIO05 / PI J8 Pin 29
 #define PI_DATA_OUT	(16) // BRCM GPIO16 / PI J8 Pin 36
-```
+``` 
 
-These GPIOs need to be in a safe state after power on and boot up. Per the Broadcom BCM2835 ARM Peripherals document, these GPIOs are configured as inputs at reset and the kernel doesn't change that during boot, so they won't cause any the keybus serial data line to be pulled down before the application code initializes them. BRCM GPIO16 is pulled down by a 10 KΩ resistor in the interface unit so that when its configured as an input, it won't float high. The BRCM GPIO16 was selected for the active high signal that drives the keybus data line since that GPIO has the option of being driven low from an external pull down. Other GPIOs have optional pull-ups. Even though the pull resistors are disabled by default, this removes the possibility of contention if software somehow enabled the pull resistors by mistake. 
+These GPIOs need to be in a safe state after power on and boot up. Per the Broadcom BCM2835 ARM Peripherals document, these GPIOs are configured as inputs at reset and the kernel doesn't change that during boot, so they won't cause any the keybus serial data line to be pulled down before the application code initializes them. The BRCM GPIO16 was selected for the active high signal that drives the keybus data line since that GPIO has the option of being driven low from an external pull down. Other GPIOs have optional pull-ups. Even though the pull resistors are disabled by default, this removes the possibility of the keybus data line becoming active if software somehow enabled the pull resistor by mistake. 
 
 The code below was added to /etc/rc.local so that the application code would automatically run after powering on the Pi.
 
@@ -280,7 +280,7 @@ The code below was added to /etc/rc.local so that the application code would aut
 
 At some point provisions will be added to automatically restart the application code in the event of a crash.
 
-In the event the Pi's wifi does not automatically reconnect after it loses the connection, a special script is run by cron. The script checks for network connectivity every 5 minutes and if the network is down, the wireless interface is automatically restarted. The script and cron entry are shown below.
+In the event the Pi's wifi does not automatically reconnect after it loses the connection, a special script is run by cron. The script checks for network connectivity every 5 minutes and if the network is down, the wireless interface is automatically restarted. The script and cron entry are shown below are are based off of [this](http://alexba.in/blog/2015/01/14/automatically-reconnecting-wifi-on-a-raspberrypi/) technical blog. 
 
 /usr/local/bin/wifi_rebooter.sh:
 ```bash
@@ -332,7 +332,7 @@ Data on the electrical characteristics of the Pi's GPIOs is also required to des
 * Do not drive capacitive loads. Do not place a capacitive load directly across the pin. Limit current into any capacitive load to a maximum transient current of 16 mA. For example, if you use a low pass filter on an output pin, you must provide a series resistance of at least 3.3V/16mA = 200 Ω
 
 ### Interface Circuit Design
-Its desirable to electrically isolate the panel and Pi to prevent ground loops and optoisolators are an obvious choice. But they do consume a fair amount of current. Therefore, they need to be buffered instead of directly connecting them between the keybus clock and data and PI GPIOs. This adds more complexity but the buffers keep the current within range of both the panel and PI's capabilities. A high Current Transfer Ratio (CTR) optoisolator configured to drive a FET with logic-level gate voltage threshold was used to pull down the data line with sufficient strength. The other optoisolators are not high CTR (high CTR = $$). The interface schematic is shown below (at some point it will be converted to a real CAD schematic).
+Its desirable to electrically isolate the panel and Pi to prevent ground loops and optoisolators are an obvious choice. But they do consume a fair amount of current and the keybus data and clock lines cannot supply enough to directly drive them. Therefore, the keybus clock and data lines have a buffer (CD4010) between them and the optoisolators. Out of an abundance of caution, buffers (74HC126) were also added between the clock and data optoisolators and the Pi's GPIOs, but they are not really needed since the Pi's GPIOs come out of reset being able to supply or sink 8 mA while the interface circuit only needs a 2 mA supply. The '126 buffers will be removed in the final design. A high Current Transfer Ratio (CTR) optoisolator configured to drive a FET with logic-level gate voltage threshold was used to pull down the data line with sufficient strength. The other optoisolators are not high CTR (high CTR = $$). The interface schematic is shown below (at some point it will be converted to a real CAD schematic).
 
 ![keybus-gpio-if1](https://cloud.githubusercontent.com/assets/12125472/11919445/f16955be-a707-11e5-8c5d-1de31212bf9a.png)
 ![keybus-gpio-if2](https://cloud.githubusercontent.com/assets/12125472/11919447/f453d4d4-a707-11e5-988a-f284c41c4085.png)
