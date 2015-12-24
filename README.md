@@ -332,16 +332,18 @@ Data on the electrical characteristics of the Pi's GPIOs is also required to des
 * Do not drive capacitive loads. Do not place a capacitive load directly across the pin. Limit current into any capacitive load to a maximum transient current of 16 mA. For example, if you use a low pass filter on an output pin, you must provide a series resistance of at least 3.3V/16mA = 200 Ω
 
 ### Interface Circuit Design
-Its desirable to electrically isolate the panel and Pi to prevent ground loops and optoisolators are an obvious choice. But they do consume a fair amount of current and the keybus data and clock lines cannot supply enough to directly drive them. Therefore, the keybus clock and data lines have a buffer (CD4010) between them and the optoisolators. Out of an abundance of caution, buffers (74HC126) were also added between the clock and data optoisolators and the Pi's GPIOs, but they are not really needed since the Pi's GPIOs come out of reset being able to supply or sink 8 mA while the interface circuit only needs a 2 mA supply. The '126 buffers will be removed in the final design. A high Current Transfer Ratio (CTR) optoisolator configured to drive a FET with logic-level gate voltage threshold was used to pull down the data line with sufficient strength. The other optoisolators are not high CTR (high CTR = $$). The interface schematic is shown below.
+Its desirable to electrically isolate the panel and Pi to prevent ground loops and optoisolators are an obvious choice. But they do consume a fair amount of current and the keybus data and clock lines cannot supply enough to directly drive them. Therefore, the keybus clock and data lines have buffers (CD4010) between them and the optoisolators. Out of an abundance of caution, buffers (74HC126) were also added between the clock and data optoisolators and the Pi's GPIOs, but they are not really needed since the Pi's GPIOs come out of reset being able to supply or sink 8 mA while the interface circuit only needs a 2 mA supply. The '126 buffers were removed in the final design. A high Current Transfer Ratio (CTR) optoisolator configured to drive a FET with logic-level gate voltage threshold was used to pull down the data line with sufficient strength. The other optoisolators are not high CTR (high CTR = $$). The interface schematic is shown below.
 
-![interface](https://cloud.githubusercontent.com/assets/12125472/11995877/338a3d98-aa0d-11e5-8532-b0543483942b.png)
+![interface](https://cloud.githubusercontent.com/assets/12125472/11998220/3d1befd6-aa4a-11e5-83bf-9cc1cec3bb72.png)
 
 # Development and Test environment
 The Raspberry Pi was used headless throughout development and so ssh was used from another Linux machine to edit and debug the application code with gedit. The application code was compiled directly on the Raspberry Pi, given its small size it compiled quickly which obviated the need to setup a cross-compiler on a more capable machine.
 
+Clients written in Node.js and C were used to test the server before integration with Lambda. This code is is in the goruck/all/test repo. 
+
 The ASK and Lambda test tools available in the SDK and Lambda status information from AWS Cloudwatch Logs were used extensively during development and test.
 
-Schematic entry was done using gEDA. 
+Schematic entry was done using gEDA's Schematic Editor.
 
 # Bill of materials and service cost considerations
 The Raspberry Pi 2 (~$39), wifi dongle (~$10), plastic housing (~$10), expansion board (~$8), and the ICs passives (~$15) for the interface total about $82.
@@ -360,4 +362,8 @@ Note: connections to AWS Lambda triggered by Alexa
 ## Proof of Concept Current State
 ![proto pic1](https://cloud.githubusercontent.com/assets/12125472/11706674/a8721fcc-9eaf-11e5-8707-f780ae4ef86a.png)
 ![proto pic2](https://cloud.githubusercontent.com/assets/12125472/11706679/b0fb6950-9eaf-11e5-95be-3d668412c5e2.png)
-Note: planning to move interface circuits from breadboard to board that fits in Raspberry PI housing 
+Note: work in progress to move interface circuits from breadboard to proto board that fits in Raspberry PI housing. More later.
+
+## Original schematics with design notes
+![keybus-gpio-if1](https://cloud.githubusercontent.com/assets/12125472/11919445/f16955be-a707-11e5-8c5d-1de31212bf9a.png)
+![keybus-gpio-if2](https://cloud.githubusercontent.com/assets/12125472/11919447/f453d4d4-a707-11e5-988a-f284c41c4085.png)
