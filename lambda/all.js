@@ -3,12 +3,12 @@
  * 
  * This sample demonstrates a simple skill built with the Amazon Alexa Skills Kit.
  * 
- * For details see https://github.com/goruck/all
+ * For details see https://github.com/goruck.
  *
  * For additional samples, visit the Alexa Skills Kit Getting Started guide at
- * http://amzn.to/1LGWsLG
+ * http://amzn.to/1LGWsLG.
  * 
- * Lindo St. Angel 2015.
+ * Lindo St. Angel 2015/16.
  */
 
 // Route the incoming request based on type (LaunchRequest, IntentRequest,
@@ -81,6 +81,8 @@ function onIntent(intentRequest, session, callback) {
     // Dispatch to your skill's intent handlers
     if ("MyNumIsIntent" === intentName) {
         sendKeyInSession(intent, session, callback);
+    } else if ("MyCodeIsIntent" === intentName) {
+        sendCodeInSession(intent, session, callback);
     } else if ("WhatsMyStatusIntent" === intentName) {
         getStatusFromSession(intent, session, callback);
     } else if ("AMAZON.HelpIntent" === intentName) {
@@ -106,7 +108,7 @@ function getWelcomeResponse(callback) {
     // If we wanted to initialize the session to have some attributes we could add those here.
     var sessionAttributes = {};
     var cardTitle = "Welcome";
-    var speechOutput = "Hi, the security system is ready for input,";
+    var speechOutput = "ready,";
     // If the user either does not reply to the welcome message or says something that is not
     // understood, they will be prompted again with this text.
     var repromptText = "Please tell the security system a command, or ask its status," +
@@ -131,8 +133,8 @@ function sendKeyInSession(intent, session, callback) {
     var shouldEndSession = false;
     var speechOutput = "";
     var tls = require('tls');
-    var PORT = XXXX;
-    var HOST = 'XXX.XXX.XXX.XXX'; // todo: use FQDN instead of IP
+    var PORT = xxxx;
+    var HOST = 'xxx.xxx.xxx.xxx'; // todo: use FQDN instead of IP
     
     var options = {
         host: HOST,
@@ -143,38 +145,119 @@ function sendKeyInSession(intent, session, callback) {
         ca:""
     };
     
+    var ValidValues = ['0','1', '2', '3', '4', '5', '6', '7', '8', '9',
+                       'stay', 'away', 'star', 'pound'];
+    
+    repromptText = "please tell the security system a command, or ask its status," +
+                   "valid commands are the names of any keypad button," +
+                   "status, or a 4 digit code," +
+                   "after a status update, the session will end";
+    
     if (KeysSlot) {
         var num = KeysSlot.value;
+        var a = ValidValues.indexOf(num, 0);
+        console.log("num=" +num);
+        console.log("a=" +a);
         sessionAttributes = createNumberAttributes(num);
-        speechOutput = "sending, " +num;
-        repromptText = "Please tell the security system a command, or ask its status," +
-                       "Valid commands are the names of any keypad button," +
-                       "After a status update, the session will end";
+        if(a === -1) {
+            speechOutput = num + ",is an invalid command," +
+                           "valid commands are the names of a keypad button," +
+                           "status, or a 4 digit code";
+            callback(sessionAttributes,
+                buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+        } else {
+            speechOutput = "sending, " +num;
+            var socket = tls.connect(options, function() {
+                console.log('connected to host ' +HOST);
+                if(socket.authorized){
+                    console.log('host is authorized');
+                } else {
+                    console.log('host cert auth error: ', socket.authorizationError);
+                }
+                socket.write(num +'\n');
+                console.log('wrote ' +num);
+                socket.end;
+                console.log('disconnected from host ' +HOST);
+                callback(sessionAttributes,
+                    buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+            
+            });
+            socket.on('error', function(ex) {
+                console.log("handled error");
+                console.log(ex);
+            });
+        }
+        
     } else {
-        speechOutput = "";
-        repromptText = "";
+        console.log('error in SendKeyInSession');
     }
-    
-    var socket = tls.connect(options, function() {
-        if(socket.authorized){
-          console.log('authorized');
-        }
-        else{
-          console.log('cert auth error: ', socket.authorizationError);
-        }
-        socket.write(num +'\n');
-        console.log('wrote ' +num);
-        socket.end;
-        console.log('disconnected from host ' +HOST);
-        callback(sessionAttributes,
-             buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-    });
-       
-    socket.on('error', function(ex) {
-        console.log("handled error");
-        console.log(ex);
-    });
+}
 
+/*
+ * Gets the a 4 digit code from the user in the session.
+ * Prepares the speech to reply to the user.
+ * Sends the code to the panel over a TLS TCP socket.
+ */
+function sendCodeInSession(intent, session, callback) {
+    var cardTitle = intent.name;
+    var CodeSlot = intent.slots.Code;
+    var repromptText = "";
+    var sessionAttributes = {};
+    var shouldEndSession = false;
+    var speechOutput = "";
+    var tls = require('tls');
+    var PORT = xxxx;
+    var HOST = 'xxx.xxx.xxx.xxx'; // todo: use FQDN instead of IP
+    
+    var options = {
+        host: HOST,
+        port: PORT,
+        rejectUnauthorized: false, // danger - MITM attack possible - todo: fix
+        key:"", // add for client-side auth - todo: add
+        cert:"",
+        ca:""
+    };
+    
+    repromptText = "please tell the security system a command, or ask its status," +
+                   "valid commands are the names of any keypad button," +
+                   "status, or a 4 digit code," +
+                   "after a status update, the session will end";
+    
+    if (CodeSlot) {
+        var num = CodeSlot.value;
+        sessionAttributes = createNumberAttributes(num);
+        if(num === '?' || num > 9999) {
+            speechOutput = num + ", is an invalid code," +
+                           "codes must be positive 4 digit integers, " +
+                           "not greater than 9999";
+            callback(sessionAttributes,
+                buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+        }
+        else {
+            speechOutput = "sending, " +num;
+            var socket = tls.connect(options, function() {
+                console.log('connected to host ' +HOST);
+                if(socket.authorized){
+                    console.log('host is authorized');
+                } else {
+                    console.log('host cert auth error: ', socket.authorizationError);
+                }
+                socket.write(num +'\n');
+                console.log('wrote ' +num);
+                socket.end;
+                console.log('disconnected from host ' +HOST);
+                callback(sessionAttributes,
+                    buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+            
+            });
+            socket.on('error', function(ex) {
+                console.log("handled error");
+                console.log(ex);
+            });
+        }
+    } else {
+        console.log('error in SendCodeInSession');
+    }
 }
 
 function createNumberAttributes(key) {
@@ -186,8 +269,6 @@ function createNumberAttributes(key) {
 /**
  * Gets the panel status via a TLS TCP socket.
  * Sends the resulting speech to the user and ends session.
- * 
- * todo: resolve bug that results in any utterence triggering a status response.
  */
 function getStatusFromSession(intent, session, callback) {
     var cardTitle = intent.name;
@@ -200,8 +281,8 @@ function getStatusFromSession(intent, session, callback) {
     var speechOutput = "";
     var read = "";
     var tls = require('tls');
-    var PORT = XXXX;
-    var HOST = 'XXX.XXX.XXX.XXX'; // todo: use FQDN instead of IP
+    var PORT = xxxx;
+    var HOST = 'xxxx.xxxx.xxxx.xxxx'; // todo: use FQDN instead of IP
     
     var options = {
         host: HOST,
@@ -213,13 +294,13 @@ function getStatusFromSession(intent, session, callback) {
     };
     
     var socket = tls.connect(options, function() {
+        console.log('connected to host ' +HOST);
         if(socket.authorized){
-          console.log('authorized');
+          console.log('host is authorized');
         }
         else{
-          console.log('cert auth error: ', socket.authorizationError);
+          console.log('host cert auth error: ', socket.authorizationError);
         }
-        console.log('connected to host ' +HOST);
         socket.write('idle\n');
     });
        
