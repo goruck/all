@@ -12,7 +12,7 @@
  *
  * See https://github.com/goruck/all for details. 
  *
- * Lindo St. Angel 2015. 
+ * Lindo St. Angel 2015/16. 
  *
  */
 
@@ -34,6 +34,7 @@
 #include <sys/mman.h>
 #include <pthread.h>
 #include <sys/utsname.h>
+#include <ctype.h> // isdigit
 
 // socket
 #include <sys/socket.h>
@@ -41,7 +42,7 @@
 #include <arpa/inet.h>
 #include <signal.h>
 #define	PORT_NUM	4746 // port number for server
-#define	BUF_LEN		16 // size of string to hole longest message incl '\n'
+#define	BUF_LEN		16 // size of string to hold longest message incl '\n'
 #define BACKLOG		1 // only allow one client to connect
 //#define	_BSD_SOURCE // to get definitions of NI_MAXHOST and NI_MAXSERV from <netdb.h>
 #include <netdb.h>
@@ -727,7 +728,8 @@ static void panserv(struct status * pstat) {
   char addrStr[ADDRSTRLEN];
   char host[NI_MAXHOST];
   char service[NI_MAXSERV];
-  int listenfd= 0, connfd = 0, res, num;
+  int listenfd= 0, connfd = 0, res, num, i;
+  long chkbuf;
   socklen_t addrlen;  
   struct sockaddr_in client_addr;
   SSL_CTX *ctx;
@@ -742,6 +744,7 @@ static void panserv(struct status * pstat) {
   signal(SIGPIPE, SIG_IGN); // receive EPIPE from a failed write()
 
   for (;;) {
+    i = 0;
     memset(&client_addr, 0, sizeof(client_addr));
     addrlen = sizeof(struct sockaddr_storage);
 
@@ -804,63 +807,90 @@ static void panserv(struct status * pstat) {
       continue;
     }
 
-    num = atoi(buffer);
     printf("server: panel received command %s", buffer);
-    if (strncmp(buffer, "star", 4) == 0)
-       strncpy(wordk, STAR, MAX_BITS);
-    else if (strncmp(buffer, "pound", 5) == 0)
-       strncpy(wordk, POUND, MAX_BITS);
-    else if (strncmp(buffer, "stay", 4) == 0)
-       strncpy(wordk, STAY, MAX_BITS);
-    else if (strncmp(buffer, "away", 4) == 0)
-       strncpy(wordk, AWAY, MAX_BITS);
-    else if (strncmp(buffer, "idle", 4) == 0)
-       strncpy(wordk, IDLE, MAX_BITS);
-    else if (strncmp(buffer, "0", 1) == 0)
-       strncpy(wordk, ZERO, MAX_BITS);
-    else if (num > 0 || num < 10)
-      switch (num) {
-        case 1 :
-          strncpy(wordk, ONE, MAX_BITS);
-          break;
-        case 2 :
-          strncpy(wordk, TWO, MAX_BITS);
-          break;
-        case 3 :
-          strncpy(wordk, THREE, MAX_BITS);
-          break;
-        case 4 :
-          strncpy(wordk, FOUR, MAX_BITS);
-          break;
-        case 5 :
-          strncpy(wordk, FIVE, MAX_BITS);
-          break;
-        case 6 :
-          strncpy(wordk, SIX, MAX_BITS);
-          break;
-        case 7 :
-          strncpy(wordk, SEVEN, MAX_BITS);
-          break;
-        case 8 :
-          strncpy(wordk, EIGHT, MAX_BITS);
-          break;
-        case 9 :
-          strncpy(wordk, NINE, MAX_BITS);
-          break;
-        default :
-          fprintf(stderr, "server: invalid panel command\n");
-          strncpy(wordk, IDLE, MAX_BITS);
-      }
-    else {
-      fprintf(stderr, "server: invalid panel command\n");
-      strncpy(wordk, IDLE, MAX_BITS);
-    }
 
-    // send keypad data to panel
-    res = pushElement2(wordk, MAX_BITS);
-    if (res != MAX_BITS) {
-      fprintf(stderr, "server: fifo write error\n");
-      break;
+    /*
+     * Decode command sent from client.
+     * Check for bad commands.
+     * Map to keypad data and send to panel.
+     */
+    if (!isdigit(buffer[i])) { // not a number, but a command
+      if (!strncmp(buffer, "star", 4))
+        strncpy(wordk, STAR, MAX_BITS);
+      else if (!strncmp(buffer, "pound", 5))
+        strncpy(wordk, POUND, MAX_BITS);
+      else if (!strncmp(buffer, "stay", 4))
+        strncpy(wordk, STAY, MAX_BITS);
+      else if (!strncmp(buffer, "away", 4))
+        strncpy(wordk, AWAY, MAX_BITS);
+      else if (!strncmp(buffer, "idle", 4))
+        strncpy(wordk, IDLE, MAX_BITS);
+      else {
+        fprintf(stderr, "server: invalid panel command\n");
+        strncpy(wordk, IDLE, MAX_BITS);
+      }
+      // send keypad data to panel
+      res = pushElement2(wordk, MAX_BITS);
+      if (res != MAX_BITS) {
+        fprintf(stderr, "server: fifo write error\n");
+        break;
+      }
+    }
+    else { // a number or number(s)
+      chkbuf = strtol(buffer, NULL, 10);
+      if (chkbuf < 0 || chkbuf > 9999) {
+        fprintf(stderr, "server: invalid panel command\n");
+        continue;
+      }
+      while(buffer[i] != '\n') {
+        num = buffer[i] - '0';
+        switch (num) {
+          case 0 :
+            strncpy(wordk, ZERO, MAX_BITS);
+            break;
+          case 1 :
+            strncpy(wordk, ONE, MAX_BITS);
+            break;
+          case 2 :
+            strncpy(wordk, TWO, MAX_BITS);
+            break;
+          case 3 :
+            strncpy(wordk, THREE, MAX_BITS);
+            break;
+          case 4 :
+            strncpy(wordk, FOUR, MAX_BITS);
+            break;
+          case 5 :
+            strncpy(wordk, FIVE, MAX_BITS);
+            break;
+          case 6 :
+            strncpy(wordk, SIX, MAX_BITS);
+            break;
+          case 7 :
+            strncpy(wordk, SEVEN, MAX_BITS);
+            break;
+          case 8 :
+            strncpy(wordk, EIGHT, MAX_BITS);
+            break;
+          case 9 :
+            strncpy(wordk, NINE, MAX_BITS);
+            break;
+          default :
+            fprintf(stderr, "server: invalid panel command\n");
+            strncpy(wordk, IDLE, MAX_BITS);
+        }
+        // send keypad data to panel
+        res = pushElement2(wordk, MAX_BITS);
+        if (res != MAX_BITS) {
+          fprintf(stderr, "server: fifo write error\n");
+          break;
+        }
+        i++;
+        if (i > 4) {
+          fprintf(stderr, "server: invalid panel command\n");
+          continue;
+        }
+      }
     }
 
   }
