@@ -57,7 +57,7 @@ Note that although the development of the architecture described above appears v
 # Design and Implementation of the Components
 
 ## Alexa Intent Schema / Utterance database
-An Amazon applications developer account is required to get access to the [Alexa Skills Kit (ASK)](https://developer.amazon.com/public/solutions/alexa/alexa-skills-kit), one can be created one at https://developer.amazon.com/appsandservices. There's a [getting started guide](https://developer.amazon.com/appsandservices/solutions/alexa/alexa-skills-kit/getting-started-guide) on the ASK site on how to create a new skill. The skill developed to control the alarm panel, named *panel*, used the example skill *color* as a starting point. Amazon makes the creation of a skill relatively easy but careful thinking through the voice interaction is required. The *panel* skill uses a mental model of attaching a voice command to every button on the alarm's keypad and an extra command to give the status of the system. The alarm system status is the state of the lights on the keypad (e.g., armed, bypass, etc). The Amazon skill development tool takes you through the following steps in creating the skill:
+An Amazon applications developer account is required to get access to the [Alexa Skills Kit (ASK)](https://developer.amazon.com/public/solutions/alexa/alexa-skills-kit), one can be created one at https://developer.amazon.com/appsandservices. There's a [getting started guide](https://developer.amazon.com/appsandservices/solutions/alexa/alexa-skills-kit/getting-started-guide) on the ASK site on how to create a new skill. The skill developed to control the alarm panel, named *panel*, used the example skill *color* as a starting point. Amazon makes the creation of a skill relatively easy but careful thinking through the voice interaction is required. The *panel* skill uses a mental model of attaching a voice command to every button on the alarm's keypad and an extra command to give the status of the system. The alarm system status is the state of the lights on the keypad (e.g., armed, bypass, etc). Four-digit code input is also supported, which is useful for a PIN. The Amazon skill development tool takes you through the following steps in creating the skill:
 
 1. Skill Information - Invocation Name, Version, and Service Endpoint (the Lambda ARN in this project)
 2. Interaction Model - Intent Schema, Custom Slot Types, and Sample Utterances
@@ -76,6 +76,15 @@ The Intent Schema for the *panel* skill is as follows:
         {
           "name": "Keys",
           "type": "LIST_OF_KEYS"
+        }
+      ]
+    },
+    {
+      "intent": "MyCodeIsIntent",
+      "slots": [
+        {
+          "name": "Code",
+          "type": "AMAZON.FOUR_DIGIT_NUMBER"
         }
       ]
     },
@@ -104,6 +113,7 @@ The sample utterances for the skill are:
 5. WhatsMyStatusIntent what is the panel status
 6. WhatsMyStatusIntent what is the status
 7. MyNumIsIntent {Keys}
+8. MyCodeIsIntent {Code}
 
 The "LIST_OF_KEYS" slot enables the intent MyNumIsIntent to activate when Alexa hears the name of the buttons on the keypad defined by the slot. The intent "WhatsMyStatusIntent" activates when Alexa hears any of the status related utterances listed above. When the intents activate, they cause the service endpoint Lambda function to run and perform specific processing depending on the user intent.
 
@@ -139,18 +149,18 @@ The code below writes a value to the remote Pi server that gets translated into 
 
 ```javascript
 var socket = tls.connect(options, function() {
-   if(socket.authorized){
-     console.log('authorized');
-   }
-   else{
-      console.log('cert auth error: ', socket.authorizationError);
-   }
-   socket.write(num +'\n');
-   console.log('wrote ' +num);
-   socket.end;
-   console.log('disconnected from host ' +HOST);
-   callback(sessionAttributes,
-      buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+  console.log('connected to host ' +HOST);
+  if(socket.authorized){
+    console.log('host is authorized');
+  } else {
+    console.log('host cert auth error: ', socket.authorizationError);
+  }
+  socket.write(num +'\n');
+  console.log('wrote ' +num);
+  socket.end;
+  console.log('disconnected from host ' +HOST);
+  callback(sessionAttributes,
+    buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
 });
 ```
 
