@@ -20,8 +20,8 @@ End to end SSL/TLS integration | Customer data security
    3. [Raspberry Pi Controller / Server](https://github.com/goruck/all#raspberry-pi-controller--server)
    4. [Keybus to GPIO Interface Unit](https://github.com/goruck/all#keybus-to-gpio-interface-unit)
 3. [Development and Test environment](https://github.com/goruck/all#development-and-test-environment)
-4. [Overall Hardware Design](https://github.com/goruck/all/blob/master/README.md#overall-hardware-design-and-considersations)
-5. [Bill of materials and service cost considerations](https://github.com/goruck/all#bill-of-materials-and-service-cost-considerations)
+4. [Overall Hardware Design and Considerations](https://github.com/goruck/all#overall-hardware-design-and-considerations)
+5. [Bill of Materials and Service Cost Considerations](https://github.com/goruck/all#bill-of-materials-and-service-cost-considerations)
 6. [Appendix](https://github.com/goruck/all#appendix)
 
 # Requirements and System Architecture
@@ -366,7 +366,7 @@ Various ICs and passives | 15 | $15
 HighPi Raspberry Pi B+/2 Case | 1 | $14
 32GB microSDHC | 1 | $12
 JBtek® DIY Raspberry Pi 2 Model B Hat | 1 | $6
- | Total | $85
+Totals | 19 | $85
 
 The Lambda service cost will vary according to how often the Alexa skill is invoked and how much compute time the function consumes per month. A typical Lambda session for the alarm prototype lasted less than 450 ms with AWS typically billing me for 500 ms (they round up to the nearest 100 ms) and was allocated 128 MB memory. The free tier provides provides the first 400,000 GB-s processing and the first one million requests per month at no cost. At 128 MB the Alexa panel skill can use 3,200,000 seconds of free processing per month (6.2 million invocations of the skill) and the first 1 million invocations will be at **no cost**. AWS is truly built for scale. This assumes less than 1 GB per month external data is transfered to/from the Lambda function so that the Free tier is maintained.
 
