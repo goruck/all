@@ -20,7 +20,7 @@ End to end SSL/TLS integration | Customer data security
    3. [Raspberry Pi Controller / Server](https://github.com/goruck/all#raspberry-pi-controller--server)
    4. [Keybus to GPIO Interface Unit](https://github.com/goruck/all#keybus-to-gpio-interface-unit)
 3. [Development and Test environment](https://github.com/goruck/all#development-and-test-environment)
-4. [Overall Hardware Design]()
+4. [Overall Hardware Design](https://github.com/goruck/all/blob/master/README.md#overall-hardware-design-and-considersations)
 5. [Bill of materials and service cost considerations](https://github.com/goruck/all#bill-of-materials-and-service-cost-considerations)
 6. [Appendix](https://github.com/goruck/all#appendix)
 
@@ -366,7 +366,15 @@ See the [AWS website](https://aws.amazon.com/lambda/pricing/) for complete prici
 # Overall Hardware Design and Considersations
 The interface circuit was first breadboarded and then moved to a prototyping board that fits in an extended Raspberry Pi enclosure. The prototyping board is from [JBtek®](http://smile.amazon.com/dp/B00WPFF9OA) and the enclosure is from [MODMYPI](http://www.modmypi.com/raspberry-pi/cases/highpi/highpi-raspberry-pi-b-plus2-case). The extended Pi enclosure also offers more height for components. However, there isn't a lot of area to fit the components; the interface circuit fit nicely but it would get increasingly difficult to fit additional components if required. There is height in the enclosure to stack another prototyping board but the component heights would have to be kept to a minimum. If there's a need to move beyond the circuit complexity required by the interface then a custom designed PCB would probably be the best route. Photographs of the current prototype are shown below.
 
+![img_0619](https://cloud.githubusercontent.com/assets/12125472/12216367/b6de26a4-b693-11e5-8ca5-6b1e528edb9f.JPG)
 
+![img_0620](https://cloud.githubusercontent.com/assets/12125472/12216370/bc4a32cc-b693-11e5-9e1c-312df70cbe27.JPG)
+
+![img_0623](https://cloud.githubusercontent.com/assets/12125472/12216371/c0dbaa28-b693-11e5-8726-cf3ce1a0132b.JPG)
+
+![img_0625](https://cloud.githubusercontent.com/assets/12125472/12216373/c5025aac-b693-11e5-8cd4-05d1c2cce285.JPG)
+
+Note: most components were salvaged from other projects and so the selection and placement is not optimized for either cost or size. 
 
 # Appendix
 
