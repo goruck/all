@@ -357,13 +357,22 @@ The ASK and Lambda test tools available in the SDK and Lambda status information
 Schematic entry was done using gEDA's Schematic Editor.
 
 # Bill of materials and service cost considerations
-The Raspberry Pi 2 (~$39), wifi dongle (~$10), plastic housing (~$10), expansion board (~$8), and the ICs passives (~$15) for the interface total about $82. These prices will be updated once the final hardware design is complete. 
+The hardware bill of materials total $85 and are as follows.
+
+Item | Qty | Cost
+-----|-----|-----
+Raspberry Pi 2 Model B Quad-Core 900 MHz 1 GB RAM | 1 | $38
+Various ICs and passives | 15 | $15
+HighPi Raspberry Pi B+/2 Case | 1 | $14
+32GB microSDHC | 1 | $12
+JBtek® DIY Raspberry Pi 2 Model B Hat | 1 | $6
+ | Total | $85
 
 The Lambda service cost will vary according to how often the Alexa skill is invoked and how much compute time the function consumes per month. A typical Lambda session for the alarm prototype lasted less than 450 ms with AWS typically billing me for 500 ms (they round up to the nearest 100 ms) and was allocated 128 MB memory. The free tier provides provides the first 400,000 GB-s processing and the first one million requests per month at no cost. At 128 MB the Alexa panel skill can use 3,200,000 seconds of free processing per month (6.2 million invocations of the skill) and the first 1 million invocations will be at **no cost**. AWS is truly built for scale. This assumes less than 1 GB per month external data is transfered to/from the Lambda function so that the Free tier is maintained.
 
 See the [AWS website](https://aws.amazon.com/lambda/pricing/) for complete pricing information.
 
-# Overall Hardware Design and Considersations
+# Overall Hardware Design and Considerations
 The interface circuit was first breadboarded and then moved to a prototyping board that fits in an extended Raspberry Pi enclosure. The prototyping board is from [JBtek®](http://smile.amazon.com/dp/B00WPFF9OA) and the enclosure is from [MODMYPI](http://www.modmypi.com/raspberry-pi/cases/highpi/highpi-raspberry-pi-b-plus2-case). The extended Pi enclosure also offers more height for components. However, there isn't a lot of area to fit the components; the interface circuit fit nicely but it would get increasingly difficult to fit additional components if required. There is height in the enclosure to stack another prototyping board but the component heights would have to be kept to a minimum. If there's a need to move beyond the circuit complexity required by the interface then a custom designed PCB would probably be the best route. Photographs of the current prototype are shown below.
 
 ![img_0619](https://cloud.githubusercontent.com/assets/12125472/12216367/b6de26a4-b693-11e5-8ca5-6b1e528edb9f.JPG)
@@ -385,10 +394,9 @@ Technical manuals and general overview information about the Power832 can be fou
 ![screenshot from 2015-12-09 19 46 40](https://cloud.githubusercontent.com/assets/12125472/11706514/3819320c-9eae-11e5-95d0-af8bdee6ed24.png)
 Note: connections to AWS Lambda triggered by Alexa
 
-## Proof of Concept Current State
+## Early Proof of Concept Photo
 ![proto pic1](https://cloud.githubusercontent.com/assets/12125472/11706674/a8721fcc-9eaf-11e5-8707-f780ae4ef86a.png)
 ![proto pic2](https://cloud.githubusercontent.com/assets/12125472/11706679/b0fb6950-9eaf-11e5-95be-3d668412c5e2.png)
-Note: work in progress to move interface circuits from breadboard to proto board that fits in Raspberry PI housing. More later.
 
 ## Original schematics with design notes
 ![keybus-gpio-if1](https://cloud.githubusercontent.com/assets/12125472/11919445/f16955be-a707-11e5-8c5d-1de31212bf9a.png)
