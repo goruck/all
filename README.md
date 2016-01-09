@@ -20,8 +20,9 @@ End to end SSL/TLS integration | Customer data security
    3. [Raspberry Pi Controller / Server](https://github.com/goruck/all#raspberry-pi-controller--server)
    4. [Keybus to GPIO Interface Unit](https://github.com/goruck/all#keybus-to-gpio-interface-unit)
 3. [Development and Test environment](https://github.com/goruck/all#development-and-test-environment)
-4. [Bill of materials and service cost considerations](https://github.com/goruck/all#bill-of-materials-and-service-cost-considerations)
-5. [Appendix](https://github.com/goruck/all#appendix)
+4. [Overall Hardware Design]()
+5. [Bill of materials and service cost considerations](https://github.com/goruck/all#bill-of-materials-and-service-cost-considerations)
+6. [Appendix](https://github.com/goruck/all#appendix)
 
 # Requirements and System Architecture
 Please see below the high-level requirements that the project had to meet.
@@ -361,6 +362,11 @@ The Raspberry Pi 2 (~$39), wifi dongle (~$10), plastic housing (~$10), expansion
 The Lambda service cost will vary according to how often the Alexa skill is invoked and how much compute time the function consumes per month. A typical Lambda session for the alarm prototype lasted less than 450 ms with AWS typically billing me for 500 ms (they round up to the nearest 100 ms) and was allocated 128 MB memory. The free tier provides provides the first 400,000 GB-s processing and the first one million requests per month at no cost. At 128 MB the Alexa panel skill can use 3,200,000 seconds of free processing per month (6.2 million invocations of the skill) and the first 1 million invocations will be at **no cost**. AWS is truly built for scale. This assumes less than 1 GB per month external data is transfered to/from the Lambda function so that the Free tier is maintained.
 
 See the [AWS website](https://aws.amazon.com/lambda/pricing/) for complete pricing information.
+
+# Overall Hardware Design and Considersations
+The interface circuit was first breadboarded and then moved to a prototyping board that fits in an extended Raspberry Pi enclosure. The prototyping board is from [JBtek®](http://smile.amazon.com/dp/B00WPFF9OA) and the enclosure is from [MODMYPI](http://www.modmypi.com/raspberry-pi/cases/highpi/highpi-raspberry-pi-b-plus2-case). The extended Pi enclosure also offers more height for components. However, there isn't a lot of area to fit the components; the interface circuit fit nicely but it would get increasingly difficult to fit additional components if required. There is height in the enclosure to stack another prototyping board but the component heights would have to be kept to a minimum. If there's a need to move beyond the circuit complexity required by the interface then a custom designed PCB would probably be the best route. Photographs of the current prototype are shown below.
+
+
 
 # Appendix
 
