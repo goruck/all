@@ -132,17 +132,18 @@ function sendKeyInSession(intent, session, callback) {
     var sessionAttributes = {};
     var shouldEndSession = false;
     var speechOutput = "";
+    var fs = require('fs');
     var tls = require('tls');
-    var PORT = xxxx;
-    var HOST = 'xxx.xxx.xxx.xxx'; // todo: use FQDN instead of IP
+    var PORT = 4746;
+    var HOST = '98.207.176.132'; // todo: use FQDN instead of IP
     
     var options = {
         host: HOST,
         port: PORT,
-        rejectUnauthorized: false, // danger - MITM attack possible - todo: fix
-        key:"", // add for client-side auth - todo: add
-        cert:"",
-        ca:""
+        rejectUnauthorized: true,
+        cert: fs.readFileSync('client.crt'),
+        key: fs.readFileSync('client.key'),
+        ca: fs.readFileSync('ca.crt')
     };
     
     var ValidValues = ['0','1', '2', '3', '4', '5', '6', '7', '8', '9',
@@ -156,8 +157,6 @@ function sendKeyInSession(intent, session, callback) {
     if (KeysSlot) {
         var num = KeysSlot.value;
         var a = ValidValues.indexOf(num, 0);
-        console.log("num=" +num);
-        console.log("a=" +a);
         sessionAttributes = createNumberAttributes(num);
         if(a === -1) {
             speechOutput = num + ",is an invalid command," +
@@ -205,17 +204,18 @@ function sendCodeInSession(intent, session, callback) {
     var sessionAttributes = {};
     var shouldEndSession = false;
     var speechOutput = "";
+    var fs = require('fs');
     var tls = require('tls');
-    var PORT = xxxx;
-    var HOST = 'xxx.xxx.xxx.xxx'; // todo: use FQDN instead of IP
+    var PORT = 4746;
+    var HOST = '98.207.176.132'; // todo: use FQDN instead of IP
     
     var options = {
         host: HOST,
         port: PORT,
-        rejectUnauthorized: false, // danger - MITM attack possible - todo: fix
-        key:"", // add for client-side auth - todo: add
-        cert:"",
-        ca:""
+        rejectUnauthorized: true,
+        cert: fs.readFileSync('client.crt'),
+        key: fs.readFileSync('client.key'),
+        ca: fs.readFileSync('ca.crt')
     };
     
     repromptText = "please tell the security system a command, or ask its status," +
@@ -280,17 +280,18 @@ function getStatusFromSession(intent, session, callback) {
     var shouldEndSession = true;
     var speechOutput = "";
     var read = "";
+    var fs = require('fs');
     var tls = require('tls');
-    var PORT = xxxx;
-    var HOST = 'xxxx.xxxx.xxxx.xxxx'; // todo: use FQDN instead of IP
+    var PORT = 4746;
+    var HOST = '98.207.176.132'; // todo: use FQDN instead of IP
     
     var options = {
         host: HOST,
         port: PORT,
-        rejectUnauthorized: false, // danger - MITM attack possible - todo: fix
-        key:"", // add for client-side auth - todo: add
-        cert:"",
-        ca:""
+        rejectUnauthorized: true,
+        cert: fs.readFileSync('client.crt'),
+        key: fs.readFileSync('client.key'),
+        ca: fs.readFileSync('ca.crt')
     };
     
     var socket = tls.connect(options, function() {
