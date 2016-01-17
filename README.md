@@ -252,14 +252,37 @@ Based on this, the *panel_io()* thread was locked to its own CPU and the other t
 
 With the threads pinning to the CPUs in this way and with the priority of *panel_io()* being greater than the other two threads in the application code (but not greater than the kernel's critical threads), the system exhibits robust real-time performance.
 
-The server uses openSSL for authentication and encryption. For development and test purposes, self-signed certificates and the IP address of the server is used instead of a Fully Qualified Domain Name. The cert and private key are generated with the following commands.
+The server uses openSSL for authentication and encryption. For development and test purposes, self-signed certificates and the IP address of the server is used instead of a Fully Qualified Domain Name. The cert and key pairs are generated with the following commands.
 
 ```bash
-$ openssl genrsa -out privateKey.key 2048
-$ openssl req -new -key privateKey.key -out privateKey.csr
-$ openssl x509 -req -in privateKey.csr -signkey privateKey.key -out certificate.crt -days 500 -extfile key.ext
+# Step 1. Generate ca private key
+$ openssl genrsa -out /home/pi/certs/ca/ca.key 4096
+# Step 2. Create self-signed ca cert, COMMON_NAME="My CA"
+$ openssl req -new -x509 -days 365 -key /home/pi/certs/ca/ca.key -out /home/pi/certs/ca/ca.crt -sha256
+# 
+# Step 3. Create client private key
+$ openssl genrsa -out /home/pi/certs/client/client.key 2048
+# Step 4. Create client cert signing request, COMMON_NAME="Client 1"
+$ openssl req -new -key /home/pi/certs/client/client.key -out /home/pi/certs/client/client.csr -sha256
+# Step 5. Create signed client cert
+$ openssl x509 -req -days 365 -in /home/pi/certs/client/client.csr -CA /home/pi/certs/ca/ca.crt -CAkey /home/pi/certs/ca/ca.key -set_serial 01 \
+-out /home/pi/certs/client/client.crt -sha256
+# 
+# Step 6. Create server private key
+$ openssl genrsa -out /home/pi/certs/server/server.key 2048
+# Step 7. Create server cert signing request, COMMON_NAME="localhost"
+$ openssl req -new -key /home/pi/certs/server/server.key -out /home/pi/certs/server/server.csr -sha256
+# Step 8. Create signed server cert, where "key.ext" contains "subjectAltName = IP:xxx.xxx.xxx.xxx"
+$ openssl x509 -req -days 365 -in /home/pi/certs/server/server.csr -CA /home/pi/certs/ca/ca.crt -CAkey /home/pi/certs/ca/ca.key -set_serial 02 \
+-out /home/pi/certs/server/server.crt -sha256 -extfile /home/pi/certs/server/key.ext
+# 
+# Step 9. Copy client key pair and CA certificate to Lambda
+$ cp /home/pi/certs/client/client.crt /home/pi/all/lambda
+$ cp /home/pi/certs/client/client.key /home/pi/all/lambda
+$ cp /home/pi/certs/ca/ca.crt /home/pi/all/lambda
 ```
-Where key.ext contains "subjectAltName = IP:xxx.xxx.xxx.xxx" (replace with the IP address of your server). 
+
+Note: replace the X's in key.ext with the IP address or hostname of your server.
 
 Production code should use certificates signed by a real CA and a FQDN for the server, registered with a DNS. The server also uses TCP Wrapper daemon for secure access. TCP Wrapper uses the *hosts_ctl()* system call from libwrap library to limit client access via the rules defined in /etc/host.deny and /etc/host.allow files. The rules are set so that only clients with local IP addresses and AWS IP addresses are allowed access to the server.
 
