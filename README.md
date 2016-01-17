@@ -130,21 +130,20 @@ Below are a few key parts of the code which is listed in its entirety [elsewhere
 The code below sets up the ability to use the tls method to open, read, and write a TCP socket that connects to the remote Pi server. the tls method provides both authentication and encryption between the Lambda client and the Pi server. 
 
 ```javascript
+var fs = require('fs');
 var tls = require('tls');
-var PORT = XXXX;
+var PORT = XX;
 var HOST = 'XXX.XXX.XXX.XXX'; // todo: use FQDN instead of IP
     
 var options = {
-   host: HOST,
-   port: PORT,
-   rejectUnauthorized: false, // danger - MITM attack possible - todo: fix
-   key:"", // add for client-side auth - todo: add
-   cert:"",
-   ca:""
+  host: HOST,
+  port: PORT,
+  rejectUnauthorized: true,
+  cert: fs.readFileSync('client.crt'),
+  key: fs.readFileSync('client.key'),
+  ca: fs.readFileSync('ca.crt')
 };
 ```
-
-There are drawbacks to using an IP address for the remote client instead of a FQDN and by using self-signed TLS certificates. These are currently being workaround by around by setting *rejectUnauthorized* to false which allows an unauthenticated connection between Lambda client and the remote Pi server. This creates a potential man-in-the-middle vulnerability where the Lambda function could be tricked into connecting to a server other than the remote Pi. A fix for that will be in place soon. Also, client side authentication is currently not used but needs to be added for better end-to-end security. In order to enable that, a way to safely store the client credentials in Lambda is required which is a challenge since Lambda itself does not offer persistent storage and hard coding certificate data (in .PEM) in the Node.js code is a security risk. There is probably a way to do this by storing the cert data in S3 and linking that to Lambda, this is something that will be added soon. For now, other methods on the server side are used to make sure that only the valid clients are allowed connections to the Pi.
 
 The code below writes a value to the remote Pi server that gets translated into an alarm keypad command. 
 
