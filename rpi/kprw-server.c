@@ -41,7 +41,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <signal.h>
-#define	PORT_NUM	4746 // port number for server
 #define	BUF_LEN		16 // size of string to hold longest message incl '\n'
 #define BACKLOG		1 // only allow one client to connect
 //#define	_BSD_SOURCE // to get definitions of NI_MAXHOST and NI_MAXSERV from <netdb.h>
@@ -750,7 +749,7 @@ static void configure_context(SSL_CTX *ctx) {
   }
 } // configure_context()
 
-static void panserv(struct status * pstat) {
+static void panserv(struct status * pstat, int port) {
   char buffer[BUF_LEN]="", wordk[MAX_BITS] = "";
   char txBuf[250];
   char addrStr[ADDRSTRLEN];
@@ -767,7 +766,7 @@ static void panserv(struct status * pstat) {
   ctx = create_context();
   configure_context(ctx);
 
-  listenfd = create_socket(PORT_NUM);
+  listenfd = create_socket(port);
 
   signal(SIGPIPE, SIG_IGN); // receive EPIPE from a failed write()
 
@@ -932,7 +931,7 @@ static void panserv(struct status * pstat) {
 
 int main(int argc, char *argv[])
 {
-  int res, crit1, crit2, flag, i;
+  int res, crit1, crit2, flag, i, port;
   struct sched_param param_main, param_pio;
   struct utsname u;
   struct status pstat;
@@ -940,6 +939,18 @@ int main(int argc, char *argv[])
   pthread_attr_t my_attr;
   cpu_set_t cpuset_mio, cpuset_pio, cpuset_main;
   FILE *fd;
+
+  // Check program args and get server port number.
+  if (argc != 2) {
+    fprintf(stderr, "usage: %s port<49152–65535>\n", argv[0]);
+    exit(EXIT_FAILURE);
+  }
+  else
+    port = strtol(argv[1], NULL, 10);
+    if (port < 49152 || port > 65535) {
+      fprintf(stderr, "Port number must be in the range of 49152 to 65535\n");
+      exit(EXIT_FAILURE);
+    }
 
   // Check if running with real-time linux.
   uname(&u);
@@ -1045,7 +1056,7 @@ int main(int argc, char *argv[])
   pthread_attr_destroy(&my_attr);
 
   // start server
-  panserv(&pstat);
+  panserv(&pstat, port);
 
   // cleanup - unlock memory
   if(munlockall() == -1) {
