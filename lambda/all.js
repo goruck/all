@@ -134,7 +134,7 @@ function sendKeyInSession(intent, session, callback) {
     var speechOutput = "";
     var tls = require('tls');
     var fs = require('fs');
-    var PORT = fs.readFileSync('port.txt').toString("utf-8", 0, 4);
+    var PORT = fs.readFileSync('port.txt').toString("utf-8", 0, 5);
     var HOST = fs.readFileSync('host.txt').toString("utf-8", 0, 14);
     var CERT = fs.readFileSync('client.crt');
     var KEY  = fs.readFileSync('client.key');
@@ -208,7 +208,7 @@ function sendCodeInSession(intent, session, callback) {
     var speechOutput = "";
     var tls = require('tls');
     var fs = require('fs');
-    var PORT = fs.readFileSync('port.txt').toString("utf-8", 0, 4);
+    var PORT = fs.readFileSync('port.txt').toString("utf-8", 0, 5);
     var HOST = fs.readFileSync('host.txt').toString("utf-8", 0, 14);
     var CERT = fs.readFileSync('client.crt');
     var KEY  = fs.readFileSync('client.key');
@@ -286,7 +286,7 @@ function getStatusFromSession(intent, session, callback) {
     var read = "";
     var tls = require('tls');
     var fs = require('fs');
-    var PORT = fs.readFileSync('port.txt').toString("utf-8", 0, 4);
+    var PORT = fs.readFileSync('port.txt').toString("utf-8", 0, 5);
     var HOST = fs.readFileSync('host.txt').toString("utf-8", 0, 14);
     var CERT = fs.readFileSync('client.crt');
     var KEY  = fs.readFileSync('client.key');
