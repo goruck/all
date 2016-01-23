@@ -308,8 +308,9 @@ These GPIOs need to be in a safe state after power on and boot up. Per the Broad
 The code below was added to /etc/rc.local so that the application code would automatically run after powering on the Pi.
 
 ```bash
-/home/pi/all/rpi/kprw-server > /dev/null &
+/home/pi/all/rpi/kprw-server *portnum* > /dev/null &
 ```
+Where *portnum* is the TCP port number for the server to use. 
 
 At some point provisions will be added to automatically restart the application code in the event of a crash.
 
