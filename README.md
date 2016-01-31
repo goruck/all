@@ -130,18 +130,20 @@ Below are a few key parts of the code which is listed in its entirety [elsewhere
 The code below sets up the ability to use the tls method to open, read, and write a TCP socket that connects to the remote Pi server. the tls method provides both authentication and encryption between the Lambda client and the Pi server. 
 
 ```javascript
-var fs = require('fs');
 var tls = require('tls');
-var PORT = XX;
-var HOST = 'XXX.XXX.XXX.XXX'; // todo: use FQDN instead of IP
-    
+var fs = require('fs');
+var PORT = fs.readFileSync('port.txt').toString("utf-8", 0, 5);
+var HOST = fs.readFileSync('host.txt').toString("utf-8", 0, 14);
+var CERT = fs.readFileSync('client.crt');
+var KEY  = fs.readFileSync('client.key');
+var CA   = fs.readFileSync('ca.crt');
 var options = {
   host: HOST,
   port: PORT,
-  rejectUnauthorized: true,
-  cert: fs.readFileSync('client.crt'),
-  key: fs.readFileSync('client.key'),
-  ca: fs.readFileSync('ca.crt')
+  cert: CERT,
+  key: KEY,
+  ca: CA,
+  rejectUnauthorized: true
 };
 ```
 
