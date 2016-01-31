@@ -308,7 +308,7 @@ These GPIOs need to be in a safe state after power on and boot up. Per the Broad
 The code below was added to /etc/rc.local so that the application code would automatically run after powering on the Pi.
 
 ```bash
-/home/pi/all/rpi/kprw-server *portnum* > /dev/null &
+/home/pi/all/rpi/kprw-server portnum > /dev/null &
 ```
 Where *portnum* is the TCP port number for the server to use. 
 
@@ -336,7 +336,7 @@ fi
 ```
 Entry in root's crontab:
 ```bash
-*/5 * * * *   root    /usr/local/bin/wifi_rebooter.sh
+*/5 * * * * /usr/local/bin/wifi_rebooter.sh
 ```
 
 ## Keybus to GPIO Interface Unit
