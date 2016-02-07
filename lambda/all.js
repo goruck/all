@@ -73,7 +73,8 @@ function onLaunch(launchRequest, session, callback) {
  */
 function onIntent(intentRequest, session, callback) {
     console.log("onIntent requestId=" + intentRequest.requestId +
-            ", sessionId=" + session.sessionId);
+            ", sessionId=" + session.sessionId +
+            ", intentName=" + intentRequest.intent.name);
 
     var intent = intentRequest.intent,
         intentName = intentRequest.intent.name;
@@ -112,8 +113,7 @@ function getWelcomeResponse(callback) {
     // If the user either does not reply to the welcome message or says something that is not
     // understood, they will be prompted again with this text.
     var repromptText = "Please tell the security system a command, or ask its status," +
-                       "Valid commands are the names of any keypad button," +
-                       "After a status update, the session will end";
+                       "Valid commands are the names of any keypad button,";
     var shouldEndSession = false;
 
     callback(sessionAttributes,
@@ -128,9 +128,9 @@ function getWelcomeResponse(callback) {
 function sendKeyInSession(intent, session, callback) {
     var cardTitle = intent.name;
     var KeysSlot = intent.slots.Keys;
-    var repromptText = "";
     var sessionAttributes = {};
-    var shouldEndSession = false;
+    var repromptText = "";
+    var shouldEndSession = true; // end session after sending keypress
     var speechOutput = "";
     var tls = require('tls');
     var fs = require('fs');
@@ -151,19 +151,14 @@ function sendKeyInSession(intent, session, callback) {
     var ValidValues = ['0','1', '2', '3', '4', '5', '6', '7', '8', '9',
                        'stay', 'away', 'star', 'pound'];
     
-    repromptText = "please tell the security system a command, or ask its status," +
-                   "valid commands are the names of any keypad button," +
-                   "status, or a 4 digit code," +
-                   "after a status update, the session will end";
-    
     if (KeysSlot) {
         var num = KeysSlot.value;
         var a = ValidValues.indexOf(num, 0);
         sessionAttributes = createNumberAttributes(num);
         if(a === -1) {
             speechOutput = num + ",is an invalid command," +
-                           "valid commands are the names of a keypad button," +
-                           "status, or a 4 digit code";
+                                 "valid commands are the names of a keypad button," +
+                                 "status, or a 4 digit code";
             callback(sessionAttributes,
                 buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
         } else {
@@ -202,9 +197,9 @@ function sendKeyInSession(intent, session, callback) {
 function sendCodeInSession(intent, session, callback) {
     var cardTitle = intent.name;
     var CodeSlot = intent.slots.Code;
-    var repromptText = "";
     var sessionAttributes = {};
-    var shouldEndSession = false;
+    var repromptText = "";
+    var shouldEndSession = true; // end session after sending code
     var speechOutput = "";
     var tls = require('tls');
     var fs = require('fs');
@@ -222,18 +217,13 @@ function sendCodeInSession(intent, session, callback) {
         rejectUnauthorized: true
     };
     
-    repromptText = "please tell the security system a command, or ask its status," +
-                   "valid commands are the names of any keypad button," +
-                   "status, or a 4 digit code," +
-                   "after a status update, the session will end";
-    
     if (CodeSlot) {
         var num = CodeSlot.value;
         sessionAttributes = createNumberAttributes(num);
         if(num === '?' || num > 9999) {
             speechOutput = num + ", is an invalid code," +
-                           "codes must be positive 4 digit integers, " +
-                           "not greater than 9999";
+                                 "codes must be positive 4 digit integers, " +
+                                 "not greater than 9999";
             callback(sessionAttributes,
                 buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
         }
