@@ -107,16 +107,52 @@ Where "LIST_OF_KEYS" is a custom slot type defined as:
 
 The sample utterances for the skill are:
 
-1. WhatsMyStatusIntent panel status
-2. WhatsMyStatusIntent status
+1. WhatsMyStatusIntent status
+2. WhatsMyStatusIntent the status
 3. WhatsMyStatusIntent its status
-4. WhatsMyStatusIntent what is panel status
-5. WhatsMyStatusIntent what is the panel status
-6. WhatsMyStatusIntent what is the status
-7. MyNumIsIntent {Keys}
-8. MyCodeIsIntent {Code}
+4. WhatsMyStatusIntent what is the status
+5. WhatsMyStatusIntent what the status is
+6. WhatsMyStatusIntent what's the status
+7. WhatsMyStatusIntent give me the status
+8. WhatsMyStatusIntent give me its status
+9. WhatsMyStatusIntent tell me the status
+10. WhatsMyStatusIntent tell me its status
+11. MyNumIsIntent key {Keys}
+12. MyNumIsIntent button {Keys}
+13. MyNumIsIntent {Keys}
+14. MyNumIsIntent key pad button {Keys}
+15. MyCodeIsIntent pin {Code}
+16. MyCodeIsIntent code {Code}
+17. MyCodeIsIntent {Code}
 
-The "LIST_OF_KEYS" slot enables the intent MyNumIsIntent to activate when Alexa hears the name of the buttons on the keypad defined by the slot. The intent "WhatsMyStatusIntent" activates when Alexa hears any of the status related utterances listed above. When the intents activate, they cause the service endpoint Lambda function to run and perform specific processing depending on the user intent.
+The table below shows the mapping between example user requests and the sample utterance syntax used in the interaction model. 
+
+Example User Request | Sample Utterance
+---------------------|------------------
+“Alexa, ask Panel for its status” | WhatsMyStatusIntent its status
+“Alexa, ask Panel about its status” |WhatsMyStatusIntent its status
+“Alexa, ask Panel for the status” | WhatsMyStatusIntent the status
+“Alexa, ask Panel about the status” | WhatsMyStatusIntent the status
+“Alexa, ask Panel for status” | WhatsMyStatusIntent status
+“Alexa, ask Panel about status” | WhatsMyStatusIntent status
+“Alexa, ask Panel for the status” | WhatsMyStatusIntent the status
+“Alexa, ask Panel about the status” | WhatsMyStatusIntent the status
+“Alexa, ask Panel what is the status” | WhatsMyStatusIntent what is the status
+“Alexa, ask Panel what the status is” | WhatsMyStatusIntent what the status is
+“Alexa, ask Panel what's the status” | WhatsMyStatusIntent what's the status
+“Alexa, ask Panel to give me the status” | WhatsMyStatusIntent give me the status
+“Alexa, ask Panel to give me its status” | WhatsMyStatusIntent give me its status
+“Alexa, ask Panel to tell me the status” | WhatsMyStatusIntent tell me the status
+“Alexa, ask Panel to tell me its status” | WhatsMyStatusIntent tell me its status
+"Alexa, ask Panel for key pound" | MyNumIsIntent key {Keys}
+"Alexa, ask Panel for button star" | MyNumIsIntent button {Keys}
+"Alexa, ask Panel for key pad button 0" | MyNumIsIntent key pad button {Keys}
+"Alexa, ask Panel for 8" | MyNumIsIntent {Keys}
+"Alexa, ask Panel for pin 1234" | MyCodeIsIntent pin {Code}
+"Alexa, ask Panel for code 5678" | MyCodeIsIntent code {Code}
+"Alexa, ask Panel for 4545" | MyCodeIsIntent {Code}
+
+The "LIST_OF_KEYS" slot enables the intent "MyNumIsIntent" to activate when Alexa hears the name of the buttons on the keypad defined by the slot. The intent "WhatsMyStatusIntent" activates when Alexa hears any of the status related utterances listed above. The intent "MyCodeIsIntent" activates when Alexa hears a 4-digit code. When the intents activate, they cause the service endpoint Lambda function to run and perform specific processing depending on the user intent.
 
 The skill is invoked by saying to Alexa "ask panel" or "tell panel".
 
