@@ -109,11 +109,14 @@ function getWelcomeResponse(callback) {
     // If we wanted to initialize the session to have some attributes we could add those here.
     var sessionAttributes = {};
     var cardTitle = "Welcome";
-    var speechOutput = "ready,";
-    // If the user either does not reply to the welcome message or says something that is not
-    // understood, they will be prompted again with this text.
-    var repromptText = "Please tell the security system a command, or ask its status," +
-                       "Valid commands are the names of any keypad button,";
+    var speechOutput = "Please ask the security system its status, or give it a command," +
+                       "valid commands are the names of a keypad button," +
+                       "or a 4 digit code";
+    // If the user either does not reply to the welcome message, they will be prompted again.
+    var repromptText = "To get the system's status, say status," +
+                       "to activate a keypad button, say the name of a button from 0 to 9," +
+                       "stay, away, pound, or star, for example, to activate pound, say pound, "+
+                       "to send a 4 digit code, say the code, for example 1 2 3 4,";
     var shouldEndSession = false;
 
     callback(sessionAttributes,
