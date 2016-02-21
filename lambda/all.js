@@ -35,11 +35,14 @@ exports.handler = function (event, context) {
                         context.succeed(buildResponse(sessionAttributes, speechletResponse));
                      });
         }  else if (event.request.type === "IntentRequest") {
-            onIntent(event.request,
-                     event.session,
-                     function callback(sessionAttributes, speechletResponse) {
-                         context.succeed(buildResponse(sessionAttributes, speechletResponse));
-                     });
+            getPanelStatus(function callback(panelStatus) { // get panel status, then process intent
+                onIntent(panelStatus,
+                         event.request,
+                         event.session,
+                         function callback(sessionAttributes, speechletResponse) {
+                             context.succeed(buildResponse(sessionAttributes, speechletResponse));
+                         });
+            });
         } else if (event.request.type === "SessionEndedRequest") {
             onSessionEnded(event.request, event.session);
             context.succeed();
@@ -71,21 +74,22 @@ function onLaunch(launchRequest, session, callback) {
 /**
  * Called when the user specifies an intent for this skill.
  */
-function onIntent(intentRequest, session, callback) {
-    console.log("onIntent requestId=" + intentRequest.requestId +
-            ", sessionId=" + session.sessionId +
-            ", intentName=" + intentRequest.intent.name);
+function onIntent(panelStatus, intentRequest, session, callback) {
+    console.log("panelStatus=" + panelStatus +
+                ", onIntent requestId=" + intentRequest.requestId +
+                ", sessionId=" + session.sessionId +
+                ", intentName=" + intentRequest.intent.name);
 
     var intent = intentRequest.intent,
         intentName = intentRequest.intent.name;
 
     // Dispatch to your skill's intent handlers
     if ("MyNumIsIntent" === intentName) {
-        sendKeyInSession(intent, session, callback);
+        sendKeyInSession(panelStatus, intent, session, callback);
     } else if ("MyCodeIsIntent" === intentName) {
         sendCodeInSession(intent, session, callback);
     } else if ("WhatsMyStatusIntent" === intentName) {
-        getStatusFromSession(intent, session, callback);
+        getStatusFromSession(panelStatus, intent, session, callback);
     } else if ("AMAZON.HelpIntent" === intentName) {
         getWelcomeResponse(callback);
     } else {
@@ -124,11 +128,66 @@ function getWelcomeResponse(callback) {
 }
 
 /*
- * Gets the panel keypress from the user in the session.
- * Prepares the speech to reply to the user.
- * Sends the keypress to the panel over a TLS TCP socket.
+ * Gets the panel status to be used in the intent handlers.
  */
-function sendKeyInSession(intent, session, callback) {
+function getPanelStatus (callback) {
+
+    var tls = require('tls'),
+        fs = require('fs'),
+        PORT = fs.readFileSync('port.txt').toString("utf-8", 0, 5),
+        HOST = fs.readFileSync('host.txt').toString("utf-8", 0, 14),
+        CERT = fs.readFileSync('client.crt'),
+        KEY  = fs.readFileSync('client.key'),
+        CA   = fs.readFileSync('ca.crt'),
+        num = "idle",
+        panelStatus = "";
+
+    var options = {
+        host: HOST,
+        port: PORT,
+        cert: CERT,
+        key: KEY,
+        ca: CA,
+        rejectUnauthorized: true
+    };
+
+    var socket = tls.connect(options, function() {
+        console.log('getPanelStatus socket connected to ' +HOST);
+        if(socket.authorized){
+            console.log('host is authorized');
+        }
+        else{
+            console.log('host cert auth error: ', socket.authorizationError);
+        }
+        socket.write(num +'\n');
+	    console.log('wrote ' +num);
+    });
+
+    socket.on('data', function(data) {
+        panelStatus += data.toString();
+    });
+	
+    socket.on('end', function (data) {
+	socket.end;
+	console.log('getPanelStatus socket disconnected from host ' +HOST);
+	callback(panelStatus);
+    });
+	
+    socket.on('error', function(ex) {
+	console.log("handled getPanelStatus socket error");
+	console.log(ex);
+	callback(ex);
+    });
+
+}
+
+/*
+ * Gets the panel keypress from the user in the session.
+ * Check to make sure keypress is valid. 
+ * Prepares the speech to reply to the user.
+ * If valid, sends the keypress to the panel over a TLS TCP socket.
+ */
+function sendKeyInSession(panelStatus, intent, session, callback) {
     var cardTitle = intent.name;
     var KeysSlot = intent.slots.Keys;
     var sessionAttributes = {};
@@ -150,41 +209,73 @@ function sendKeyInSession(intent, session, callback) {
         ca: CA,
         rejectUnauthorized: true
     };
+
+    var isReady = panelStatus.indexOf('LED Status Ready') > -1; // true if system is ready
+
+    var isArmed = panelStatus.indexOf('Armed') > -1; // true if system is armed
     
     var ValidValues = ['0','1', '2', '3', '4', '5', '6', '7', '8', '9',
                        'stay', 'away', 'star', 'pound'];
+
+    var num = KeysSlot.value;
+
+    var isValidValue = ValidValues.indexOf(num) > -1; // true if a valid value was passed
     
     if (KeysSlot) {
-        var num = KeysSlot.value;
-        var a = ValidValues.indexOf(num, 0);
-        sessionAttributes = createNumberAttributes(num);
-        if(a === -1) {
+
+        if (!isValidValue) {
+
             speechOutput = num + ",is an invalid command," +
                                  "valid commands are the names of a keypad button," +
                                  "status, or a 4 digit code";
+
             callback(sessionAttributes,
                 buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+
         } else {
-            speechOutput = "sending, " +num;
-            var socket = tls.connect(options, function() {
-                console.log('connected to host ' +HOST);
-                if(socket.authorized){
-                    console.log('host is authorized');
-                } else {
-                    console.log('host cert auth error: ', socket.authorizationError);
-                }
-                socket.write(num +'\n');
-                console.log('wrote ' +num);
-                socket.end;
-                console.log('disconnected from host ' +HOST);
+
+            if ((num === 'stay' || num === 'away') && isArmed) {
+
+                speechOutput = "System is already armed,";
+
                 callback(sessionAttributes,
-                    buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-            
-            });
-            socket.on('error', function(ex) {
-                console.log("handled error");
-                console.log(ex);
-            });
+                         buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+
+            } else if ((num === 'stay' || num === 'away') && !isReady) {
+
+                var zoneRegex = /(Zone[1-4] [1-9]|1[1-9])/g; // g finds all matches rather than stopping after the first match
+              
+                var zonesNotReady = panelStatus.match(zoneRegex); // array with zones not ready
+
+                speechOutput = "System cannot be armed, because these zones are not ready," +zonesNotReady;
+
+                callback(sessionAttributes,
+                         buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+
+            } else {
+
+                speechOutput = "sending, " +num;
+
+                var socket = tls.connect(options, function() {
+                    console.log('connected to host ' +HOST);
+                    if(socket.authorized){
+                        console.log('host is authorized');
+                    } else {
+                        console.log('host cert auth error: ', socket.authorizationError);
+                    }
+                    socket.write(num +'\n');
+                    console.log('wrote ' +num);
+                    socket.end;
+                    console.log('disconnected from host ' +HOST);
+                    callback(sessionAttributes,
+                             buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                });
+
+                socket.on('error', function(ex) {
+                    console.log("handled error");
+                    console.log(ex);
+                });
+            }
         }
         
     } else {
@@ -194,8 +285,9 @@ function sendKeyInSession(intent, session, callback) {
 
 /*
  * Gets the a 4 digit code from the user in the session.
+ * Check for validity. 
  * Prepares the speech to reply to the user.
- * Sends the code to the panel over a TLS TCP socket.
+ * If valid, sends the code to the panel over a TLS TCP socket.
  */
 function sendCodeInSession(intent, session, callback) {
     var cardTitle = intent.name;
@@ -257,17 +349,10 @@ function sendCodeInSession(intent, session, callback) {
     }
 }
 
-function createNumberAttributes(key) {
-    return {
-        key : key
-    };
-}
-
-/**
- * Gets the panel status via a TLS TCP socket.
- * Sends the resulting speech to the user and ends session.
+/*
+ * Sends panel status to the user and ends session.
  */
-function getStatusFromSession(intent, session, callback) {
+function getStatusFromSession(panelStatus, intent, session, callback) {
     var cardTitle = intent.name;
     // Setting repromptText to null signifies that we do not want to reprompt the user.
     // If the user does not respond or says something that is not understood, the session
@@ -276,51 +361,16 @@ function getStatusFromSession(intent, session, callback) {
     var sessionAttributes = {};
     var shouldEndSession = true;
     var speechOutput = "";
-    var read = "";
-    var tls = require('tls');
-    var fs = require('fs');
-    var PORT = fs.readFileSync('port.txt').toString("utf-8", 0, 5);
-    var HOST = fs.readFileSync('host.txt').toString("utf-8", 0, 14);
-    var CERT = fs.readFileSync('client.crt');
-    var KEY  = fs.readFileSync('client.key');
-    var CA   = fs.readFileSync('ca.crt');
-    var options = {
-        host: HOST,
-        port: PORT,
-        cert: CERT,
-        key: KEY,
-        ca: CA,
-        rejectUnauthorized: true
-    };
-    
-    var socket = tls.connect(options, function() {
-        console.log('connected to host ' +HOST);
-        if(socket.authorized){
-          console.log('host is authorized');
-        }
-        else{
-          console.log('host cert auth error: ', socket.authorizationError);
-        }
-        socket.write('idle\n');
-    });
-       
-    socket.on('data', function(data) {
-        read += data.toString();
-    });
-       
-    socket.on('end', function() {
-        socket.end;
-        console.log('disconnected from host ' +HOST);
-        console.log('host data read: ' +read);
-        speechOutput = read;
-        callback(sessionAttributes,
+   
+    speechOutput = panelStatus;
+    callback(sessionAttributes,
              buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-    });
-       
-    socket.on('error', function(ex) {
-        console.log("handled error");
-        console.log(ex);
-    });
+}
+
+function createNumberAttributes(key) {
+    return {
+        key : key
+    };
 }
 
 // --------------- Helpers that build all of the responses -----------------------
