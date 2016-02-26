@@ -139,7 +139,6 @@ function getPanelStatus (callback) {
         CERT = fs.readFileSync('client.crt'),
         KEY  = fs.readFileSync('client.key'),
         CA   = fs.readFileSync('ca.crt'),
-        num = "idle",
         panelStatus = "";
 
     var options = {
@@ -159,16 +158,14 @@ function getPanelStatus (callback) {
         else{
             console.log('host cert auth error: ', socket.authorizationError);
         }
-        socket.write(num +'\n');
-	    console.log('wrote ' +num);
+        socket.write('idle' +'\n');
     });
 
     socket.on('data', function(data) {
         panelStatus += data.toString();
     });
 	
-    socket.on('end', function (data) {
-	socket.end;
+    socket.on('close', function () {
 	console.log('getPanelStatus socket disconnected from host ' +HOST);
 	callback(panelStatus);
     });
@@ -176,14 +173,13 @@ function getPanelStatus (callback) {
     socket.on('error', function(ex) {
 	console.log("handled getPanelStatus socket error");
 	console.log(ex);
-	callback(ex);
     });
 
 }
 
 /*
  * Gets the panel keypress from the user in the session.
- * Check to make sure keypress is valid. 
+ * Check to make sure keypress is valid.
  * Prepares the speech to reply to the user.
  * If valid, sends the keypress to the panel over a TLS TCP socket.
  */
@@ -211,53 +207,33 @@ function sendKeyInSession(panelStatus, intent, session, callback) {
     };
 
     var isReady = panelStatus.indexOf('LED Status Ready') > -1; // true if system is ready
-
     var isArmed = panelStatus.indexOf('Armed') > -1; // true if system is armed
-    
     var ValidValues = ['0','1', '2', '3', '4', '5', '6', '7', '8', '9',
                        'stay', 'away', 'star', 'pound'];
-
     var num = KeysSlot.value;
-
     var isValidValue = ValidValues.indexOf(num) > -1; // true if a valid value was passed
     
     if (KeysSlot) {
-
         if (!isValidValue) {
-
             speechOutput = num + ",is an invalid command," +
                                  "valid commands are the names of a keypad button," +
                                  "status, or a 4 digit code";
-
             callback(sessionAttributes,
-                buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-
+                     buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
         } else {
-
             if ((num === 'stay' || num === 'away') && isArmed) {
-
                 speechOutput = "System is already armed,";
-
                 callback(sessionAttributes,
                          buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-
             } else if ((num === 'stay' || num === 'away') && !isReady) {
-
                 var zoneRegex = /(Zone[1-4] [1-9]|1[1-9])/g; // g finds all matches rather than stopping after the first match
-              
                 var zonesNotReady = panelStatus.match(zoneRegex); // array with zones not ready
-
                 speechOutput = "System cannot be armed, because these zones are not ready," +zonesNotReady;
-
                 callback(sessionAttributes,
                          buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-
             } else {
-
-                speechOutput = "sending, " +num;
-
                 var socket = tls.connect(options, function() {
-                    console.log('connected to host ' +HOST);
+                    console.log('sendKeyInSession socket connected to host ' +HOST);
                     if(socket.authorized){
                         console.log('host is authorized');
                     } else {
@@ -265,19 +241,39 @@ function sendKeyInSession(panelStatus, intent, session, callback) {
                     }
                     socket.write(num +'\n');
                     console.log('wrote ' +num);
-                    socket.end;
-                    console.log('disconnected from host ' +HOST);
-                    callback(sessionAttributes,
-                             buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                });
+
+                socket.on('data', function(data) {
+                    var dummy; // read status from server to get FIN packet
+                    dummy += data.toString();
+                });
+
+                socket.on('close', function() { // wait for FIN packet from server
+                    console.log('sendKeyInSession socket disconnected from host ' +HOST);
+                    setTimeout(function () {
+                        getPanelStatus(function(panelStatus) { // verify command succeeded
+                        var isArmed = panelStatus.indexOf('Armed') > -1; // true if system is armed
+                        if (num === 'stay' || num === 'away') {
+                            if (isArmed) {
+                                speechOutput = 'sent,' +num +',system was armed,';
+                            } else {
+                                speechOutput = 'sent,' +num +',error,, system could not be armed,';
+                            }
+                        } else {
+                        speechOutput = 'sent,' +num;
+                        }
+                        callback(sessionAttributes,
+                                 buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                        });
+                    }, 1000) // wait 1 sec for command to take effect
                 });
 
                 socket.on('error', function(ex) {
-                    console.log("handled error");
+                    console.log("sendKeyInSession handled error");
                     console.log(ex);
                 });
             }
         }
-        
     } else {
         console.log('error in SendKeyInSession');
     }
@@ -323,9 +319,8 @@ function sendCodeInSession(intent, session, callback) {
                 buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
         }
         else {
-            speechOutput = "sending, " +num;
             var socket = tls.connect(options, function() {
-                console.log('connected to host ' +HOST);
+                console.log('sendCodeInSession socket connected to host ' +HOST);
                 if(socket.authorized){
                     console.log('host is authorized');
                 } else {
@@ -333,14 +328,22 @@ function sendCodeInSession(intent, session, callback) {
                 }
                 socket.write(num +'\n');
                 console.log('wrote ' +num);
-                socket.end;
-                console.log('disconnected from host ' +HOST);
-                callback(sessionAttributes,
-                    buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-            
             });
+
+            socket.on('data', function(data) {
+                var dummy;
+                dummy += data.toString();
+            });
+	
+            socket.on('close', function () {
+	        console.log('sendCodeInSession socket disconnected from host ' +HOST);
+                speechOutput = "sending, " +num;
+	        callback(sessionAttributes,
+                         buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+            });
+
             socket.on('error', function(ex) {
-                console.log("handled error");
+                console.log("sendCodeInSession handled error");
                 console.log(ex);
             });
         }
