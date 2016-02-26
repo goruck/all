@@ -804,33 +804,15 @@ static void panserv(struct status * pstat, int port) {
       continue;
     }
 
-    memset(&buffer, 0, BUF_LEN);
-    res = SSL_read(ssl, buffer, (BUF_LEN-1));
-    if (res <= 0) {
-      ERR_print_errors_fp(stderr);
-      SSL_free(ssl);
-      close(connfd);
-      continue;
-    }
-
     printf("server: client %s connected with %s encryption\n",
            inet_ntoa(client_addr.sin_addr), SSL_get_cipher(ssl));
 
-    snprintf(txBuf, sizeof(txBuf), "%s, %s, %s, %s, %s,",
-             pstat->ledStatus, pstat->zone1Status, pstat->zone2Status,
-             pstat->zone3Status, pstat->zone4Status);
-    res = SSL_write(ssl, txBuf, strlen(txBuf));
+    memset(&buffer, 0, BUF_LEN);
+    res = SSL_read(ssl, buffer, (BUF_LEN-1)); // read command from socket
     if (res <= 0) {
       ERR_print_errors_fp(stderr);
       SSL_free(ssl);
       close(connfd);
-      continue;
-    }
-
-    SSL_free(ssl);
-    res = close(connfd);
-    if (res == -1) {
-      perror("server: error closing connection");
       continue;
     }
 
@@ -840,6 +822,8 @@ static void panserv(struct status * pstat, int port) {
      * Decode command sent from client.
      * Check for bad commands.
      * Map to keypad data and send to panel.
+     *
+     * todo: this should be a function
      */
     if (!isdigit(buffer[i])) { // not a number, but a command
       if (!strncmp(buffer, "star", 4))
@@ -913,12 +897,30 @@ static void panserv(struct status * pstat, int port) {
           break;
         }
         i++;
-        if (i > 4) {
+        if (i > 4) { // max 4-digit number allowed
           fprintf(stderr, "server: invalid panel command\n");
           continue;
         }
       }
     }
+
+    snprintf(txBuf, sizeof(txBuf), "%s, %s, %s, %s, %s,",
+             pstat->ledStatus, pstat->zone1Status, pstat->zone2Status,
+             pstat->zone3Status, pstat->zone4Status);
+    res = SSL_write(ssl, txBuf, strlen(txBuf)); // write status to socket
+    if (res <= 0) {
+      ERR_print_errors_fp(stderr);
+      SSL_free(ssl);
+      close(connfd);
+      continue;
+    }
+
+    SSL_free(ssl);
+    res = close(connfd);
+    if (res == -1) {
+      perror("server: error closing connection");
+      continue;
+    }   
 
   }
 
