@@ -163,60 +163,129 @@ The *color* skill and Lambda function example provided by ASK was used as a temp
 
 Below are a few key parts of the code which is listed in its entirety [elsewhere](https://github.com/goruck/all/blob/master/lambda/all.js).
 
-The code below sets up the ability to use the tls method to open, read, and write a TCP socket that connects to the remote Pi server. the tls method provides both authentication and encryption between the Lambda client and the Pi server. 
+The code snippet below sets up the ability to use the tls method to open, read, and write a TCP socket that connects to the remote Pi server which then gets the system status from the panel. The tls method provides both authentication and encryption between the Lambda client and the Pi server. 
 
 ```javascript
-var tls = require('tls');
-var fs = require('fs');
-var PORT = fs.readFileSync('port.txt').toString("utf-8", 0, 5);
-var HOST = fs.readFileSync('host.txt').toString("utf-8", 0, 14);
-var CERT = fs.readFileSync('client.crt');
-var KEY  = fs.readFileSync('client.key');
-var CA   = fs.readFileSync('ca.crt');
-var options = {
-  host: HOST,
-  port: PORT,
-  cert: CERT,
-  key: KEY,
-  ca: CA,
-  rejectUnauthorized: true
-};
+function getPanelStatus (callback) {
+
+    var tls = require('tls'),
+        fs = require('fs'),
+        PORT = fs.readFileSync('port.txt').toString("utf-8", 0, 5),
+        HOST = fs.readFileSync('host.txt').toString("utf-8", 0, 14),
+        CERT = fs.readFileSync('client.crt'),
+        KEY  = fs.readFileSync('client.key'),
+        CA   = fs.readFileSync('ca.crt'),
+        panelStatus = "";
+
+    var options = {
+        host: HOST,
+        port: PORT,
+        cert: CERT,
+        key: KEY,
+        ca: CA,
+        rejectUnauthorized: true
+    };
+
+    var socket = tls.connect(options, function() {
+        console.log('getPanelStatus socket connected to ' +HOST);
+        if(socket.authorized){
+            console.log('host is authorized');
+        }
+        else{
+            console.log('host cert auth error: ', socket.authorizationError);
+        }
+        socket.write('idle' +'\n');
+    });
+
+    socket.on('data', function(data) {
+        panelStatus += data.toString();
+    });
+	
+    socket.on('close', function () {
+	console.log('getPanelStatus socket disconnected from host ' +HOST);
+	callback(panelStatus);
+    });
+	
+    socket.on('error', function(ex) {
+	console.log("handled getPanelStatus socket error");
+	console.log(ex);
+    });
+
+}
 ```
 
-The code below writes a value to the remote Pi server that gets translated into an alarm keypad command. 
+The code snippet below writes a value to the remote Pi server that gets translated into an alarm keypad command. It checks to see if the command succeeded and if not flags a error response to the user.
 
 ```javascript
 var socket = tls.connect(options, function() {
-  console.log('connected to host ' +HOST);
-  if(socket.authorized){
-    console.log('host is authorized');
-  } else {
-    console.log('host cert auth error: ', socket.authorizationError);
-  }
-  socket.write(num +'\n');
-  console.log('wrote ' +num);
-  socket.end;
-  console.log('disconnected from host ' +HOST);
-  callback(sessionAttributes,
-    buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+    console.log('sendKeyInSession socket connected to host ' +HOST);
+    if(socket.authorized){
+        console.log('host is authorized');
+    } else {
+        console.log('host cert auth error: ', socket.authorizationError);
+    }
+    socket.write(num +'\n');
+    console.log('wrote ' +num);
+});
+
+socket.on('data', function(data) {
+    var dummy; // read status from server to get FIN packet
+    dummy += data.toString();
+});
+
+socket.on('close', function() { // wait for FIN packet from server
+    console.log('sendKeyInSession socket disconnected from host ' +HOST);
+    setTimeout(function () {
+        getPanelStatus(function(panelStatus) { // verify command succeeded
+            var isArmed = panelStatus.indexOf('Armed') > -1; // true if system is armed
+            if (num === 'stay' || num === 'away') {
+                if (isArmed) {
+                    speechOutput = 'sent,' +num +',system was armed,';
+                } else {
+                    speechOutput = 'sent,' +num +',error,, system could not be armed,';
+                }
+            } else {
+                speechOutput = 'sent,' +num;
+            }
+            callback(sessionAttributes,
+                     buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+        });
+    }, 1000) // wait 1 sec for command to take effect
 });
 ```
 
-The code below read alarm status coming back from the Pi server and sends it back to Alexa. 
+The code snippet below processes alarm status coming back from the Pi server and sends it to Alexa. 
 
 ```javascript
-socket.on('data', function(data) {
-   read += data.toString();
-});
-       
-socket.on('end', function() {
-   socket.end;
-   console.log('disconnected from host ' +HOST);
-   console.log('host data read: ' +read);
-   speechOutput = read;
-   callback(sessionAttributes,
-      buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-});
+function getStatusFromSession(panelStatus, intent, session, callback) {
+    var cardTitle = intent.name;
+    // Setting repromptText to null signifies that we do not want to reprompt the user.
+    // If the user does not respond or says something that is not understood, the session
+    // will end.
+    var repromptText = "";
+    var sessionAttributes = {};
+    var shouldEndSession = true;
+    var speechOutput = "";
+
+    var isReady = panelStatus.indexOf('LED Status Ready') > -1; // true if system is ready
+    var isArmed = panelStatus.indexOf('Armed') > -1; // true if system is armed
+    var hasError = panelStatus.indexOf('Error') > -1; // true if system has flagged an error condition
+    var isBypassed = panelStatus.indexOf('Bypass') > -1; // true if one or more zones are bypassed
+   
+    if (isReady) {
+       hasError ? speechOutput = 'system is ready but has an error' : speechOutput = 'system is ready'; 
+    } else {
+       var placesNotReady = findPlacesNotReady(panelStatus); // get friendly names of zones not ready;
+       speechOutput = 'these zones are not ready,' +placesNotReady;
+    }
+
+    if(isArmed) {
+       isBypassed ? speechOutput = 'system is armed and a is zone bypassed' : speechOutput = 'system is armed';
+    }
+
+    callback(sessionAttributes,
+             buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+}
 ```
 
 ## Raspberry Pi Controller / Server
