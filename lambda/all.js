@@ -128,6 +128,75 @@ function getWelcomeResponse(callback) {
 }
 
 /*
+ * Mapping from alarm zones to friendly place names.
+ */
+var places = {
+    "Zone1": {
+        "1":  "front door",
+	"2":  "living room left window",
+	"3":  "living room right window",
+	"4":  "dining room left window",
+	"5":  "dining room center left window",
+	"6":  "dining room center right window",
+	"7":  "dining room right window",
+	"8":  "kitchen left window"
+    },
+    "Zone2": {
+        "1":  "kitchen right window",
+	"2":  "breakfast nook left window",
+	"3":  "breakfast nook side right window",
+	"4":  "breakfast nook left window",
+	"5":  "breakfast nook center left window",
+	"6":  "breakfast nook center right window",
+	"7":  "breakfast nook right window",
+	"8":  "family room slider door"
+    },
+    "Zone3": {
+        "1":  "family room left window",
+	"2":  "family room center window",
+	"3":  "family room right window",
+        "4":  "guest bedroom left window",
+	"5":  "guest bedroom center left window",
+	"6":  "guest bedroom center right window",
+	"7":  "guest bedroom right window",
+	"8":  "first floor bathroom window"
+    },
+    "Zone4": {
+        "1":  "front landing window",
+	"2":  "upstairs slider",
+	"3":  "front motion",
+	"4":  "hall motion",
+	"5":  "upstairs motion",
+	"6":  "playroom motion",
+	"7":  "playroom window",
+	"8":  "playroom door"
+    },
+};
+
+function zoneToPlace(zone, sensor) {
+    return places[zone][sensor];
+}
+
+/*
+ * Find friendly names of places not ready to be armed.
+ */
+function findPlacesNotReady(panelStatus) {
+    var zoneRegex = /(Zone\d \d{1,2})((, \d{1,2}){1,8})?/g;
+    var zonesNotReady = panelStatus.match(zoneRegex); // array with zones not ready
+    var placesNotReady = "";
+    for(i = 0; i < zonesNotReady.length; i++) {
+        var zoneNotReady = zonesNotReady[i].slice(0,5);
+        var sensorRegex = /\d{1,2}/g;
+        var sensorsNotReady = zonesNotReady[i].slice(6).match(sensorRegex); // array with sensors in zone not ready
+        for(j = 0; j < sensorsNotReady.length; j++) {
+            var sensorNotReady = sensorsNotReady[j];
+	    placesNotReady += zoneToPlace(zoneNotReady, sensorNotReady) +',';
+        }
+    }
+    return placesNotReady;
+}
+
+/*
  * Gets the panel status to be used in the intent handlers.
  */
 function getPanelStatus (callback) {
@@ -226,9 +295,8 @@ function sendKeyInSession(panelStatus, intent, session, callback) {
                 callback(sessionAttributes,
                          buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
             } else if ((num === 'stay' || num === 'away') && !isReady) {
-                var zoneRegex = /(Zone[1-4] [1-9]|1[1-9])/g; // g finds all matches rather than stopping after the first match
-                var zonesNotReady = panelStatus.match(zoneRegex); // array with zones not ready
-                speechOutput = "System cannot be armed, because these zones are not ready," +zonesNotReady;
+                var placesNotReady = findPlacesNotReady(panelStatus); // get friendly names of zones not ready
+                speechOutput = "System cannot be armed, because these zones are not ready," +placesNotReady;
                 callback(sessionAttributes,
                          buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
             } else {
@@ -364,8 +432,23 @@ function getStatusFromSession(panelStatus, intent, session, callback) {
     var sessionAttributes = {};
     var shouldEndSession = true;
     var speechOutput = "";
+
+    var isReady = panelStatus.indexOf('LED Status Ready') > -1; // true if system is ready
+    var isArmed = panelStatus.indexOf('Armed') > -1; // true if system is armed
+    var hasError = panelStatus.indexOf('Error') > -1; // true if system has flagged an error condition
+    var isBypassed = panelStatus.indexOf('Bypass') > -1; // true if one or more zones are bypassed
    
-    speechOutput = panelStatus;
+    if (isReady) {
+       hasError ? speechOutput = 'system is ready but has an error' : speechOutput = 'system is ready'; 
+    } else {
+       var placesNotReady = findPlacesNotReady(panelStatus); // get friendly names of zones not ready;
+       speechOutput = 'these zones are not ready,' +placesNotReady;
+    }
+
+    if(isArmed) {
+       isBypassed ? speechOutput = 'system is armed and a is zone bypassed' : speechOutput = 'system is armed';
+    }
+
     callback(sessionAttributes,
              buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
 }
