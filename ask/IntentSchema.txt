@@ -1,0 +1,28 @@
+{
+  "intents": [
+    {
+      "intent": "MyNumIsIntent",
+      "slots": [
+        {
+          "name": "Keys",
+          "type": "LIST_OF_KEYS"
+        }
+      ]
+    },
+    {
+      "intent": "MyCodeIsIntent",
+      "slots": [
+        {
+          "name": "Code",
+          "type": "AMAZON.FOUR_DIGIT_NUMBER"
+        }
+      ]
+    },
+    {
+      "intent": "WhatsMyStatusIntent"
+    },
+    {
+      "intent": "AMAZON.HelpIntent"
+    }
+  ]
+}

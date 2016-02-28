@@ -1,0 +1,17 @@
+WhatsMyStatusIntent status
+WhatsMyStatusIntent the status
+WhatsMyStatusIntent its status
+WhatsMyStatusIntent what is the status
+WhatsMyStatusIntent what the status is
+WhatsMyStatusIntent what's the status
+WhatsMyStatusIntent give me the status
+WhatsMyStatusIntent give me its status
+WhatsMyStatusIntent tell me the status
+WhatsMyStatusIntent tell me its status
+MyNumIsIntent key {Keys}
+MyNumIsIntent button {Keys}
+MyNumIsIntent {Keys}
+MyNumIsIntent key pad button {Keys}
+MyCodeIsIntent pin {Code}
+MyCodeIsIntent code {Code}
+MyCodeIsIntent {Code}
