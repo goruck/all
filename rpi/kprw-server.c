@@ -381,40 +381,40 @@ static int decode(char * word, char * msg) {
   else if (cmd == 0x2d) {
     strcpy(msg, "Zone2 ");
     zones = getBinaryData(word,41,8);
-    if (zones & 1) strcat(msg, "9, ");
-    if (zones & 2) strcat(msg, "10, ");
-    if (zones & 4) strcat(msg, "11, ");
-    if (zones & 8) strcat(msg, "12, ");
-    if (zones & 16) strcat(msg, "13, ");
-    if (zones & 32) strcat(msg, "14, ");
-    if (zones & 64) strcat(msg, "15, ");
-    if (zones & 128) strcat(msg, "16 ");
+    if (zones & 1) strcat(msg, "1, ");
+    if (zones & 2) strcat(msg, "2, ");
+    if (zones & 4) strcat(msg, "3, ");
+    if (zones & 8) strcat(msg, "4, ");
+    if (zones & 16) strcat(msg, "5, ");
+    if (zones & 32) strcat(msg, "6, ");
+    if (zones & 64) strcat(msg, "7, ");
+    if (zones & 128) strcat(msg, "8 ");
     if (zones == 0) strcat(msg, "Ready ");
   }
   else if (cmd == 0x34) {
     strcpy(msg, "Zone3 ");
     zones = getBinaryData(word,41,8);
-    if (zones & 1) strcat(msg, "9, ");
-    if (zones & 2) strcat(msg, "10, ");
-    if (zones & 4) strcat(msg, "11, ");
-    if (zones & 8) strcat(msg, "12, ");
-    if (zones & 16) strcat(msg, "13, ");
-    if (zones & 32) strcat(msg, "14, ");
-    if (zones & 64) strcat(msg, "15, ");
-    if (zones & 128) strcat(msg, "16 ");
+    if (zones & 1) strcat(msg, "1, ");
+    if (zones & 2) strcat(msg, "2, ");
+    if (zones & 4) strcat(msg, "3, ");
+    if (zones & 8) strcat(msg, "4, ");
+    if (zones & 16) strcat(msg, "5, ");
+    if (zones & 32) strcat(msg, "6, ");
+    if (zones & 64) strcat(msg, "7, ");
+    if (zones & 128) strcat(msg, "8 ");
     if (zones == 0) strcat(msg, "Ready ");
   }
   else if (cmd == 0x3e) {
     strcpy(msg, "Zone4 ");
     zones = getBinaryData(word,41,8);
-    if (zones & 1) strcat(msg, "9, ");
-    if (zones & 2) strcat(msg, "10, ");
-    if (zones & 4) strcat(msg, "11, ");
-    if (zones & 8) strcat(msg, "12, ");
-    if (zones & 16) strcat(msg, "13, ");
-    if (zones & 32) strcat(msg, "14, ");
-    if (zones & 64) strcat(msg, "15, ");
-    if (zones & 128) strcat(msg, "16 ");
+    if (zones & 1) strcat(msg, "1, ");
+    if (zones & 2) strcat(msg, "2, ");
+    if (zones & 4) strcat(msg, "3, ");
+    if (zones & 8) strcat(msg, "4, ");
+    if (zones & 16) strcat(msg, "5, ");
+    if (zones & 32) strcat(msg, "6, ");
+    if (zones & 64) strcat(msg, "7, ");
+    if (zones & 128) strcat(msg, "8 ");
     if (zones == 0) strcat(msg, "Ready ");
   }
   else if (cmd == 0x0a)
