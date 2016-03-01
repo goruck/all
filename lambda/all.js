@@ -92,6 +92,10 @@ function onIntent(panelStatus, intentRequest, session, callback) {
         getStatusFromSession(panelStatus, intent, session, callback);
     } else if ("AMAZON.HelpIntent" === intentName) {
         getWelcomeResponse(callback);
+    } else if ("AMAZON.StopIntent" === intentName) {
+        stopSession(callback);
+    } else if ("AMAZON.CancelIntent" === intentName) {
+        stopSession(callback);
     } else {
         throw "Invalid intent";
     }
@@ -108,6 +112,17 @@ function onSessionEnded(sessionEndedRequest, session) {
 }
 
 // --------------- Functions that control the skill's behavior -----------------------
+
+function stopSession(callback) {
+    var sessionAttributes = {};
+    var cardTitle = "Goodbye";
+    var speechOutput = "goodbye";
+    var shouldEndSession = true;
+    var repromptText = "";
+
+    callback(sessionAttributes,
+             buildSpeechletResponse(cardTitle, speechOutput, repromptText, shouldEndSession));
+}
 
 function getWelcomeResponse(callback) {
     // If we wanted to initialize the session to have some attributes we could add those here.
