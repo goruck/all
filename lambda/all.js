@@ -191,21 +191,23 @@ function sendKeyInSession(panelStatus, intent, session, callback) {
 
                 socket.on('close', function() { // wait for FIN packet from server
                     console.log('sendKeyInSession socket disconnected from host: ' +HOST);
-                    setTimeout(function () {
-                        getPanelStatus(function(panelStatus) { // verify command succeeded
-                        if (num === 'stay' || num === 'away') {
-                            if (isArmed(panelStatus)) {
-                                speechOutput = 'sent,' +num +',system was armed,';
-                            } else {
-                                speechOutput = 'sent,' +num +',error,, system could not be armed,';
-                            }
-                        } else {
+                    if (!(num === 'stay' || num === 'away')) { // a key that doesn't need verification
                         speechOutput = 'sent,' +num;
-                        }
                         callback(sessionAttributes,
                                  buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-                        });
-                    }, 1000) // wait 1 sec for command to take effect
+                    } else {
+                        setTimeout(function verifyArmCmd() { // verify stay or away arm command succeeded
+                            getPanelStatus(function checkIfArmed(panelStatus) {
+                                if (isArmed(panelStatus)) {
+                                    speechOutput = 'sent,' +num +',system was armed,';
+                                } else {
+                                    speechOutput = 'sent,' +num +',error,, system could not be armed,';
+                                }
+                                callback(sessionAttributes,
+                                         buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                            });
+                        }, 1000); // wait 1 sec for command to take effect
+                    }
                 });
 
                 socket.on('error', function(ex) {
