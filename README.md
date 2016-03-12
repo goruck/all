@@ -118,12 +118,15 @@ The sample utterances for the skill are:
 9. WhatsMyStatusIntent tell me the status
 10. WhatsMyStatusIntent tell me its status
 11. MyNumIsIntent key {Keys}
-12. MyNumIsIntent button {Keys}
-13. MyNumIsIntent {Keys}
-14. MyNumIsIntent key pad button {Keys}
-15. MyCodeIsIntent pin {Code}
-16. MyCodeIsIntent code {Code}
-17. MyCodeIsIntent {Code}
+12. MyNumIsIntent the key {Keys}
+13. MyNumIsIntent the key is {Keys}
+14. MyNumIsIntent key is {Keys}
+15. MyNumIsIntent {Keys}
+16. MyCodeIsIntent the code is {Code}
+17. MyCodeIsIntent code is {Code}
+18. MyCodeIsIntent the code {Code}
+19. MyCodeIsIntent code {Code}
+20. MyCodeIsIntent {Code}
 
 The table below shows the mapping between example user requests and the sample utterance syntax used in the interaction model. 
 
@@ -166,35 +169,33 @@ Below are a few key parts of the code which is listed in its entirety [elsewhere
 The code snippet below sets up the ability to use the tls method to open, read, and write a TCP socket that connects to the remote Pi server which then gets the system status from the panel. The tls method provides both authentication and encryption between the Lambda client and the Pi server. 
 
 ```javascript
+var tls = require('tls'),
+    fs = require('fs'),
+    PORT = fs.readFileSync('port.txt').toString("utf-8", 0, 5),
+    HOST = fs.readFileSync('host.txt').toString("utf-8", 0, 14),
+    CERT = fs.readFileSync('client.crt'),
+    KEY  = fs.readFileSync('client.key'),
+    CA   = fs.readFileSync('ca.crt');
+
+var socketOptions = {
+    host: HOST,
+    port: PORT,
+    cert: CERT,
+    key: KEY,
+    ca: CA,
+    rejectUnauthorized: true
+};
+
+/*
+ * Gets the panel status to be used in the intent handlers.
+ */
 function getPanelStatus (callback) {
+    var panelStatus = "";
+    var serverCmd = 'idle'; // send idle to server which is a noop
 
-    var tls = require('tls'),
-        fs = require('fs'),
-        PORT = fs.readFileSync('port.txt').toString("utf-8", 0, 5),
-        HOST = fs.readFileSync('host.txt').toString("utf-8", 0, 14),
-        CERT = fs.readFileSync('client.crt'),
-        KEY  = fs.readFileSync('client.key'),
-        CA   = fs.readFileSync('ca.crt'),
-        panelStatus = "";
-
-    var options = {
-        host: HOST,
-        port: PORT,
-        cert: CERT,
-        key: KEY,
-        ca: CA,
-        rejectUnauthorized: true
-    };
-
-    var socket = tls.connect(options, function() {
-        console.log('getPanelStatus socket connected to ' +HOST);
-        if(socket.authorized){
-            console.log('host is authorized');
-        }
-        else{
-            console.log('host cert auth error: ', socket.authorizationError);
-        }
-        socket.write('idle' +'\n');
+    var socket = tls.connect(socketOptions, function() {
+        console.log('getPanelStatus socket connected to host: ' +HOST);
+        socket.write(serverCmd +'\n');
     });
 
     socket.on('data', function(data) {
@@ -202,7 +203,7 @@ function getPanelStatus (callback) {
     });
 	
     socket.on('close', function () {
-	console.log('getPanelStatus socket disconnected from host ' +HOST);
+	console.log('getPanelStatus socket disconnected from host: ' +HOST);
 	callback(panelStatus);
     });
 	
@@ -210,20 +211,14 @@ function getPanelStatus (callback) {
 	console.log("handled getPanelStatus socket error");
 	console.log(ex);
     });
-
 }
 ```
 
 The code snippet below writes a value to the remote Pi server that gets translated into an alarm keypad command. It checks to see if the command succeeded and if not flags a error response to the user.
 
 ```javascript
-var socket = tls.connect(options, function() {
-    console.log('sendKeyInSession socket connected to host ' +HOST);
-    if(socket.authorized){
-        console.log('host is authorized');
-    } else {
-        console.log('host cert auth error: ', socket.authorizationError);
-    }
+var socket = tls.connect(socketOptions, function() {
+    console.log('sendKeyInSession socket connected to host: ' +HOST);
     socket.write(num +'\n');
     console.log('wrote ' +num);
 });
@@ -234,23 +229,24 @@ socket.on('data', function(data) {
 });
 
 socket.on('close', function() { // wait for FIN packet from server
-    console.log('sendKeyInSession socket disconnected from host ' +HOST);
-    setTimeout(function () {
-        getPanelStatus(function(panelStatus) { // verify command succeeded
-            var isArmed = panelStatus.indexOf('Armed') > -1; // true if system is armed
-            if (num === 'stay' || num === 'away') {
-                if (isArmed) {
+    console.log('sendKeyInSession socket disconnected from host: ' +HOST);
+    if (!(num === 'stay' || num === 'away')) { // a key that doesn't need verification
+        speechOutput = 'sent,' +num;
+        callback(sessionAttributes,
+                 buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+    } else {
+        setTimeout(function verifyArmCmd() { // verify stay or away arm command succeeded
+            getPanelStatus(function checkIfArmed(panelStatus) {
+                if (isArmed(panelStatus)) {
                     speechOutput = 'sent,' +num +',system was armed,';
                 } else {
                     speechOutput = 'sent,' +num +',error,, system could not be armed,';
                 }
-            } else {
-                speechOutput = 'sent,' +num;
-            }
-            callback(sessionAttributes,
-                     buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-        });
-    }, 1000) // wait 1 sec for command to take effect
+                callback(sessionAttributes,
+                         buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+            });
+        }, 1000); // wait 1 sec for command to take effect
+    }
 });
 ```
 
@@ -258,29 +254,19 @@ The code snippet below processes alarm status coming back from the Pi server and
 
 ```javascript
 function getStatusFromSession(panelStatus, intent, session, callback) {
-    var cardTitle = intent.name;
-    // Setting repromptText to null signifies that we do not want to reprompt the user.
-    // If the user does not respond or says something that is not understood, the session
-    // will end.
-    var repromptText = "";
-    var sessionAttributes = {};
-    var shouldEndSession = true;
-    var speechOutput = "";
+    var cardTitle = intent.name,
+    repromptText = "",
+    sessionAttributes = {},
+    shouldEndSession = true,
+    speechOutput = "";
 
-    var isReady = panelStatus.indexOf('LED Status Ready') > -1; // true if system is ready
-    var isArmed = panelStatus.indexOf('Armed') > -1; // true if system is armed
-    var hasError = panelStatus.indexOf('Error') > -1; // true if system has flagged an error condition
-    var isBypassed = panelStatus.indexOf('Bypass') > -1; // true if one or more zones are bypassed
-   
-    if (isReady) {
-       hasError ? speechOutput = 'system is ready but has an error' : speechOutput = 'system is ready'; 
-    } else {
-       var placesNotReady = findPlacesNotReady(panelStatus); // get friendly names of zones not ready;
-       speechOutput = 'these zones are not ready,' +placesNotReady;
-    }
-
-    if(isArmed) {
-       isBypassed ? speechOutput = 'system is armed and a is zone bypassed' : speechOutput = 'system is armed';
+    if (isArmed(panelStatus)) {
+        isBypassed(panelStatus) ? speechOutput = 'system is armed and bypassed' : speechOutput = 'system is armed';
+    } else if (zonesNotActive(panelStatus)) { // no zones are reporting activity or are tripped
+        hasError(panelStatus) ? speechOutput = 'system is ready but has an error' : speechOutput = 'system is ready';
+    } else { // system must not be ready
+        var placesNotReady = findPlacesNotReady(panelStatus); // get friendly names of zones not ready;
+        speechOutput = 'these zones are not ready,' +placesNotReady;
     }
 
     callback(sessionAttributes,
@@ -431,19 +417,15 @@ In testing it was observed that the Pi sometimes disconnected from the wireless 
 SERVER=8.8.8.8
 
 # Only send two pings, sending output to /dev/null
-ping -c2 ${SERVER} > /dev/null
+/bin/ping -c2 ${SERVER} > /dev/null
 
 # If the return code from ping ($?) is not 0 (meaning there was an error)
 if [ $? != 0 ]
 then
     # Restart the wireless interface
-    ifdown --force wlan0
-    ifup wlan0
+    /sbin/ifdown --force wlan0
+    /sbin/ifup wlan0
 fi
-```
-Entry in root's crontab:
-```bash
-*/5 * * * * /usr/local/bin/wifi_rebooter.sh
 ```
 
 ## Keybus to GPIO Interface Unit
