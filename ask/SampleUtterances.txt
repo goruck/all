@@ -8,10 +8,15 @@ WhatsMyStatusIntent give me the status
 WhatsMyStatusIntent give me its status
 WhatsMyStatusIntent tell me the status
 WhatsMyStatusIntent tell me its status
+
 MyNumIsIntent key {Keys}
-MyNumIsIntent button {Keys}
+MyNumIsIntent the key {Keys}
+MyNumIsIntent the key is {Keys}
+MyNumIsIntent key is {Keys}
 MyNumIsIntent {Keys}
-MyNumIsIntent key pad button {Keys}
-MyCodeIsIntent pin {Code}
+
+MyCodeIsIntent the code is {Code}
+MyCodeIsIntent code is {Code}
+MyCodeIsIntent the code {Code}
 MyCodeIsIntent code {Code}
 MyCodeIsIntent {Code}
