@@ -328,12 +328,13 @@ static inline int popElement2(char *element, int num) {
 }
 
 // Decode bits from panel into commands and messages.
-static int decode(char * word, char * msg) {
-  int cmd = 0, zones = 0, button = 0;
-  char year3[2],year4[2],month[2],day[2],hour[2],minute[2];
+static int decode(char * word, char * msg, int * allZones) {
+  int cmd = 0, zones = 0, button = 0, i = 0;
+  char year3[2],year4[2],month[2],day[2],hour[2],minute[2],str[2];
 
   cmd = getBinaryData(word,0,8);
   strcpy(msg, "");
+
   if (cmd == 0x05) { 
     strcpy(msg, "LED Status ");
     if (getBinaryData(word,16,1))
@@ -368,54 +369,58 @@ static int decode(char * word, char * msg) {
   else if (cmd == 0x27) {
     strcpy(msg, "Zone1 ");
     zones = getBinaryData(word,41,8);
-    if (zones & 1) strcat(msg, "1, ");
-    if (zones & 2) strcat(msg, "2, ");
-    if (zones & 4) strcat(msg, "3, ");
-    if (zones & 8) strcat(msg, "4, ");
-    if (zones & 16) strcat(msg, "5, ");
-    if (zones & 32) strcat(msg, "6, ");
-    if (zones & 64) strcat(msg, "7, ");
-    if (zones & 128) strcat(msg, "8 ");
-    if (zones == 0) strcat(msg, "Ready ");
+    for (i = 0; i < 8; i++) {
+      sprintf(str, "%d, ", i + 1);
+      if (zones & (1 << i)) {
+        *(allZones + i) = 1;
+        strcat(msg, str);
+      } else {
+        *(allZones + i) = 0;
+      }
+    }
+    if (!zones) strcat(msg, "Ready ");
   }
   else if (cmd == 0x2d) {
     strcpy(msg, "Zone2 ");
     zones = getBinaryData(word,41,8);
-    if (zones & 1) strcat(msg, "1, ");
-    if (zones & 2) strcat(msg, "2, ");
-    if (zones & 4) strcat(msg, "3, ");
-    if (zones & 8) strcat(msg, "4, ");
-    if (zones & 16) strcat(msg, "5, ");
-    if (zones & 32) strcat(msg, "6, ");
-    if (zones & 64) strcat(msg, "7, ");
-    if (zones & 128) strcat(msg, "8 ");
-    if (zones == 0) strcat(msg, "Ready ");
+    for (i = 0; i < 8; i++) {
+      sprintf(str, "%d, ", i + 1);
+      if (zones & (1 << i)) {
+        *(allZones + i + 8) = 1;
+        strcat(msg, str);
+      } else {
+        *(allZones + i + 8) = 0;
+      }
+    }
+    if (!zones) strcat(msg, "Ready ");
   }
   else if (cmd == 0x34) {
     strcpy(msg, "Zone3 ");
     zones = getBinaryData(word,41,8);
-    if (zones & 1) strcat(msg, "1, ");
-    if (zones & 2) strcat(msg, "2, ");
-    if (zones & 4) strcat(msg, "3, ");
-    if (zones & 8) strcat(msg, "4, ");
-    if (zones & 16) strcat(msg, "5, ");
-    if (zones & 32) strcat(msg, "6, ");
-    if (zones & 64) strcat(msg, "7, ");
-    if (zones & 128) strcat(msg, "8 ");
-    if (zones == 0) strcat(msg, "Ready ");
+    for (i = 0; i < 8; i++) {
+      sprintf(str, "%d, ", i + 1);
+      if (zones & (1 << i)) {
+        *(allZones + i + 16) = 1;
+        strcat(msg, str);
+      } else {
+        *(allZones + i + 16) = 0;
+      }
+    }
+    if (!zones) strcat(msg, "Ready ");
   }
   else if (cmd == 0x3e) {
     strcpy(msg, "Zone4 ");
     zones = getBinaryData(word,41,8);
-    if (zones & 1) strcat(msg, "1, ");
-    if (zones & 2) strcat(msg, "2, ");
-    if (zones & 4) strcat(msg, "3, ");
-    if (zones & 8) strcat(msg, "4, ");
-    if (zones & 16) strcat(msg, "5, ");
-    if (zones & 32) strcat(msg, "6, ");
-    if (zones & 64) strcat(msg, "7, ");
-    if (zones & 128) strcat(msg, "8 ");
-    if (zones == 0) strcat(msg, "Ready ");
+    for (i = 0; i < 8; i++) {
+      sprintf(str, "%d, ", i + 1);
+      if (zones & (1 << i)) {
+        *(allZones + i + 24) = 1;
+        strcat(msg, str);
+      } else {
+        *(allZones + i + 24) = 0;
+      }
+    }
+    if (!zones) strcat(msg, "Ready ");
   }
   else if (cmd == 0x0a)
     strcpy(msg, "Panel Program Mode");
@@ -564,12 +569,14 @@ static void * panel_io(void *arg) {
 
 // message i/o thread
 static void * msg_io(void * arg) {
-  int cmd, res;
+  int cmd, res, zone, allZones[32], isAct = 0;
   int data0, data1, data2, data3;
   int data4, data5, data6, data7;
   char msg[50] = "", oldPKMsg[50] = "", oldKPMsg[50] = "";
   char word[MAX_BITS] = "", wordk[MAX_BITS] = "", buf[128] = "";
   long unsigned index = 0;
+  long unsigned zoneAct[32], zoneDeAct[32];
+  long relActT = 0, relDeActT = 0;
   struct timespec t;
   struct status * sptr = (struct status *) arg;
 
@@ -578,6 +585,13 @@ static void * msg_io(void * arg) {
   if (res != 0) {
     perror("message i/o thread detach failed\n");
     exit(EXIT_FAILURE);
+  }
+
+  // clear zone activity marker arrays
+  for (zone = 0; zone < 32; zone++) {
+    zoneAct[zone] = 0;
+    zoneDeAct[zone] = 0;
+    allZones[zone] = 0;
   }
 
   strncpy(wordk, IDLE, MAX_BITS);
@@ -589,12 +603,13 @@ static void * msg_io(void * arg) {
 
     // get raw data from fifo
     res = popElement1(word, MAX_BITS);
-    if (res != 0 && res != MAX_BITS) // fifo will be empty most of the time
+    if (res != 0 && res != MAX_BITS) { // fifo will be empty most of the time
       fprintf(stderr, "msg_io: fifo read error\n"); // record error and continue
+    }
 
     // todo : add CRC check of raw data
 
-    cmd = decode(word, msg); // decode word from panel into a message
+    cmd = decode(word, msg, allZones); // decode word from panel into a message
 
     // update panel status
     /* filter bad status - not sure its needed with current thread priorities
@@ -607,26 +622,53 @@ static void * msg_io(void * arg) {
     if (cmd == 0x34) strcpy(sptr->zone3Status, msg);
     if (cmd == 0x3e) strcpy(sptr->zone4Status, msg);
 
+    // update zone activity and deactivity markers
+    for (zone = 0; zone < 32; zone++) {
+      if (allZones[zone]) { // zone is currently active
+        if (zoneAct[zone] <= zoneDeAct[zone]) { // zone was marked inactive
+          zoneAct[zone] = t.tv_sec; // zone is now active, so record time
+        }
+      } else { // zone is currently not active
+        if (zoneDeAct[zone] < zoneAct[zone]) { // zone was marked active
+          zoneDeAct[zone] = t.tv_sec; // zone is now not active, so record time
+        }
+      }
+    }
+
     // get raw data bytes
     data0 = getBinaryData(word,0,8);  data1 = getBinaryData(word,8,8);
     data2 = getBinaryData(word,16,8); data3 = getBinaryData(word,24,8);
     data4 = getBinaryData(word,32,8); data5 = getBinaryData(word,40,8);
     data6 = getBinaryData(word,48,8); data7 = getBinaryData(word,56,8);
 
-    // output panel to keypad and sensor traffic
+    // output panel-to-keypad and keypad-to-panel traffic to stdio
     if ((cmd == 0xff && strcmp(msg, oldKPMsg) != 0) || 
         (cmd != 0xff && strcmp(msg, oldPKMsg) != 0)) { // only output changes
       snprintf(buf, sizeof(buf),
-               "index:%lu,%-50s data: 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n",
+               "index:%lu,%-50s, data: 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n",
                index++, msg, data0, data1, data2, data3, data4, data5, data6, data7);
       fputs(buf, stdout);
       fflush(stdout);
+
+      // print out zone activation stats - move to a better place eventually
+      printf("Observation time (s):  %9lu\n", t.tv_sec);
+      printf("zone   relActT (s)   relDeActT (s)   isAct\n");
+      for (zone = 0; zone < 32; zone++) {
+        relActT = zoneAct[zone] - t.tv_sec; // zone activation time relative to current time
+        relDeActT = zoneDeAct[zone] - t.tv_sec; // zone deactivation time relative to current time
+        isAct = (relDeActT < relActT) ? 1 : 0; // check for currently active zone
+        printf("%2i,  %9li,    %9li,        %d\n", zone, relActT, relDeActT, isAct);
+      }
     }
-    if (cmd == 0xff)
+
+    if (cmd == 0xff) { // store current keypad-to-panel message
       strcpy(oldKPMsg, msg);
-    else
+    } else { // store current panel-to-keypad message
       strcpy(oldPKMsg, msg);
-  }
+    }
+
+  } // while
+
 } // msg_io
 
 // server
