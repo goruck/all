@@ -648,7 +648,7 @@ static void * msg_io(void * arg) {
                "index:%lu,%-50s, data: 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n",
                index++, msg, data0, data1, data2, data3, data4, data5, data6, data7);
       fputs(buf, stdout);
-      fflush(stdout);
+      //fflush(stdout);
 
       // print out zone activation stats - move to a better place eventually
       printf("Observation time (s):  %9lu\n", t.tv_sec);
@@ -659,6 +659,8 @@ static void * msg_io(void * arg) {
         isAct = (relDeActT < relActT) ? 1 : 0; // check for currently active zone
         printf("%2i,  %9li,    %9li,        %d\n", zone, relActT, relDeActT, isAct);
       }
+
+      fflush(stdout);
     }
 
     if (cmd == 0xff) { // store current keypad-to-panel message
