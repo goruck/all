@@ -1,5 +1,5 @@
 /**
- * Lambda function for security system monitoring and control triggred by Alexa.
+ * Lambda function for security system monitoring and control triggred by Alexa.L
  * 
  * This sample demonstrates a simple skill built with the Amazon Alexa Skills Kit.
  * 
