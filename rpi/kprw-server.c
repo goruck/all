@@ -94,6 +94,7 @@
 // real-time
 #define MAIN_PRI	(70) // main thread priority
 #define MSG_IO_PRI	(70) // message io thread priority
+#define PREDICT_PRI	(70) // predict thread priority
 #define PANEL_IO_PRI	(90) // panel io thread priority - panel io pri must be highest
 #define MAX_SAFE_STACK  (100*1024) // 100KB
 #define NSEC_PER_SEC    (1000000000LU) // 1 second.
@@ -109,6 +110,7 @@
 #define MAX_DATA 	(1*1024) // 1 KB data buffer of 64-bit data words - ~66 seconds @ 1 kHz.
 #define FIFO_SIZE	(MAX_BITS*MAX_DATA) // FIFO depth
 #define MSG_IO_UPDATE   (5000000) // 5 ms message io thread update period
+#define PREDICT_UPDATE  (NSEC_PER_SEC) // 1 sec predict thread update period
 
 // keypad button bit mappings
 // no button:	0xff 0xff 0xff 0xff 0xff 0xff 0xff 0xff
@@ -142,13 +144,22 @@
 // away:	0xff 0xd8 0xff 0xff 0xff 0xff 0xff 0xff
 #define AWAY	"1111111111011000111111111111111111111111111111111111111111111111"
 
-// structure to hold a snapshot of the panel status
+// Rscript
+#define POPEN_FMT     "/home/pi/R_HOME/R-3.1.2/bin/Rscript --vanilla /home/pi/dev/predknn.R %s %s 2> /dev/null"
+#define RARG_SIZE     128
+#define ROUT_MAX      128
+#define PCMD_BUF_SIZE (sizeof(POPEN_FMT) + RARG_SIZE)
+
+// structure to hold a snapshot of the panel status and sensor observations
 struct status {
-  char ledStatus[50];
-  char zone1Status[50];
-  char zone2Status[50];
-  char zone3Status[50];
-  char zone4Status[50];    
+  char ledStatus[50];          // panel main led status lights
+  char zone1Status[50];        // panel zone 1 status lights
+  char zone2Status[50];        // panel zone 2 status lights
+  char zone3Status[50];        // panel zone 3 status lights
+  char zone4Status[50];        // panel zone 4 status lights
+  long unsigned obsTime;       // zone sensor absolute observation time
+  long unsigned zoneAct[32];   // zone sensor absolute activation times
+  long unsigned zoneDeAct[32]; // zone sensor absolute deactivation times
 };
 
 // global for direct gpio access
@@ -569,14 +580,12 @@ static void * panel_io(void *arg) {
 
 // message i/o thread
 static void * msg_io(void * arg) {
-  int cmd, res, zone, allZones[32], isAct = 0;
+  int cmd, res, zone, allZones[32];
   int data0, data1, data2, data3;
   int data4, data5, data6, data7;
   char msg[50] = "", oldPKMsg[50] = "", oldKPMsg[50] = "";
-  char word[MAX_BITS] = "", wordk[MAX_BITS] = "", buf[128] = "";
+  char word[MAX_BITS] = "", wordk[MAX_BITS] = "", buf[4*128] = "";
   long unsigned index = 0;
-  long unsigned zoneAct[32], zoneDeAct[32];
-  long relActT = 0, relDeActT = 0;
   struct timespec t;
   struct status * sptr = (struct status *) arg;
 
@@ -589,8 +598,6 @@ static void * msg_io(void * arg) {
 
   // clear zone activity marker arrays
   for (zone = 0; zone < 32; zone++) {
-    zoneAct[zone] = 0;
-    zoneDeAct[zone] = 0;
     allZones[zone] = 0;
   }
 
@@ -622,18 +629,21 @@ static void * msg_io(void * arg) {
     if (cmd == 0x34) strcpy(sptr->zone3Status, msg);
     if (cmd == 0x3e) strcpy(sptr->zone4Status, msg);
 
-    // update zone activity and deactivity markers
+    // update zone sensor activity and deactivity markers
     for (zone = 0; zone < 32; zone++) {
       if (allZones[zone]) { // zone is currently active
-        if (zoneAct[zone] <= zoneDeAct[zone]) { // zone was marked inactive
-          zoneAct[zone] = t.tv_sec; // zone is now active, so record time
+        if (sptr->zoneAct[zone] <= sptr->zoneDeAct[zone]) { // zone was marked inactive
+          sptr->zoneAct[zone] = t.tv_sec; // zone is now active, so record time
         }
       } else { // zone is currently not active
-        if (zoneDeAct[zone] < zoneAct[zone]) { // zone was marked active
-          zoneDeAct[zone] = t.tv_sec; // zone is now not active, so record time
+        if (sptr->zoneDeAct[zone] < sptr->zoneAct[zone]) { // zone was marked active
+          sptr->zoneDeAct[zone] = t.tv_sec; // zone is now not active, so record time
         }
       }
     }
+
+    // update zone sensor observation time
+    sptr->obsTime = t.tv_sec;
 
     // get raw data bytes
     data0 = getBinaryData(word,0,8);  data1 = getBinaryData(word,8,8);
@@ -648,18 +658,6 @@ static void * msg_io(void * arg) {
                "index:%lu,%-50s, data: 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n",
                index++, msg, data0, data1, data2, data3, data4, data5, data6, data7);
       fputs(buf, stdout);
-      //fflush(stdout);
-
-      // print out zone activation stats - move to a better place eventually
-      printf("Observation time (s):  %9lu\n", t.tv_sec);
-      printf("zone   relActT (s)   relDeActT (s)   isAct\n");
-      for (zone = 0; zone < 32; zone++) {
-        relActT = zoneAct[zone] - t.tv_sec; // zone activation time relative to current time
-        relDeActT = zoneDeAct[zone] - t.tv_sec; // zone deactivation time relative to current time
-        isAct = (relDeActT < relActT) ? 1 : 0; // check for currently active zone
-        printf("%2i,  %9li,    %9li,        %d\n", zone, relActT, relDeActT, isAct);
-      }
-
       fflush(stdout);
     }
 
@@ -672,6 +670,92 @@ static void * msg_io(void * arg) {
   } // while
 
 } // msg_io
+
+// predict thread
+static void * predict(void * arg) {
+  int res;
+  char rout[ROUT_MAX];
+  char popenCmd[PCMD_BUF_SIZE];
+  char obsTimeBuf[RARG_SIZE] = "", zoneBuf[RARG_SIZE] = "", oldZoneBuf[RARG_SIZE] = "";
+  const char * format = " %lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,"
+                        "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,"
+                        "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,"
+                        "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu";
+  struct timespec t;
+  struct status * sptr = (struct status *) arg;
+  FILE * fp;
+  
+  // detach the thread since we don't care about its return status
+  res = pthread_detach(pthread_self());
+  if (res != 0) {
+    perror("message i/o thread detach failed\n");
+    exit(EXIT_FAILURE);
+  }
+
+  clock_gettime(CLOCK_MONOTONIC, &t);
+  while (1) {
+    t.tv_nsec += PREDICT_UPDATE; // thread runs every PREDICT_UPDATE seconds
+    tnorm(&t);
+    clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &t, NULL);
+
+    // Build strings from observation data for Rscript arguments
+    snprintf(obsTimeBuf, sizeof(obsTimeBuf), " %lu", sptr->obsTime);
+    snprintf(zoneBuf, sizeof(zoneBuf), format,
+             sptr->zoneAct[0],  sptr->zoneAct[1],  sptr->zoneAct[2],  sptr->zoneAct[3],
+             sptr->zoneAct[4],  sptr->zoneAct[5],  sptr->zoneAct[6],  sptr->zoneAct[7],
+             sptr->zoneAct[8],  sptr->zoneAct[9],  sptr->zoneAct[10], sptr->zoneAct[11],
+             sptr->zoneAct[12], sptr->zoneAct[13], sptr->zoneAct[14], sptr->zoneAct[15],
+             sptr->zoneAct[16], sptr->zoneAct[17], sptr->zoneAct[18], sptr->zoneAct[19],
+             sptr->zoneAct[20], sptr->zoneAct[21], sptr->zoneAct[22], sptr->zoneAct[23],
+             sptr->zoneAct[24], sptr->zoneAct[25], sptr->zoneAct[26], sptr->zoneAct[27],
+             sptr->zoneAct[28], sptr->zoneAct[29], sptr->zoneAct[30], sptr->zoneAct[31],
+             sptr->zoneDeAct[0],  sptr->zoneDeAct[1],  sptr->zoneDeAct[2],  sptr->zoneDeAct[3],
+             sptr->zoneDeAct[4],  sptr->zoneDeAct[5],  sptr->zoneDeAct[6],  sptr->zoneDeAct[7],
+             sptr->zoneDeAct[8],  sptr->zoneDeAct[9],  sptr->zoneDeAct[10], sptr->zoneDeAct[11],
+             sptr->zoneDeAct[12], sptr->zoneDeAct[13], sptr->zoneDeAct[14], sptr->zoneDeAct[15],
+             sptr->zoneDeAct[16], sptr->zoneDeAct[17], sptr->zoneDeAct[18], sptr->zoneDeAct[19],
+             sptr->zoneDeAct[20], sptr->zoneDeAct[21], sptr->zoneDeAct[22], sptr->zoneDeAct[23],
+             sptr->zoneDeAct[24], sptr->zoneDeAct[25], sptr->zoneDeAct[26], sptr->zoneDeAct[27],
+             sptr->zoneDeAct[28], sptr->zoneDeAct[29], sptr->zoneDeAct[30], sptr->zoneDeAct[31]);
+
+    if (strcmp(zoneBuf, oldZoneBuf) != 0) { // only run on zone changes
+      // Build and execute command to run Rscript
+      snprintf(popenCmd, PCMD_BUF_SIZE, POPEN_FMT, obsTimeBuf, zoneBuf);
+      fp = popen(popenCmd, "r");
+      if (fp == NULL) {
+        fprintf(stderr, "popen() failed\n");
+        continue;
+      }
+  
+      // Read output of Rscript until EOF and act on R's predictions
+      while (fgets(rout, ROUT_MAX, fp) != NULL) {
+        //printf("%s", rout);
+        if (strstr(rout, "prediction 1:  1") != NULL) {
+          printf("*** R *** prediction 1 is FALSE\n");
+        } else if (strstr(rout, "prediction 1:  2") != NULL) {
+          printf("*** R *** prediction 1 is TRUE\n");
+          system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
+        } else if (strstr(rout, "prediction 2:  1") != NULL) {
+          printf("*** R *** prediction 2 is FALSE\n");
+        } else if (strstr(rout, "prediction 2:  2") != NULL) {
+          printf("*** R *** prediction 2 is TRUE\n");
+          system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
+        }
+      }
+
+      res = pclose(fp);
+      if (res == -1) {
+        perror("pclose() failed\n");
+        exit(EXIT_FAILURE);
+      }
+      
+    }
+
+    strcpy(oldZoneBuf, zoneBuf);
+
+  } // while
+
+} // predict
 
 // server
 static int create_socket(int port)
@@ -795,11 +879,18 @@ static void configure_context(SSL_CTX *ctx) {
 
 static void panserv(struct status * pstat, int port) {
   char buffer[BUF_LEN]="", wordk[MAX_BITS] = "";
-  char txBuf[250];
+  char txBuf[1024];
   char addrStr[ADDRSTRLEN];
   char host[NI_MAXHOST];
   char service[NI_MAXSERV];
-  int listenfd= 0, connfd = 0, res, num, i;
+  const char *jsonObj = "{\"obsTime\":%lu,"
+                        "\"zoneAct\":["
+                        "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,"
+                        "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu],"
+                        "\"zoneDeAct\":["
+                        "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,"
+                        "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu]}\n";
+  int listenfd= 0, connfd = 0, res, num, i, tag = 0;
   long chkbuf;
   socklen_t addrlen;  
   struct sockaddr_in client_addr;
@@ -880,7 +971,10 @@ static void panserv(struct status * pstat, int port) {
         strncpy(wordk, AWAY, MAX_BITS);
       else if (!strncmp(buffer, "idle", 4))
         strncpy(wordk, IDLE, MAX_BITS);
-      else {
+      else if (!strncmp(buffer, "tag", 3)) {
+        strncpy(wordk, IDLE, MAX_BITS);
+        tag = 1;
+      } else {
         fprintf(stderr, "server: invalid panel command\n");
         strncpy(wordk, IDLE, MAX_BITS);
       }
@@ -947,16 +1041,48 @@ static void panserv(struct status * pstat, int port) {
         }
       }
     }
+    
+    if (tag) {
+      snprintf(txBuf, sizeof(txBuf), jsonObj,
+               pstat->obsTime,
+               pstat->zoneAct[0],  pstat->zoneAct[1],  pstat->zoneAct[2],  pstat->zoneAct[3],
+               pstat->zoneAct[4],  pstat->zoneAct[5],  pstat->zoneAct[6],  pstat->zoneAct[7],
+               pstat->zoneAct[8],  pstat->zoneAct[9],  pstat->zoneAct[10], pstat->zoneAct[11],
+               pstat->zoneAct[12], pstat->zoneAct[13], pstat->zoneAct[14], pstat->zoneAct[15],
+               pstat->zoneAct[16], pstat->zoneAct[17], pstat->zoneAct[18], pstat->zoneAct[19],
+               pstat->zoneAct[20], pstat->zoneAct[21], pstat->zoneAct[22], pstat->zoneAct[23],
+               pstat->zoneAct[24], pstat->zoneAct[25], pstat->zoneAct[26], pstat->zoneAct[27],
+               pstat->zoneAct[28], pstat->zoneAct[29], pstat->zoneAct[30], pstat->zoneAct[31],
+               pstat->zoneDeAct[0],  pstat->zoneDeAct[1],  pstat->zoneDeAct[2],  pstat->zoneDeAct[3],
+               pstat->zoneDeAct[4],  pstat->zoneDeAct[5],  pstat->zoneDeAct[6],  pstat->zoneDeAct[7],
+               pstat->zoneDeAct[8],  pstat->zoneDeAct[9],  pstat->zoneDeAct[10], pstat->zoneDeAct[11],
+               pstat->zoneDeAct[12], pstat->zoneDeAct[13], pstat->zoneDeAct[14], pstat->zoneDeAct[15],
+               pstat->zoneDeAct[16], pstat->zoneDeAct[17], pstat->zoneDeAct[18], pstat->zoneDeAct[19],
+               pstat->zoneDeAct[20], pstat->zoneDeAct[21], pstat->zoneDeAct[22], pstat->zoneDeAct[23],
+               pstat->zoneDeAct[24], pstat->zoneDeAct[25], pstat->zoneDeAct[26], pstat->zoneDeAct[27],
+               pstat->zoneDeAct[28], pstat->zoneDeAct[29], pstat->zoneDeAct[30], pstat->zoneDeAct[31]);
 
-    snprintf(txBuf, sizeof(txBuf), "%s, %s, %s, %s, %s,",
-             pstat->ledStatus, pstat->zone1Status, pstat->zone2Status,
-             pstat->zone3Status, pstat->zone4Status);
-    res = SSL_write(ssl, txBuf, strlen(txBuf)); // write status to socket
-    if (res <= 0) {
-      ERR_print_errors_fp(stderr);
-      SSL_free(ssl);
-      close(connfd);
-      continue;
+      res = SSL_write(ssl, txBuf, strlen(txBuf)); // write json to socket
+      if (res <= 0) {
+        ERR_print_errors_fp(stderr);
+        SSL_free(ssl);
+        close(connfd);
+        continue;
+      }
+      
+      tag = 0;
+    } else {
+      snprintf(txBuf, sizeof(txBuf), "%s, %s, %s, %s, %s,",
+               pstat->ledStatus, pstat->zone1Status, pstat->zone2Status,
+               pstat->zone3Status, pstat->zone4Status);
+
+      res = SSL_write(ssl, txBuf, strlen(txBuf)); // write status to socket
+      if (res <= 0) {
+        ERR_print_errors_fp(stderr);
+        SSL_free(ssl);
+        close(connfd);
+        continue;
+      }
     }
 
     SSL_free(ssl);
@@ -978,10 +1104,10 @@ static void panserv(struct status * pstat, int port) {
 int main(int argc, char *argv[])
 {
   int res, crit1, crit2, flag, i, port;
-  struct sched_param param_main, param_pio;
+  struct sched_param param_main, param_pio, param_predict;
   struct utsname u;
   struct status pstat;
-  pthread_t pio_thread, mio_thread, main_thread;
+  pthread_t pio_thread, mio_thread, main_thread, predict_thread;
   pthread_attr_t my_attr;
   cpu_set_t cpuset_mio, cpuset_pio, cpuset_main;
   FILE *fd;
@@ -1013,7 +1139,7 @@ int main(int argc, char *argv[])
 
   // todo: add checks if running with su priv and raspberry pi 2 hw. 
 
-  // CPU(s) for main and message i/o threads
+  // CPU(s) for main, predict and message i/o threads
   CPU_ZERO(&cpuset_mio);
   CPU_SET(1, &cpuset_mio);
   CPU_SET(2, &cpuset_mio);
@@ -1097,6 +1223,19 @@ int main(int argc, char *argv[])
   res = pthread_create(&mio_thread, &my_attr, msg_io, (void *) &pstat);
   if (res != 0) {
     perror("Message i/o thread creation failed\n");
+    exit(EXIT_FAILURE);
+  }
+  pthread_attr_destroy(&my_attr);
+
+  // create predict thread
+  pthread_attr_init(&my_attr);
+  pthread_attr_setaffinity_np(&my_attr, sizeof(cpuset_mio), &cpuset_mio);
+  pthread_attr_setschedpolicy(&my_attr, SCHED_FIFO);
+  param_predict.sched_priority = PREDICT_PRI;
+  pthread_attr_setschedparam(&my_attr, &param_predict);
+  res = pthread_create(&predict_thread, &my_attr, predict, (void *) &pstat);
+  if (res != 0) {
+    perror("Predict thread creation failed\n");
     exit(EXIT_FAILURE);
   }
   pthread_attr_destroy(&my_attr);
