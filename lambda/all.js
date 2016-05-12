@@ -1,5 +1,5 @@
 /**
- * Lambda function for security system monitoring and control triggred by Alexa.L
+ * Lambda function for security system monitoring and control triggred by Alexa.
  * 
  * This sample demonstrates a simple skill built with the Amazon Alexa Skills Kit.
  * 
@@ -90,6 +90,8 @@ function onIntent(panelStatus, intentRequest, session, callback) {
         sendCodeInSession(intent, session, callback);
     } else if ("WhatsMyStatusIntent" === intentName) {
         getStatusFromSession(panelStatus, intent, session, callback);
+    } else if ("TrainIsIntent" === intentName) {
+        trainInSession(intent, session, callback);
     } else if ("AMAZON.HelpIntent" === intentName) {
         getWelcomeResponse(callback);
     } else if ("AMAZON.StopIntent" === intentName) {
@@ -296,6 +298,67 @@ function getStatusFromSession(panelStatus, intent, session, callback) {
     callback(sessionAttributes,
              buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
 }
+
+/*
+ * Train ML
+ */
+function trainInSession(intent, session, callback) {
+    var cardTitle = intent.name;
+    //var CodeSlot = intent.slots.Code;
+    var sessionAttributes = {};
+    var repromptText = "";
+    var shouldEndSession = true;
+    var speechOutput = "in training";
+    
+    var AWS = require('aws-sdk');
+    AWS.config.region = 'us-west-2';
+    var simpledb = new AWS.SimpleDB({apiVersion: '2009-04-15'});
+
+    var params2 = {
+      Attributes: [
+        { Name: 'clock',
+          //Value: d.toString(),
+          Value: '1',
+          Replace: false
+        },
+        { Name: 'sample',
+          //Value: observationTime.toString(),
+          Value: '2',
+          Replace: false
+        },
+        {
+          Name: 'za1',
+          //Value: relZoneAct[0].toString(),
+          Value: '3',
+          Replace: false
+        },
+        {
+          Name: 'za2',
+          //Value: relZoneAct[1].toString(),
+          Value: '4',
+          Replace: false
+        },
+        {
+          Name: 'za3',
+          //Value: relZoneAct[2].toString(),
+          Value: '5',
+          Replace: false
+        }
+      ],
+      DomainName: 'lindoSimpledb',
+      ItemName: 'fromLambda'
+    };
+
+    simpledb.putAttributes(params2, function(err, data) {
+      if (err) console.log(err, err.stack); // an error occurred
+      else     console.log(data);           // successful response
+    });
+
+    callback(sessionAttributes,
+             buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+
+}
+
 
 // --------------- global variables and commonly used functions -----------------------
 
