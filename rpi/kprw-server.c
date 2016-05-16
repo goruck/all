@@ -145,7 +145,7 @@
 #define AWAY	"1111111111011000111111111111111111111111111111111111111111111111"
 
 // Rscript
-#define POPEN_FMT     "/home/pi/R_HOME/R-3.1.2/bin/Rscript --vanilla /home/pi/dev/predknn.R %s %s 2> /dev/null"
+#define POPEN_FMT     "/home/pi/R_HOME/R-3.1.2/bin/Rscript --vanilla /home/pi/all/R/predknn.R %s %s 2> /dev/null"
 #define RARG_SIZE     128
 #define ROUT_MAX      128
 #define PCMD_BUF_SIZE (sizeof(POPEN_FMT) + RARG_SIZE)
@@ -739,6 +739,11 @@ static void * predict(void * arg) {
           printf("*** R *** prediction 2 is FALSE\n");
         } else if (strstr(rout, "prediction 2:  2") != NULL) {
           printf("*** R *** prediction 2 is TRUE\n");
+          system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
+        } else if (strstr(rout, "prediction 3:  1") != NULL) {
+          printf("*** R *** prediction 3 is FALSE\n");
+        } else if (strstr(rout, "prediction 3:  2") != NULL) {
+          printf("*** R *** prediction 3 is TRUE\n");
           system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
         }
       }
