@@ -35,14 +35,11 @@ exports.handler = function (event, context) {
                         context.succeed(buildResponse(sessionAttributes, speechletResponse));
                      });
         }  else if (event.request.type === "IntentRequest") {
-            getPanelStatus(function callback(panelStatus) { // get panel status, then process intent
-                onIntent(panelStatus,
-                         event.request,
-                         event.session,
-                         function callback(sessionAttributes, speechletResponse) {
-                             context.succeed(buildResponse(sessionAttributes, speechletResponse));
-                         });
-            });
+            onIntent(event.request,
+                     event.session,
+                     function callback(sessionAttributes, speechletResponse) {
+                         context.succeed(buildResponse(sessionAttributes, speechletResponse));
+                     });
         } else if (event.request.type === "SessionEndedRequest") {
             onSessionEnded(event.request, event.session);
             context.succeed();
@@ -65,18 +62,17 @@ function onSessionStarted(sessionStartedRequest, session) {
  */
 function onLaunch(launchRequest, session, callback) {
     console.log("onLaunch requestId=" + launchRequest.requestId +
-            ", sessionId=" + session.sessionId);
+                ", sessionId=" + session.sessionId);
 
-    // Dispatch to your skill's launch.
+    // Dispatch to skill's launch.
     getWelcomeResponse(callback);
 }
 
 /**
  * Called when the user specifies an intent for this skill.
  */
-function onIntent(panelStatus, intentRequest, session, callback) {
-    console.log("panelStatus=" + panelStatus +
-                ", onIntent requestId=" + intentRequest.requestId +
+function onIntent(intentRequest, session, callback) {
+    console.log("onIntent requestId=" + intentRequest.requestId +
                 ", sessionId=" + session.sessionId +
                 ", intentName=" + intentRequest.intent.name);
 
@@ -85,11 +81,11 @@ function onIntent(panelStatus, intentRequest, session, callback) {
 
     // Dispatch to your skill's intent handlers
     if ("MyNumIsIntent" === intentName) {
-        sendKeyInSession(panelStatus, intent, session, callback);
+        sendKeyInSession(intent, session, callback);
     } else if ("MyCodeIsIntent" === intentName) {
         sendCodeInSession(intent, session, callback);
     } else if ("WhatsMyStatusIntent" === intentName) {
-        getStatusFromSession(panelStatus, intent, session, callback);
+        getStatusFromSession(intent, session, callback);
     } else if ("TrainIsIntent" === intentName) {
         trainInSession(intent, session, callback);
     } else if ("AMAZON.HelpIntent" === intentName) {
@@ -150,7 +146,7 @@ function getWelcomeResponse(callback) {
  * Prepares the speech to reply to the user.
  * If valid, sends the keypress to the panel over a TLS TCP socket.
  */
-function sendKeyInSession(panelStatus, intent, session, callback) {
+function sendKeyInSession(intent, session, callback) {
     var cardTitle = intent.name;
     var KeysSlot = intent.slots.Keys;
     var sessionAttributes = {};
@@ -170,53 +166,55 @@ function sendKeyInSession(panelStatus, intent, session, callback) {
             callback(sessionAttributes,
                      buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
         } else {
-            if ((num === 'stay' || num === 'away') && isArmed(panelStatus)) {
-                speechOutput = "System is already armed,";
-                callback(sessionAttributes,
-                         buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-            } else if ((num === 'stay' || num === 'away') && !zonesNotActive(panelStatus)) {
-                var placesNotReady = findPlacesNotReady(panelStatus); // get friendly names of zones not ready
-                speechOutput = "System cannot be armed, because these zones are not ready," +placesNotReady;
-                callback(sessionAttributes,
-                         buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-            } else {
-                var socket = tls.connect(socketOptions, function() {
-                    console.log('sendKeyInSession socket connected to host: ' +HOST);
-                    socket.write(num +'\n');
-                    console.log('wrote ' +num);
-                });
+            getPanelStatus('idle', function (panelStatus) { // check status first
+                if ((num === 'stay' || num === 'away') && isArmed(panelStatus)) {
+                    speechOutput = "System is already armed,";
+                    callback(sessionAttributes,
+                             buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                } else if ((num === 'stay' || num === 'away') && !zonesNotActive(panelStatus)) {
+                    var placesNotReady = findPlacesNotReady(panelStatus); // get friendly names of zones not ready
+                    speechOutput = "System cannot be armed, because these zones are not ready," +placesNotReady;
+                    callback(sessionAttributes,
+                             buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                } else {
+                    var socket = tls.connect(socketOptions, function() {
+                        console.log('sendKeyInSession socket connected to host: ' +HOST);
+                        socket.write(num +'\n');
+                        console.log('wrote ' +num);
+                    });
 
-                socket.on('data', function(data) {
-                    var dummy; // read status from server to get FIN packet
-                    dummy += data.toString();
-                });
+                    socket.on('data', function(data) {
+                        var dummy; // read status from server to get FIN packet
+                        dummy += data.toString();
+                    });
 
-                socket.on('close', function() { // wait for FIN packet from server
-                    console.log('sendKeyInSession socket disconnected from host: ' +HOST);
-                    if (!(num === 'stay' || num === 'away')) { // a key that doesn't need verification
-                        speechOutput = 'sent,' +num;
-                        callback(sessionAttributes,
-                                 buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-                    } else {
-                        setTimeout(function verifyArmCmd() { // verify stay or away arm command succeeded
-                            getPanelStatus(function checkIfArmed(panelStatus) {
-                                if (isArmed(panelStatus)) {
-                                    speechOutput = 'sent,' +num +',system was armed,';
-                                } else {
-                                    speechOutput = 'sent,' +num +',error,, system could not be armed,';
-                                }
-                                callback(sessionAttributes,
-                                         buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-                            });
-                        }, 1000); // wait 1 sec for command to take effect
-                    }
-                });
+                    socket.on('close', function() { // wait for FIN packet from server
+                        console.log('sendKeyInSession socket disconnected from host: ' +HOST);
+                        if (!(num === 'stay' || num === 'away')) { // a key that doesn't need verification
+                            speechOutput = 'sent,' +num;
+                            callback(sessionAttributes,
+                                     buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                        } else {
+                            setTimeout(function verifyArmCmd() { // verify stay or away arm command succeeded
+                                getPanelStatus('idle', function checkIfArmed(panelStatus) {
+                                    if (isArmed(panelStatus)) {
+                                        speechOutput = 'sent,' +num +',system was armed,';
+                                    } else {
+                                        speechOutput = 'sent,' +num +',error,, system could not be armed,';
+                                    }
+                                    callback(sessionAttributes,
+                                             buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                                });
+                            }, 1000); // wait 1 sec for command to take effect
+                        }
+                    });
 
-                socket.on('error', function(ex) {
-                    console.log("sendKeyInSession handled error");
-                    console.log(ex);
-                });
-            }
+                    socket.on('error', function(ex) {
+                        console.log("sendKeyInSession handled error");
+                        console.log(ex);
+                    });
+                }
+            });
         }
     } else {
         console.log('error in SendKeyInSession');
@@ -279,86 +277,101 @@ function sendCodeInSession(intent, session, callback) {
 /*
  * Sends panel status to the user and ends session.
  */
-function getStatusFromSession(panelStatus, intent, session, callback) {
+function getStatusFromSession(intent, session, callback) {
     var cardTitle = intent.name,
         repromptText = "",
         sessionAttributes = {},
         shouldEndSession = true,
         speechOutput = "";
 
-    if (isArmed(panelStatus)) {
-        isBypassed(panelStatus) ? speechOutput = 'system is armed and bypassed' : speechOutput = 'system is armed';
-    } else if (zonesNotActive(panelStatus)) { // no zones are reporting activity or are tripped
-        hasError(panelStatus) ? speechOutput = 'system is ready but has an error' : speechOutput = 'system is ready';
-    } else { // system must not be ready
-        var placesNotReady = findPlacesNotReady(panelStatus); // get friendly names of zones not ready;
-        speechOutput = 'these zones are not ready,' +placesNotReady;
-    }
+    getPanelStatus('idle', function (panelStatus) {
+        if (isArmed(panelStatus)) {
+            isBypassed(panelStatus) ? speechOutput = 'system is armed and bypassed' : speechOutput = 'system is armed';
+        } else if (zonesNotActive(panelStatus)) { // no zones are reporting activity or are tripped
+            hasError(panelStatus) ? speechOutput = 'system is ready but has an error' : speechOutput = 'system is ready';
+        } else { // system must not be ready
+            var placesNotReady = findPlacesNotReady(panelStatus); // get friendly names of zones not ready
+            speechOutput = 'these zones are not ready,' +placesNotReady;
+        }
 
-    callback(sessionAttributes,
-             buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+        callback(sessionAttributes,
+                 buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+    });
 }
 
 /*
- * Train ML
+ * Tag observations for machine learning. Store in AWS SimpleDB database.
+ * TODO: add error checking. 
  */
 function trainInSession(intent, session, callback) {
     var cardTitle = intent.name;
-    //var CodeSlot = intent.slots.Code;
+    var patternSlot = intent.slots.Pattern; // names of pattern to train
+    var stateSlot = intent.slots.State; // states of observation
     var sessionAttributes = {};
     var repromptText = "";
     var shouldEndSession = true;
-    var speechOutput = "in training";
+    var speechOutput = "";
     
     var AWS = require('aws-sdk');
     AWS.config.region = 'us-west-2';
     var simpledb = new AWS.SimpleDB({apiVersion: '2009-04-15'});
 
-    var params2 = {
-      Attributes: [
-        { Name: 'clock',
-          //Value: d.toString(),
-          Value: '1',
-          Replace: false
-        },
-        { Name: 'sample',
-          //Value: observationTime.toString(),
-          Value: '2',
-          Replace: false
-        },
-        {
-          Name: 'za1',
-          //Value: relZoneAct[0].toString(),
-          Value: '3',
-          Replace: false
-        },
-        {
-          Name: 'za2',
-          //Value: relZoneAct[1].toString(),
-          Value: '4',
-          Replace: false
-        },
-        {
-          Name: 'za3',
-          //Value: relZoneAct[2].toString(),
-          Value: '5',
-          Replace: false
+    getPanelStatus('tag', function writeObsToDb(panelStatus) { // 'tag' returns zone status as JSON
+        var d = new Date();
+        var n = d.toISOString(); // use ISO format to enable lexicographical sort in SimpleDB
+        var obj = JSON.parse(panelStatus);
+        var obsTime = obj.obsTime;
+        var zoneAct = obj.zoneAct;
+        var relZoneAct = calcRelT(obsTime, zoneAct);
+        var zoneDeAct = obj.zoneDeAct;
+        var relZoneDeAct = calcRelT(obsTime, zoneDeAct);
+        const NUM_OF_PATTERNS = 8;
+
+        // build SimpleDB attributes
+        var att = [{Name:'clock',Value:n},{Name:'sample',Value:obsTime.toString()}];
+        for (i = 0; i < relZoneAct.length; i++) {
+            var name = 'za'+(i+1).toString();
+            var value = relZoneAct[i].toString();
+            var obj = {Name:name,Value:value};
+            att.push(obj);
         }
-      ],
-      DomainName: 'lindoSimpledb',
-      ItemName: 'fromLambda'
-    };
+        for (i = 0; i < relZoneDeAct.length; i++) {
+            name = 'zd'+(i+1).toString();
+            value = relZoneDeAct[i].toString();
+            obj = {Name:name,Value:value};
+            att.push(obj);
+        }
+        for (i = 0; i < NUM_OF_PATTERNS; i++) {
+            name = 'zzpattern'+(i+1).toString(); // prepend 'zz' to get ordering right
+            if (patternSlot.value == (i+1)) { // use '==' to force type conversion
+                (stateSlot.value === 'true') ? value = 'TRUE' : value = 'FALSE';
+            } else {
+                value = 'FALSE';
+            }
+            obj = {Name:name,Value:value};
+            att.push(obj);
+        }
 
-    simpledb.putAttributes(params2, function(err, data) {
-      if (err) console.log(err, err.stack); // an error occurred
-      else     console.log(data);           // successful response
+        // write observations to database
+        var params = {
+            Attributes: att,
+            DomainName: 'lindoSimpledb',
+            ItemName: n
+        };
+        simpledb.putAttributes(params, function(err, data) {
+            if (err) { 
+                console.log(err, err.stack);
+                speechOutput = "error, unable to tag observation";
+            } else {
+                console.log(data);
+                speechOutput = "tagged pattern,"+patternSlot.value+",as,"+stateSlot.value;
+            }
+            callback(sessionAttributes,
+                     buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+        });
+
     });
-
-    callback(sessionAttributes,
-             buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-
 }
-
 
 // --------------- global variables and commonly used functions -----------------------
 
@@ -381,10 +394,12 @@ var socketOptions = {
 
 /*
  * Gets the panel status to be used in the intent handlers.
+ * serverCmd = 'tag' returns status as JSON.
+ * serverCmd = 'idle' returns status as text (legacy mode).
+ *
  */
-function getPanelStatus (callback) {
+function getPanelStatus (serverCmd, callback) {
     var panelStatus = "";
-    var serverCmd = 'idle'; // send idle to server which is a noop
 
     var socket = tls.connect(socketOptions, function() {
         console.log('getPanelStatus socket connected to host: ' +HOST);
@@ -427,7 +442,7 @@ function isBypassed(panelStatus) {
  * isReady() can also be used but is prone to falsing because the motion sensors cause the system
  * to momentarly report a not ready condition which causes problems later on when finding out which zones aren't ready.
  *
-*/
+ */
 function zonesNotActive(panelStatus) {
     var zoneRegex = /(Zone\d \d{1,2})((, \d{1,2}){1,8})?/g; // find zones with numbers, indicating activity
     var zonesActive = panelStatus.match(zoneRegex); // array with active zones
@@ -501,6 +516,18 @@ function findPlacesNotReady(panelStatus) {
         }
     }
     return placesNotReady;
+}
+
+/*
+ * Calculate zone changes relative to last observation time.
+ *
+ */
+function calcRelT (time, value) {
+    var relT = [];
+    for (i = 0; i < value.length; i++) {
+        relT[i] = value[i] - time;
+    }
+    return relT;
 }
 
 function createNumberAttributes(key) {
