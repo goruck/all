@@ -16,10 +16,10 @@ zoneRelTimes <- zoneTimes - obsTime
 #zoneRelDeActTimes
 
 ### put observations into a data frame and add column labels
-oldw <- getOption("warn")
-options(warn = -1) # supress warnings in case not all zones have data
+#oldw <- getOption("warn")
+#options(warn = -1) # supress warnings in case not all zones have data
 df <- data.frame(matrix(zoneRelTimes, nrow = 1, ncol = 64))
-options(warn = oldw) # turn back on warnings
+#options(warn = oldw) # turn back on warnings
 colnames(df) <- c("za1","za2","za3","za4","za5","za6","za7","za8",
                   "za9","za10","za11","za12","za13","za14","za15","za16",
                   "za17","za18","za19","za20","za21","za22","za23","za24",
@@ -35,10 +35,11 @@ zaKeep = c("za1","za16","za27","za28","za29","za30","za32")
 #zdKeep = c("zd1","zd16","zd27","zd28","zd29","zd30","zd32")
 zdKeep = NULL
 
-### condition test data
+### select data set, apply temporal filter
 keep = c(zaKeep, zdKeep)
 testData = df[keep]
 testData[testData < -120] <- -9999 # nothing older than 2 mins
+#testData
 #cat("testData: ", testData, "\n")
 
 ### load training data
@@ -59,20 +60,20 @@ predictPattern <- function(zaKeep, zdKeep, pattern, df) {
   ### make prediction for pattern
   library(class)
   #cat("making prediction for pattern: ", pattern, "\n")
-  knnPred = knn(train = trainData, test = testData, cl = trainLabels, k = 5, prob = TRUE)
+  knnPred = knn(train = trainData, test = testData, cl = trainLabels, k = 15, prob = TRUE)
 
   return(knnPred)
 
 }
 
 knnPred <- predictPattern(zaKeep, zdKeep, "pattern1", df)
-cat("prediction 1: ", knnPred, " prob: ", attr(knnPred, "prob"), "\n")
+cat("*** R *** prediction 1: ", knnPred, " prob: ", attr(knnPred, "prob"), "\n")
 
 knnPred <- predictPattern(zaKeep, zdKeep, "pattern2", df)
-cat("prediction 2: ", knnPred, " prob: ", attr(knnPred, "prob"), "\n")
+cat("*** R *** prediction 2: ", knnPred, " prob: ", attr(knnPred, "prob"), "\n")
 
 knnPred <- predictPattern(zaKeep, zdKeep, "pattern3", df)
-cat("prediction 3: ", knnPred, " prob: ", attr(knnPred, "prob"), "\n")
+cat("*** R *** prediction 3: ", knnPred, " prob: ", attr(knnPred, "prob"), "\n")
 
 #print("********** End R Run **********")
 
