@@ -729,21 +729,21 @@ static void * predict(void * arg) {
   
       // Read output of Rscript until EOF and act on R's predictions
       while (fgets(rout, ROUT_MAX, fp) != NULL) {
-        //printf("%s", rout);
+        printf("%s", rout);
         if (strstr(rout, "prediction 1:  1") != NULL) {
-          printf("*** R *** prediction 1 is FALSE\n");
+          //printf("*** R *** prediction 1 is FALSE\n");
         } else if (strstr(rout, "prediction 1:  2") != NULL) {
-          printf("*** R *** prediction 1 is TRUE\n");
+          //printf("*** R *** prediction 1 is TRUE\n");
           system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
         } else if (strstr(rout, "prediction 2:  1") != NULL) {
-          printf("*** R *** prediction 2 is FALSE\n");
+          //printf("*** R *** prediction 2 is FALSE\n");
         } else if (strstr(rout, "prediction 2:  2") != NULL) {
-          printf("*** R *** prediction 2 is TRUE\n");
+          //printf("*** R *** prediction 2 is TRUE\n");
           system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
         } else if (strstr(rout, "prediction 3:  1") != NULL) {
-          printf("*** R *** prediction 3 is FALSE\n");
+          //printf("*** R *** prediction 3 is FALSE\n");
         } else if (strstr(rout, "prediction 3:  2") != NULL) {
-          printf("*** R *** prediction 3 is TRUE\n");
+          //printf("*** R *** prediction 3 is TRUE\n");
           system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
         }
       }
