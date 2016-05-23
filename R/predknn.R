@@ -1,6 +1,11 @@
 ### make a prediction from a knn model
 
-#print("********** New R Run **********")
+cat("********** New R Run **********\n")
+
+### setup
+TEMPORAL_CUTOFF <- -120 # 120 seconds ago
+TEMPORAL_VALUE  <- -9999 # a long time ago
+library(class) # for knn
 
 ### get zone data from R's arguements and make it relative to observation times
 args = commandArgs(trailingOnly=TRUE)
@@ -35,45 +40,66 @@ zaKeep = c("za1","za16","za27","za28","za29","za30","za32")
 #zdKeep = c("zd1","zd16","zd27","zd28","zd29","zd30","zd32")
 zdKeep = NULL
 
-### select data set, apply temporal filter
+### select test data set, apply temporal filter, print observation
 keep = c(zaKeep, zdKeep)
 testData = df[keep]
-testData[testData < -120] <- -9999 # nothing older than 2 mins
-#testData
-#cat("testData: ", testData, "\n")
+testData[testData < TEMPORAL_CUTOFF] <- TEMPORAL_VALUE
+print(testData, row.names = FALSE)
 
-### load training data
+### load training data and calculate k
 df = read.csv("/home/pi/all/R/testFromSimpledb.csv")
 #df = read.csv("/home/pi/all/R/knnTrain.csv")
 #df = read.csv("/home/pi/dev/knnTrainMix.csv")
+k <- ceiling(sqrt(nrow(df)))
+cat("k: ", k, "\n")
+#k <- 13 # generally a good default value for current data set
 
 ### define function to make a prediction for a specific pattern
-predictPattern <- function(zaKeep, zdKeep, pattern, df) {
+predictPattern <- function(zaKeep, zdKeep, pattern, df, k) {
 
-  ### condition training data for pattern
-  keep = c(zaKeep, zdKeep, pattern)
-  dfKeep = df[sample(nrow(df)), keep]
-  trainData = dfKeep[, 1:(ncol(dfKeep)-1)]
-  trainData[trainData < -120] <- -9999
-  trainLabels = dfKeep[, ncol(dfKeep)]
+  ### condition training data for pattern, apply temporal filter
+  keep <- c(zaKeep, zdKeep, pattern)
+  dfKeep <- df[sample(nrow(df)), keep]
+  #dfKeepTrue <- dfKeep[dfKeep$pattern == TRUE, ]
+  #x <- nrow(dfKeepTrue)
+  #y <- dfKeep[dfKeep$pattern == FALSE, ]
+  #dfKeepFalse <- y[1:x, ]
+  #dfKeep <- rbind(dfKeepTrue, dfKeepFalse)
+  trainData <- dfKeep[, 1:(ncol(dfKeep)-1)]
+  trainData[trainData < TEMPORAL_CUTOFF] <- TEMPORAL_VALUE
+  trainLabels <- dfKeep[, ncol(dfKeep)]
 
   ### make prediction for pattern
-  library(class)
   #cat("making prediction for pattern: ", pattern, "\n")
-  knnPred = knn(train = trainData, test = testData, cl = trainLabels, k = 15, prob = TRUE)
+  knnPred <- knn(train = trainData, test = testData, cl = trainLabels, k = k, prob = TRUE)
 
   return(knnPred)
 
 }
 
-knnPred <- predictPattern(zaKeep, zdKeep, "pattern1", df)
-cat("*** R *** prediction 1: ", knnPred, " prob: ", attr(knnPred, "prob"), "\n")
+knnPred <- predictPattern(zaKeep, zdKeep, "pattern1", df, k)
+cat("prediction 1: ", knnPred, " prob: ", attr(knnPred, "prob"), "\n")
 
-knnPred <- predictPattern(zaKeep, zdKeep, "pattern2", df)
-cat("*** R *** prediction 2: ", knnPred, " prob: ", attr(knnPred, "prob"), "\n")
+knnPred <- predictPattern(zaKeep, zdKeep, "pattern2", df, k)
+cat("prediction 2: ", knnPred, " prob: ", attr(knnPred, "prob"), "\n")
 
-knnPred <- predictPattern(zaKeep, zdKeep, "pattern3", df)
-cat("*** R *** prediction 3: ", knnPred, " prob: ", attr(knnPred, "prob"), "\n")
+knnPred <- predictPattern(zaKeep, zdKeep, "pattern3", df, k)
+cat("prediction 3: ", knnPred, " prob: ", attr(knnPred, "prob"), "\n")
 
-#print("********** End R Run **********")
+knnPred <- predictPattern(zaKeep, zdKeep, "pattern4", df, k)
+cat("prediction 4: ", knnPred, " prob: ", attr(knnPred, "prob"), "\n")
+
+knnPred <- predictPattern(zaKeep, zdKeep, "pattern5", df, k)
+cat("prediction 5: ", knnPred, " prob: ", attr(knnPred, "prob"), "\n")
+
+knnPred <- predictPattern(zaKeep, zdKeep, "pattern6", df, k)
+cat("prediction 6: ", knnPred, " prob: ", attr(knnPred, "prob"), "\n")
+
+knnPred <- predictPattern(zaKeep, zdKeep, "pattern7", df, k)
+cat("prediction 7: ", knnPred, " prob: ", attr(knnPred, "prob"), "\n")
+
+knnPred <- predictPattern(zaKeep, zdKeep, "pattern8", df, k)
+cat("prediction 8: ", knnPred, " prob: ", attr(knnPred, "prob"), "\n")
+
+cat("********** End R Run **********\n")
 
