@@ -86,6 +86,8 @@ function onIntent(intentRequest, session, callback) {
         sendCodeInSession(intent, session, callback);
     } else if ("WhatsMyStatusIntent" === intentName) {
         getStatusFromSession(intent, session, callback);
+    } else if ("PollyIsIntent" === intentName) {
+        sendPolyInSession(intent, session, callback);
     } else if ("TrainIsIntent" === intentName) {
         trainInSession(intent, session, callback);
     } else if ("AMAZON.HelpIntent" === intentName) {
@@ -300,6 +302,57 @@ function getStatusFromSession(intent, session, callback) {
 }
 
 /*
+ * Condition alarm for the dog to stay at home.
+ * Bypasses the hallway motion sensor and sets 'away' arm mode.
+ * Prepares the speech to reply to the user.
+ * Sends commands to the panel over a TLS TCP socket.
+ */
+function sendPolyInSession(intent, session, callback) {
+    var cardTitle = intent.name;
+    var sessionAttributes = {};
+    var repromptText = "";
+    var shouldEndSession = true; // end session after sending keypresses
+    var speechOutput = "";
+    
+    getPanelStatus('idle', function (panelStatus) { // check status first
+        if (isArmed(panelStatus)) {
+            speechOutput = "System is already armed,";
+            callback(sessionAttributes,
+                     buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+        } else if (!zonesNotActive(panelStatus)) {
+            var placesNotReady = findPlacesNotReady(panelStatus); // get friendly names of zones not ready
+            speechOutput = "System cannot be armed, because these zones are not ready," +placesNotReady;
+            callback(sessionAttributes,
+                     buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+        } else {
+            getPanelStatus('star', function setCommandMode() { // enter command mode
+                setTimeout(function () {
+                    getPanelStatus(1, function setBypassMode() { // set bypass mode
+                        getPanelStatus(28, function bypassHallMotion() {
+                            getPanelStatus('pound', function exitCommandMode() { // exit command mode
+                                /*getPanelStatus('away', function armAway(panelStatus) { // set away arm mode
+                                    setTimeout(function verifyArmCmd() { // verify stay or away arm command succeeded
+                                        getPanelStatus('idle', function checkIfArmed(panelStatus) {
+                                            if (isArmed(panelStatus)) {
+                                                speechOutput = 'system was armed with hallway motion sensor bypassed';
+                                            } else {
+                                                speechOutput = 'error, system could not be armed';
+                                            }
+                                            callback(sessionAttributes,
+                                                     buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                                        });
+                                    }, 1000); // wait 1 sec for command to take effect
+                                });*/
+                            });
+                        });
+                     });
+                }, 1000);
+            });
+        }
+    });
+}
+
+/*
  * Tag observations for machine learning. Store in AWS SimpleDB database.
  * TODO: add error checking. 
  */
@@ -394,6 +447,7 @@ var socketOptions = {
 
 /*
  * Gets the panel status to be used in the intent handlers.
+ * This function can also be used to send commands to the server.
  * serverCmd = 'tag' returns status as JSON.
  * serverCmd = 'idle' returns status as text (legacy mode).
  *
@@ -404,6 +458,7 @@ function getPanelStatus (serverCmd, callback) {
     var socket = tls.connect(socketOptions, function() {
         console.log('getPanelStatus socket connected to host: ' +HOST);
         socket.write(serverCmd +'\n');
+        console.log('getPanelStatus wrote: '+serverCmd);
     });
 
     socket.on('data', function(data) {
