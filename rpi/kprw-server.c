@@ -745,6 +745,31 @@ static void * predict(void * arg) {
         } else if (strstr(rout, "prediction 3:  2") != NULL) {
           //printf("*** R *** prediction 3 is TRUE\n");
           system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
+        } else if (strstr(rout, "prediction 4:  1") != NULL) {
+          //printf("*** R *** prediction 4 is FALSE\n");
+        } else if (strstr(rout, "prediction 4:  2") != NULL) {
+          //printf("*** R *** prediction 5 is TRUE\n");
+          system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
+        } else if (strstr(rout, "prediction 5:  1") != NULL) {
+          //printf("*** R *** prediction 5 is FALSE\n");
+        } else if (strstr(rout, "prediction 5:  2") != NULL) {
+          //printf("*** R *** prediction 5 is TRUE\n");
+          system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
+        } else if (strstr(rout, "prediction 6:  1") != NULL) {
+          //printf("*** R *** prediction 6 is FALSE\n");
+        } else if (strstr(rout, "prediction 6:  2") != NULL) {
+          //printf("*** R *** prediction 6 is TRUE\n");
+          system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
+        } else if (strstr(rout, "prediction 7:  1") != NULL) {
+          //printf("*** R *** prediction 7 is FALSE\n");
+        } else if (strstr(rout, "prediction 7:  2") != NULL) {
+          //printf("*** R *** prediction 7 is TRUE\n");
+          system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
+        } else if (strstr(rout, "prediction 8:  1") != NULL) {
+          //printf("*** R *** prediction 8 is FALSE\n");
+        } else if (strstr(rout, "prediction 8:  2") != NULL) {
+          //printf("*** R *** prediction 8 is TRUE\n");
+          system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
         }
       }
 
