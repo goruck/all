@@ -313,6 +313,8 @@ function sendPolyInSession(intent, session, callback) {
     var repromptText = "";
     var shouldEndSession = true; // end session after sending keypresses
     var speechOutput = "";
+    const BYPASS_MODE = 1;
+    const HALL_MOTION_ZONE = 28;
     
     getPanelStatus('idle', function (panelStatus) { // check status first
         if (isArmed(panelStatus)) {
@@ -326,27 +328,25 @@ function sendPolyInSession(intent, session, callback) {
                      buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
         } else {
             getPanelStatus('star', function setCommandMode() { // enter command mode
-                setTimeout(function () {
-                    getPanelStatus(1, function setBypassMode() { // set bypass mode
-                        getPanelStatus(28, function bypassHallMotion() {
-                            getPanelStatus('pound', function exitCommandMode() { // exit command mode
-                                /*getPanelStatus('away', function armAway(panelStatus) { // set away arm mode
-                                    setTimeout(function verifyArmCmd() { // verify stay or away arm command succeeded
-                                        getPanelStatus('idle', function checkIfArmed(panelStatus) {
-                                            if (isArmed(panelStatus)) {
-                                                speechOutput = 'system was armed with hallway motion sensor bypassed';
-                                            } else {
-                                                speechOutput = 'error, system could not be armed';
-                                            }
-                                            callback(sessionAttributes,
-                                                     buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-                                        });
-                                    }, 1000); // wait 1 sec for command to take effect
-                                });*/
-                            });
+                getPanelStatus(128, function setBypassMode() { // set bypass mode
+                    //getPanelStatus(HALL_MOTION_ZONE, function bypassHallMotion() {
+                        getPanelStatus('pound', function exitCommandMode() { // exit command mode
+                            /*getPanelStatus('away', function armAway(panelStatus) { // set away arm mode
+                                setTimeout(function verifyArmCmd() { // verify stay or away arm command succeeded
+                                    getPanelStatus('idle', function checkIfArmed(panelStatus) {
+                                        if (isArmed(panelStatus)) {
+                                            speechOutput = 'system was armed with hallway motion sensor bypassed';
+                                        } else {
+                                            speechOutput = 'error, system could not be armed';
+                                        }
+                                        callback(sessionAttributes,
+                                                 buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                                    });
+                                }, 1000); // wait 1 sec for command to take effect
+                            });*/
                         });
-                     });
-                }, 1000);
+                    //});
+                });
             });
         }
     });
