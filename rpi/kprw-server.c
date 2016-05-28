@@ -115,9 +115,12 @@
 // keypad button bit mappings
 // no button:	0xff 0xff 0xff 0xff 0xff 0xff 0xff 0xff
 #define IDLE	"1111111111111111111111111111111111111111111111111111111111111111"
-// *:		0xff 0x94 0x7f 0xff 0xff 0xff 0xff 0xff
-#define STAR	"1111111110010100011111111111111111111111111111111111111111111111"
+// *:		0xff 0x94 0x7f 0xff 0xff 0xff 0xff 0xff        
+//#define STAR	"1111 1111 1001 0100 0111 1111 1111111111111111111111111111111111111111"
+                //0xff 0x94 0x7f 0xff 0xff 0xe0 0x00 0x00
+#define STAR	"1111111110010100011111111111111111111111111000000000000000000000"
 // #:		0xff 0x96 0xff 0xff 0xff 0xff 0xff 0xff
+                //0xff 0x96 0xff 0xff 0xff 0xe0 0x00 0x00
 #define POUND	"1111111110010110111111111111111111111111111111111111111111111111"
 // 0:		0xff 0x80 0x7f 0xff 0xff 0xff 0xff 0xff
 #define ZERO	"1111111110000000011111111111111111111111111111111111111111111111"
@@ -1023,6 +1026,7 @@ static void panserv(struct status * pstat, int port) {
       }
       while(buffer[i] != '\n') {
         num = buffer[i] - '0';
+printf("****buffer[%i]: %i, num: %i\n", i, buffer[i], num);
         switch (num) {
           case 0 :
             strncpy(wordk, ZERO, MAX_BITS);
