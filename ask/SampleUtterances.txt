@@ -20,3 +20,10 @@ MyCodeIsIntent code is {Code}
 MyCodeIsIntent the code {Code}
 MyCodeIsIntent code {Code}
 MyCodeIsIntent {Code}
+
+PollyIsIntent polly
+PollyIsIntent for polly
+
+TrainIsIntent {Pattern} {State}
+TrainIsIntent pattern {Pattern} is {State}
+TrainIsIntent pattern {Pattern} {State}
