@@ -130,7 +130,7 @@ function getWelcomeResponse(callback) {
     var cardTitle = "Welcome";
     var speechOutput = "Please ask the security system its status, or give it a command," +
                        "valid commands are the names of a keypad button," +
-                       "or a 4 digit code";
+                       "a 4 digit code, or say polly to bypass hallway motion and arm system";
     // If the user either does not reply to the welcome message, they will be prompted again.
     var repromptText = "To get the system's status, say status," +
                        "to activate a keypad button, say the name of a button from 0 to 9," +
@@ -179,19 +179,7 @@ function sendKeyInSession(intent, session, callback) {
                     callback(sessionAttributes,
                              buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
                 } else {
-                    var socket = tls.connect(socketOptions, function() {
-                        console.log('sendKeyInSession socket connected to host: ' +HOST);
-                        socket.write(num +'\n');
-                        console.log('wrote ' +num);
-                    });
-
-                    socket.on('data', function(data) {
-                        var dummy; // read status from server to get FIN packet
-                        dummy += data.toString();
-                    });
-
-                    socket.on('close', function() { // wait for FIN packet from server
-                        console.log('sendKeyInSession socket disconnected from host: ' +HOST);
+                    getPanelStatus(num, function(panelStatus) { // write num to panel and check return status
                         if (!(num === 'stay' || num === 'away')) { // a key that doesn't need verification
                             speechOutput = 'sent,' +num;
                             callback(sessionAttributes,
@@ -209,11 +197,6 @@ function sendKeyInSession(intent, session, callback) {
                                 });
                             }, 1000); // wait 1 sec for command to take effect
                         }
-                    });
-
-                    socket.on('error', function(ex) {
-                        console.log("sendKeyInSession handled error");
-                        console.log(ex);
                     });
                 }
             });
@@ -246,29 +229,11 @@ function sendCodeInSession(intent, session, callback) {
                                  "not greater than 9999";
             callback(sessionAttributes,
                 buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-        }
-        else {
-            var socket = tls.connect(socketOptions, function() {
-                console.log('sendCodeInSession socket connected to host: ' +HOST);
-                socket.write(num +'\n');
-                console.log('wrote ' +num);
-            });
-
-            socket.on('data', function(data) {
-                var dummy;
-                dummy += data.toString();
-            });
-	
-            socket.on('close', function () {
-	        console.log('sendCodeInSession socket disconnected from host: ' +HOST);
-                speechOutput = "sending, " +num;
+        } else {
+            getPanelStatus(num, function() {
+                speechOutput = "sent, " +num;
 	        callback(sessionAttributes,
                          buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-            });
-
-            socket.on('error', function(ex) {
-                console.log("sendCodeInSession handled error");
-                console.log(ex);
             });
         }
     } else {
@@ -338,7 +303,6 @@ function sendPolyInSession(intent, session, callback) {
                                         getPanelStatus('away', function armAway() { // set away arm mode
                                             setTimeout(function verifyArmCmd() { // verify stay or away arm command succeeded
                                                 getPanelStatus('idle', function checkIfArmed(panelStatus) {
-                                                    console.log('checkIfArmed: '+panelStatus);
                                                     if (isArmed(panelStatus)) {
                                                         speechOutput = 'system was armed with hallway motion sensor bypassed';
                                                     } else {
@@ -349,11 +313,11 @@ function sendPolyInSession(intent, session, callback) {
                                                 });
                                             }, 1000); // wait 1 sec for arm command to take effect
                                         });
-                                    }, 500);
+                                    }, 500); // wait 500 ms to exit bypass mode
                                 });
-                            }, 500);
+                            }, 500); // wait 500 ms for zone to bypass
                         });
-                    }, 1000); // wait 100 ms for bypass mode to take effect 
+                    }, 1000); // wait 1 sec for bypass mode to take effect 
                 });
             });
         }
@@ -386,7 +350,7 @@ function trainInSession(intent, session, callback) {
         var relZoneAct = calcRelT(obsTime, zoneAct);
         var zoneDeAct = obj.zoneDeAct;
         var relZoneDeAct = calcRelT(obsTime, zoneDeAct);
-        const NUM_OF_PATTERNS = 8;
+        const NUM_OF_PATTERNS = 8; // max number of patterns to train
 
         // build SimpleDB attributes
         var att = [{Name:'clock',Value:n},{Name:'sample',Value:obsTime.toString()}];
@@ -455,7 +419,7 @@ var socketOptions = {
 
 /*
  * Gets the panel status to be used in the intent handlers.
- * This function can also be used to send commands to the server.
+ * This function is also used to send commands to the server.
  * serverCmd = 'tag' returns status as JSON.
  * serverCmd = 'idle' returns status as text (legacy mode).
  *
