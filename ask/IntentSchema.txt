@@ -19,6 +19,22 @@
       ]
     },
     {
+      "intent": "PollyIsIntent"
+    },
+    {
+      "intent": "TrainIsIntent",
+      "slots": [
+        {
+          "name": "Pattern",
+          "type": "LIST_OF_PATTERNS"
+        },
+        {
+          "name": "State",
+          "type": "LIST_OF_STATES"
+        }
+      ]
+    },
+    {
       "intent": "WhatsMyStatusIntent"
     },
     {
