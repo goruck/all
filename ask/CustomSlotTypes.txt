@@ -1,1 +1,5 @@
 LIST_OF_KEYS	0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | star | pound | stay | away
+
+LIST_OF_PATTERNS	1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
+
+LIST_OF_STATES	true | false
