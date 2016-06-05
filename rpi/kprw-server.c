@@ -577,32 +577,41 @@ static void * panel_io(void *arg) {
 
     if ((GET_GPIO(PI_CLOCK_IN) == PI_CLOCK_HI) && !flag) { // write/read keypad data
       if (ts_diff(&t, &tmark) > NEW_WORD_VALID) { // check for new word
-        res = pushElement1(word, MAX_BITS); // store p->k data
-        if (res != MAX_BITS) {
-          fprintf(stderr, "panel_io: fifo write error\n"); // record error and continue
-        }
-
-        res = pushElement1(wordkr, MAX_BITS); // store k->p data
-        if (res != MAX_BITS) {
-          fprintf(stderr, "panel_io: fifo write error\n");
-        }
-
         /* 
          * Check to see if last word was less than 20 bits.
-         * If so, repeat last keypad write by not fetching new data from fifo.
-         * Need at least 20 bits to send a valid data word to the keypad. 
+         * Consider words with fewer than 20 bits to be invalid. 
+         * If invalid, repeat last keypad write by not fetching new data from fifo.
+         * Also, do not store either panel or keypad data.
          *
+         * Invalid words may be do to a real-time task with higher prority
+         *   than this thread preempting it, or latencies caused by page faults.
+         * Despite best efforts to make ensure robust real-time performance
+         *   these error checks are still required to be 100% safe. 
+         *
+         * Panel also outputs a 9-bit word which is ignored as invalid
+         *   because thread needs at least 20 bits to send a valid data word to keypad. 
          */
         if (bit_cnt < 20) {
-          fprintf(stderr, "panel_io: bit count < 20 (%i)! Repeating keypad write.\n", bit_cnt);
+          fprintf(stderr, "panel_io: bit count < 20 (%i)! Repeating panel writes and ignoring reads.\n", bit_cnt);
         } else {
+          res = pushElement1(word, MAX_BITS); // store panel-> keypad data
+          if (res != MAX_BITS) {
+            fprintf(stderr, "panel_io: fifo write error\n"); // record error and continue
+          }
+
+          res = pushElement1(wordkr, MAX_BITS); // store keypad-> panel data
+          if (res != MAX_BITS) {
+            fprintf(stderr, "panel_io: fifo write error\n");
+          }
+
           res = popElement2(wordkw, MAX_BITS); // get a keypad command to send to panel
           if (res != MAX_BITS) { // fifo is empty so output idle instead of repeating previous
             strncpy(wordkw, IDLE, MAX_BITS);
           }
         }
 
-        bit_cnt = 0; // reset bit counter and arrays
+        // reset bit counter and arrays
+        bit_cnt = 0; 
         memset(&word, 0, MAX_BITS);
         memset(&wordkr, 0, MAX_BITS);
       }
