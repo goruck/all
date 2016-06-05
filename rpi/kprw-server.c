@@ -1,8 +1,10 @@
 /*
  *
- * kprw-server.c
+ * kprw-server.c, V2.0
  *
  * Emulates a DSC Power832 keypad controller. Reads and writes over the keybus are supported.
+ *
+ * This version supports machine learning via R. 
  *
  * Compile with "gcc -Wall -o kprw-server kprw-server.c -lrt -lpthread -lwrap -lssl -lcrypto"
  *
@@ -16,25 +18,22 @@
  *
  */
 
-// todo: add references and credits in code
-// todo: add explaination why non-standard #includes are needed
-
-// Need to use some non-portable pthread funcations.
-#define _GNU_SOURCE 
+#define _GNU_SOURCE // Need to use some non-portable pthread functions
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
-#include <sys/mman.h>
+#include <sys/mman.h>		// Needed for mlockall()
 #include <unistd.h>
 #include <stdint.h>
 #include <sched.h>
 #include <string.h>
-#include <time.h>
-#include <sys/mman.h>
+#include <time.h> 		// Needed for getrusage()
+#include <sys/resource.h>	// Needed for getrusage()
 #include <pthread.h>
 #include <sys/utsname.h>
-#include <ctype.h> // isdigit
+#include <ctype.h>		// Needed for isdigit()
+#include <malloc.h>		// Needed for mallopt()
 
 // socket
 #include <sys/socket.h>
@@ -94,9 +93,10 @@
 // real-time
 #define MAIN_PRI	(70) // main thread priority
 #define MSG_IO_PRI	(70) // message io thread priority
-#define PREDICT_PRI	(70) // predict thread priority
+#define PREDICT_PRI	(50) // predict thread priority
 #define PANEL_IO_PRI	(90) // panel io thread priority - panel io pri must be highest
-#define MAX_SAFE_STACK  (100*1024) // 100KB
+#define MAX_SAFE_STACK	(32*1024*1024) // 32MB pagefault free buffer
+#define MY_STACK_SIZE   (100*1024) // 100KB thread stack size
 #define NSEC_PER_SEC    (1000000000LU) // 1 second.
 #define INTERVAL        (10*1000) // 10 us timeslice.
 #define CLK_PER		(1000000L) // 1 ms clock period.
@@ -116,11 +116,8 @@
 // no button:	0xff 0xff 0xff 0xff 0xff 0xff 0xff 0xff
 #define IDLE	"1111111111111111111111111111111111111111111111111111111111111111"
 // *:		0xff 0x94 0x7f 0xff 0xff 0xff 0xff 0xff        
-//#define STAR	"1111 1111 1001 0100 0111 1111 1111111111111111111111111111111111111111"
-                //0xff 0x94 0x7f 0xff 0xff 0xe0 0x00 0x00
-#define STAR	"1111111110010100011111111111111111111111111000000000000000000000"
+#define STAR	"1111111110010100011111111111111111111111111111111111111111111111"
 // #:		0xff 0x96 0xff 0xff 0xff 0xff 0xff 0xff
-                //0xff 0x96 0xff 0xff 0xff 0xe0 0x00 0x00
 #define POUND	"1111111110010110111111111111111111111111111111111111111111111111"
 // 0:		0xff 0x80 0x7f 0xff 0xff 0xff 0xff 0xff
 #define ZERO	"1111111110000000011111111111111111111111111111111111111111111111"
@@ -172,12 +169,64 @@ volatile unsigned *gpio;
 volatile int m_Read1, m_Write1, m_Read2, m_Write2;
 volatile char m_Data1[FIFO_SIZE], m_Data2[FIFO_SIZE];
 
-// stack_prefault
-static void stack_prefault(void) {
-  unsigned char dummy[MAX_SAFE_STACK];
-  memset(dummy, 0, MAX_SAFE_STACK);
+// show_new_pagefault_count
+static void show_new_pagefault_count(const char* logtext, 
+   			      const char* allowed_maj,
+   			      const char* allowed_min) {
+  static int last_majflt = 0, last_minflt = 0;
+  struct rusage usage;
+   
+  getrusage(RUSAGE_SELF, &usage);
+   
+  printf("%-30.30s: Pagefaults, Major:%ld (Allowed %s), " \
+   	 "Minor:%ld (Allowed %s)\n", logtext,
+   	 usage.ru_majflt - last_majflt, allowed_maj,
+   	 usage.ru_minflt - last_minflt, allowed_min);
+   	
+  last_majflt = usage.ru_majflt; 
+  last_minflt = usage.ru_minflt;
+} // show_new_pagefault_count
+
+// prove_thread_stack_use_is_safe
+static void prove_thread_stack_use_is_safe(int stacksize) {
+  volatile char buffer[stacksize];
+  int i;
+   
+  // Prove that this thread is behaving well
+  for (i = 0; i < stacksize; i += sysconf(_SC_PAGESIZE)) {
+    // Each write to this buffer shall NOT generate a pagefault.
+    buffer[i] = i;
+  }
+   
+  show_new_pagefault_count("Caused by using thread stack", "0", "0");
+} // prove_thread_stack_use_is_safe
+
+// reserve_process_memory
+static void reserve_process_memory(int size) {
+  int i;
+  char *buffer;
+   
+  buffer = malloc(size);
+   
+  // Touch each page in this piece of memory to get it mapped into RAM
+  for (i = 0; i < size; i += sysconf(_SC_PAGESIZE)) {
+    /* Each write to this buffer will generate a pagefault.
+       Once the pagefault is handled a page will be locked in
+       memory and never given back to the system. */
+    buffer[i] = 0;
+  }
+   
+  /* buffer will now be released. As Glibc is configured such that it 
+  never gives back memory to the kernel, the memory allocated above is
+  locked for this process. All malloc() and new() calls come from
+  the memory pool reserved and locked above. Issuing free() and
+  delete() does NOT make this locking undone. So, with this locking
+  mechanism we can build C/C++ applications that will never run into
+  a major/minor pagefault, even with swapping enabled. */
+  free(buffer);
+
   return;
-} // stack_prefault
+} // reserve_process_memory
 
 // Set up a memory regions to access GPIO
 static void setup_io(void) {
@@ -219,7 +268,8 @@ extern int clock_nanosleep(clockid_t __clock_id, int __flags,
                            __const struct timespec *__req,
                            struct timespec *__rem);
 
-/* the struct timespec consists of nanoseconds
+/* 
+ * the struct timespec consists of nanoseconds
  * and seconds. if the nanoseconds are getting
  * bigger than 1000000000 (= 1 second) the
  * variable containing seconds has to be
@@ -456,8 +506,8 @@ static int decode(char * word, char * msg, int * allZones) {
     strcpy(msg, "From Keypad ");
     if (getBinaryData(word,8,32) == 0xffffffff)
       strcat(msg, "idle");
-    else {
-      button = getBinaryData(word,8,20); //bits 11~14 data; 15~16 CRC
+    else { //bits 11~14 data; 15~16 CRC (not used)
+      button = getBinaryData(word,8,20); 
       if (button == 0x947ff)
         strcat(msg, "button * pressed");
       else if (button == 0x96fff)
@@ -497,7 +547,12 @@ static int decode(char * word, char * msg, int * allZones) {
 
 } // decode
 
-// panel io thread
+/*
+ * panel io thread
+ * Every INTERVAL seconds, this thread reads and writes bits to the panel's keybus interface.
+ * The bits are assembled into messages that get decoded by the message i/o thread.
+ *
+ */
 static void * panel_io(void *arg) {
   char word[MAX_BITS] = "", wordkw[MAX_BITS], wordkr[MAX_BITS] ="", wordkr_temp = '0';
   int flag = 0, bit_cnt = 0, res;
@@ -505,7 +560,7 @@ static void * panel_io(void *arg) {
 
   // detach the thread since we don't care about its return status
   res = pthread_detach(pthread_self());
-  if (res != 0) {
+  if (res) {
     perror("panel i/o thread detach failed\n");
     exit(EXIT_FAILURE);
   }
@@ -518,25 +573,32 @@ static void * panel_io(void *arg) {
     tnorm(&t);
     clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &t, NULL);
 
-    if ((GET_GPIO(PI_CLOCK_IN) == PI_CLOCK_HI) && (flag == 0)) { // write/read keypad data
+    if ((GET_GPIO(PI_CLOCK_IN) == PI_CLOCK_HI) && !flag) { // write/read keypad data
       if (ts_diff(&t, &tmark) > NEW_WORD_VALID) { // check for new word
         res = pushElement1(word, MAX_BITS); // store p->k data
-        if (res != MAX_BITS)
+        if (res != MAX_BITS) {
           fprintf(stderr, "panel_io: fifo write error\n"); // record error and continue
+        }
 
         res = pushElement1(wordkr, MAX_BITS); // store k->p data
-        if (res != MAX_BITS)
+        if (res != MAX_BITS) {
           fprintf(stderr, "panel_io: fifo write error\n");
+        }
 
-        /*
-         * safe to send data check may have been related to a real-time issue
-         * with the current thread priorities, its probably not needed
-         * keep for now and verify with further testing
-         */ 
-        if (getBinaryData(word,0,8) == 0x05 && getBinaryData(word,32,1) == 0x1) // safe to send keypad data
+        /* 
+         * Check to see if last word was less than 20 bits.
+         * If so, repeat last keypad write by not fetching new data from fifo.
+         * Need at least 20 bits to send a valid data word to the keypad. 
+         *
+         */
+        if (bit_cnt < 20) {
+          fprintf(stderr, "panel_io: bit count < 20 (%i)! Repeating keypad write.\n", bit_cnt);
+        } else {
           res = popElement2(wordkw, MAX_BITS); // get a keypad command to send to panel
-          if (res != MAX_BITS) // fifo is empty so output idle instead of repeating previous
+          if (res != MAX_BITS) { // fifo is empty so output idle instead of repeating previous
             strncpy(wordkw, IDLE, MAX_BITS);
+          }
+        }
 
         bit_cnt = 0; // reset bit counter and arrays
         memset(&word, 0, MAX_BITS);
@@ -557,6 +619,7 @@ static void * panel_io(void *arg) {
         //exit(EXIT_FAILURE);
       }
 
+      // read keypad data, including that just written
       t.tv_nsec += KSAMPLE_OFFSET;
       tnorm(&t);
       clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &t, NULL); // wait KSAMPLE_OFFSET for valid data
@@ -567,7 +630,7 @@ static void * panel_io(void *arg) {
       clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &t, NULL); // wait HOLD_DATA time
       GPIO_CLR = 1<<PI_DATA_OUT; // leave with GPIO cleared
     }
-    else if ((GET_GPIO(PI_CLOCK_IN) == PI_CLOCK_LO) && (flag == 1)) { // read panel data
+    else if ((GET_GPIO(PI_CLOCK_IN) == PI_CLOCK_LO) && flag) { // read panel data
       flag = 0;
 
       t.tv_nsec += SAMPLE_OFFSET;
@@ -581,20 +644,25 @@ static void * panel_io(void *arg) {
   }
 } // panel_io thread
 
-// message i/o thread
+/* 
+ * message i/o thread
+ * This thread runs every MSG_IO_UPDATE seconds and decodes the messages created by the panel i/o thread.
+ * It also prints the panel and keypad traffic to stdout. 
+ *
+ */
 static void * msg_io(void * arg) {
   int cmd, res, zone, allZones[32];
   int data0, data1, data2, data3;
   int data4, data5, data6, data7;
-  char msg[50] = "", oldPKMsg[50] = "", oldKPMsg[50] = "";
+  long unsigned int index = 0;
+  char msg[50] = "";
   char word[MAX_BITS] = "", wordk[MAX_BITS] = "", buf[4*128] = "";
-  long unsigned index = 0;
   struct timespec t;
   struct status * sptr = (struct status *) arg;
 
   // detach the thread since we don't care about its return status
   res = pthread_detach(pthread_self());
-  if (res != 0) {
+  if (res) {
     perror("message i/o thread detach failed\n");
     exit(EXIT_FAILURE);
   }
@@ -611,70 +679,64 @@ static void * msg_io(void * arg) {
     tnorm(&t);
     clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &t, NULL);
 
-    // get raw data from fifo
+    // Get raw data from fifo. Panel and keypad data are interleaved in the fifo. 
     res = popElement1(word, MAX_BITS);
-    if (res != 0 && res != MAX_BITS) { // fifo will be empty most of the time
+    if (!res) { // fifo is empty (res == 0)
+      continue;
+    } else if (res != MAX_BITS) { // fifo read error
       fprintf(stderr, "msg_io: fifo read error\n"); // record error and continue
-    }
+      continue;
+    } else if (res == MAX_BITS) { // fifo has valid data
+      // todo : add CRC check of raw data
 
-    // todo : add CRC check of raw data
+      cmd = decode(word, msg, allZones); // decode word from panel into a message
 
-    cmd = decode(word, msg, allZones); // decode word from panel into a message
+      // update LED and zone status information
+      if (cmd == 0x05) strcpy(sptr->ledStatus, msg);
+      if (cmd == 0x27) strcpy(sptr->zone1Status, msg);
+      if (cmd == 0x2d) strcpy(sptr->zone2Status, msg);
+      if (cmd == 0x34) strcpy(sptr->zone3Status, msg);
+      if (cmd == 0x3e) strcpy(sptr->zone4Status, msg);
 
-    // update panel status
-    /* filter bad status - not sure its needed with current thread priorities
-     * needs further testing but keeping check for now
-     */ 
-    if (cmd == 0x05 && getBinaryData(word,32,1) == 0x1) // filter bad status
-      strcpy(sptr->ledStatus, msg);
-    if (cmd == 0x27) strcpy(sptr->zone1Status, msg);
-    if (cmd == 0x2d) strcpy(sptr->zone2Status, msg);
-    if (cmd == 0x34) strcpy(sptr->zone3Status, msg);
-    if (cmd == 0x3e) strcpy(sptr->zone4Status, msg);
-
-    // update zone sensor activity and deactivity markers
-    for (zone = 0; zone < 32; zone++) {
-      if (allZones[zone]) { // zone is currently active
-        if (sptr->zoneAct[zone] <= sptr->zoneDeAct[zone]) { // zone was marked inactive
-          sptr->zoneAct[zone] = t.tv_sec; // zone is now active, so record time
-        }
-      } else { // zone is currently not active
-        if (sptr->zoneDeAct[zone] < sptr->zoneAct[zone]) { // zone was marked active
-          sptr->zoneDeAct[zone] = t.tv_sec; // zone is now not active, so record time
+      // update zone sensor activity and deactivity markers
+      for (zone = 0; zone < 32; zone++) {
+        if (allZones[zone]) { // zone is currently active
+          if (sptr->zoneAct[zone] <= sptr->zoneDeAct[zone]) { // zone was marked inactive
+            sptr->zoneAct[zone] = t.tv_sec; // zone is now active, so record time
+          }
+        } else { // zone is currently not active
+          if (sptr->zoneDeAct[zone] < sptr->zoneAct[zone]) { // zone was marked active
+            sptr->zoneDeAct[zone] = t.tv_sec; // zone is now not active, so record time
+          }
         }
       }
-    }
 
-    // update zone sensor observation time
-    sptr->obsTime = t.tv_sec;
+      // update zone sensor observation time
+      sptr->obsTime = t.tv_sec;
 
-    // get raw data bytes
-    data0 = getBinaryData(word,0,8);  data1 = getBinaryData(word,8,8);
-    data2 = getBinaryData(word,16,8); data3 = getBinaryData(word,24,8);
-    data4 = getBinaryData(word,32,8); data5 = getBinaryData(word,40,8);
-    data6 = getBinaryData(word,48,8); data7 = getBinaryData(word,56,8);
+      // get raw data bytes
+      data0 = getBinaryData(word,0,8);  data1 = getBinaryData(word,8,8);
+      data2 = getBinaryData(word,16,8); data3 = getBinaryData(word,24,8);
+      data4 = getBinaryData(word,32,8); data5 = getBinaryData(word,40,8);
+      data6 = getBinaryData(word,48,8); data7 = getBinaryData(word,56,8);
 
-    // output panel-to-keypad and keypad-to-panel traffic to stdio
-    if ((cmd == 0xff && strcmp(msg, oldKPMsg) != 0) || 
-        (cmd != 0xff && strcmp(msg, oldPKMsg) != 0)) { // only output changes
       snprintf(buf, sizeof(buf),
                "index:%lu,%-50s, data: 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n",
                index++, msg, data0, data1, data2, data3, data4, data5, data6, data7);
-      fputs(buf, stdout);
+      fputs(buf, stdout); // display message output of panel and keypad data
       fflush(stdout);
-    }
-
-    if (cmd == 0xff) { // store current keypad-to-panel message
-      strcpy(oldKPMsg, msg);
-    } else { // store current panel-to-keypad message
-      strcpy(oldPKMsg, msg);
     }
 
   } // while
 
 } // msg_io
 
-// predict thread
+/* 
+ * predict thread
+ * This thread runs every PREDICT_UPDATE seconds and sends sensor data to R to make a prediction.
+ * It also reads the prediction from R and does something if true.
+ *
+ */
 static void * predict(void * arg) {
   int res;
   char rout[ROUT_MAX];
@@ -690,7 +752,7 @@ static void * predict(void * arg) {
   
   // detach the thread since we don't care about its return status
   res = pthread_detach(pthread_self());
-  if (res != 0) {
+  if (res) {
     perror("message i/o thread detach failed\n");
     exit(EXIT_FAILURE);
   }
@@ -721,7 +783,7 @@ static void * predict(void * arg) {
              sptr->zoneDeAct[24], sptr->zoneDeAct[25], sptr->zoneDeAct[26], sptr->zoneDeAct[27],
              sptr->zoneDeAct[28], sptr->zoneDeAct[29], sptr->zoneDeAct[30], sptr->zoneDeAct[31]);
 
-    if (strcmp(zoneBuf, oldZoneBuf) != 0) { // only run on zone changes
+    if (strcmp(zoneBuf, oldZoneBuf)) { // only run on zone changes
       // Build and execute command to run Rscript
       snprintf(popenCmd, PCMD_BUF_SIZE, POPEN_FMT, obsTimeBuf, zoneBuf);
       fp = popen(popenCmd, "r");
@@ -806,7 +868,7 @@ static int create_socket(int port)
   server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
   server_addr.sin_port = htons(port); 
   res = bind(listenfd, (struct sockaddr *) &server_addr, sizeof(server_addr));
-  if (res != 0) {
+  if (res) {
     perror("server: bind() failed\n");
     exit(EXIT_FAILURE);;
   }
@@ -993,6 +1055,7 @@ static void panserv(struct status * pstat, int port) {
      *
      * todo: this should be a function
      */
+    // process commands
     if (!isdigit(buffer[i])) { // not a number, but a command
       if (!strncmp(buffer, "star", 4))
         strncpy(wordk, STAR, MAX_BITS);
@@ -1017,8 +1080,7 @@ static void panserv(struct status * pstat, int port) {
         fprintf(stderr, "server: fifo write error\n");
         break;
       }
-    }
-    else { // a number or number(s)
+    } else { // a number or number(s)
       chkbuf = strtol(buffer, NULL, 10);
       if (chkbuf < 0 || chkbuf > 9999) {
         fprintf(stderr, "server: invalid panel command\n");
@@ -1026,7 +1088,6 @@ static void panserv(struct status * pstat, int port) {
       }
       while(buffer[i] != '\n') {
         num = buffer[i] - '0';
-printf("****buffer[%i]: %i, num: %i\n", i, buffer[i], num);
         switch (num) {
           case 0 :
             strncpy(wordk, ZERO, MAX_BITS);
@@ -1076,7 +1137,8 @@ printf("****buffer[%i]: %i, num: %i\n", i, buffer[i], num);
       }
     }
     
-    if (tag) {
+    // send back zone status, either as JSON or text
+    if (tag) { // send zone data as JSON
       snprintf(txBuf, sizeof(txBuf), jsonObj,
                pstat->obsTime,
                pstat->zoneAct[0],  pstat->zoneAct[1],  pstat->zoneAct[2],  pstat->zoneAct[3],
@@ -1105,7 +1167,7 @@ printf("****buffer[%i]: %i, num: %i\n", i, buffer[i], num);
       }
       
       tag = 0;
-    } else {
+    } else { // send zone data as text
       snprintf(txBuf, sizeof(txBuf), "%s, %s, %s, %s, %s,",
                pstat->ledStatus, pstat->zone1Status, pstat->zone2Status,
                pstat->zone3Status, pstat->zone4Status);
@@ -1207,8 +1269,19 @@ int main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
+  // Turn off malloc trimming.
+  mallopt(M_TRIM_THRESHOLD, -1);
+   
+  // Turn off mmap usage.
+  mallopt(M_MMAP_MAX, 0);
+
   // Pre-fault our stack
-  stack_prefault();
+  reserve_process_memory(MAX_SAFE_STACK);
+  show_new_pagefault_count("malloc() and touch generated", ">=0", ">=0");
+
+  // test to see if pre-faulting worked
+  reserve_process_memory(MAX_SAFE_STACK);
+  show_new_pagefault_count("2nd malloc() and use generated", "0", "0");
 
   // Set up gpio pointer for direct register access
   setup_io();
@@ -1239,10 +1312,16 @@ int main(int argc, char *argv[])
   pthread_attr_init(&my_attr);
   pthread_attr_setaffinity_np(&my_attr, sizeof(cpuset_pio), &cpuset_pio);
   pthread_attr_setschedpolicy(&my_attr, SCHED_FIFO);
+  // Set the requested stacksize for this thread
+  res = pthread_attr_setstacksize(&my_attr, PTHREAD_STACK_MIN + MY_STACK_SIZE);
+  if (res) {
+    perror("Panel i/o thread set stack size failed\n");
+    exit(EXIT_FAILURE);
+  }
   param_pio.sched_priority = PANEL_IO_PRI;
   pthread_attr_setschedparam(&my_attr, &param_pio);
   res = pthread_create(&pio_thread, &my_attr, panel_io, NULL);
-  if (res != 0) {
+  if (res) {
     perror("Panel i/o thread creation failed\n");
     exit(EXIT_FAILURE);
   }
@@ -1252,10 +1331,16 @@ int main(int argc, char *argv[])
   pthread_attr_init(&my_attr);
   pthread_attr_setaffinity_np(&my_attr, sizeof(cpuset_mio), &cpuset_mio);
   pthread_attr_setschedpolicy(&my_attr, SCHED_FIFO);
+  // Set the requested stacksize for this thread
+  res = pthread_attr_setstacksize(&my_attr, PTHREAD_STACK_MIN + MY_STACK_SIZE);
+  if (res) {
+    perror("Message i/o thread set stack size failed\n");
+    exit(EXIT_FAILURE);
+  }
   param_pio.sched_priority = MSG_IO_PRI;
   pthread_attr_setschedparam(&my_attr, &param_pio);
   res = pthread_create(&mio_thread, &my_attr, msg_io, (void *) &pstat);
-  if (res != 0) {
+  if (res) {
     perror("Message i/o thread creation failed\n");
     exit(EXIT_FAILURE);
   }
@@ -1265,10 +1350,16 @@ int main(int argc, char *argv[])
   pthread_attr_init(&my_attr);
   pthread_attr_setaffinity_np(&my_attr, sizeof(cpuset_mio), &cpuset_mio);
   pthread_attr_setschedpolicy(&my_attr, SCHED_FIFO);
+  // Set the requested stacksize for this thread
+  res = pthread_attr_setstacksize(&my_attr, PTHREAD_STACK_MIN + MY_STACK_SIZE);
+  if (res) {
+    perror("Predict thread set stack size failed\n");
+    exit(EXIT_FAILURE);
+  }
   param_predict.sched_priority = PREDICT_PRI;
   pthread_attr_setschedparam(&my_attr, &param_predict);
   res = pthread_create(&predict_thread, &my_attr, predict, (void *) &pstat);
-  if (res != 0) {
+  if (res) {
     perror("Predict thread creation failed\n");
     exit(EXIT_FAILURE);
   }
