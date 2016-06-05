@@ -12,7 +12,7 @@
  *
  * Must run under linux PREEMPT_RT kernel 3.18.9-rt5-v7 and as su.
  *
- * See https://github.com/goruck/all for details. 
+ * See https://github.com/goruck/mall for details. 
  *
  * Lindo St. Angel 2015/16. 
  *
@@ -40,12 +40,12 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <signal.h>
-#define	BUF_LEN		16 // size of string to hold longest message incl '\n'
-#define BACKLOG		1 // only allow one client to connect
-//#define	_BSD_SOURCE // to get definitions of NI_MAXHOST and NI_MAXSERV from <netdb.h>
-#include <netdb.h>
-#define ADDRSTRLEN	(NI_MAXHOST + NI_MAXSERV + 10)
 #include <tcpd.h> //for hosts_ctl()
+#include <netdb.h>
+#define	BUF_LEN		16  // size of string to hold longest message incl '\n'
+#define BACKLOG		1   // only allow one client to connect
+//#define	_BSD_SOURCE // to get definitions of NI_MAXHOST and NI_MAXSERV from <netdb.h>
+#define ADDRSTRLEN	(NI_MAXHOST + NI_MAXSERV + 10)
 
 // openssl
 #include <openssl/ssl.h>
@@ -53,13 +53,9 @@
 #include <openssl/evp.h>
 
 // GPIO Access from ARM Running Linux. Based on Dom and Gert rev 15-feb-13
-#define BCM2708_PERI_BASE	0x3F000000 /* modified for Pi 2 */
-#define GPIO_BASE		(BCM2708_PERI_BASE + 0x200000) /* GPIO controller */
-
-// size of page to lock in memory for real time operation
-#define PAGE_SIZE (4*1024)
-// size of memory for direct gpio access
-#define BLOCK_SIZE (4*1024)
+#define BCM2708_PERI_BASE 0x3F000000 // modified for Pi 2
+#define GPIO_BASE	  (BCM2708_PERI_BASE + 0x200000) // GPIO controller
+#define BLOCK_SIZE	  (4*1024) // size of memory for direct gpio access
 
 // GPIO setup macros. Always use INP_GPIO(x) before using OUT_GPIO(x) or SET_GPIO_ALT(x,y).
 #define INP_GPIO(g) *(gpio+((g)/10)) &= ~(7<<(((g)%10)*3))
@@ -178,7 +174,7 @@ static void show_new_pagefault_count(const char* logtext,
    
   getrusage(RUSAGE_SELF, &usage);
    
-  printf("%-30.30s: Pagefaults, Major:%ld (Allowed %s), " \
+  fprintf(stdout, "%-30.30s: Pagefaults, Major:%ld (Allowed %s), " \
    	 "Minor:%ld (Allowed %s)\n", logtext,
    	 usage.ru_majflt - last_majflt, allowed_maj,
    	 usage.ru_minflt - last_minflt, allowed_min);
@@ -187,7 +183,13 @@ static void show_new_pagefault_count(const char* logtext,
   last_minflt = usage.ru_minflt;
 } // show_new_pagefault_count
 
-// prove_thread_stack_use_is_safe
+/* prove_thread_stack_use_is_safe
+ *
+ * Note: gcc -Wall will complain here that buffer is set but not used. 
+ * This is because buffer is a local variable on the stack
+ *   but not used outside the scope of this function.
+ * This is why buffer is a volatile because otherwise complier would optimize it away. 
+ */
 static void prove_thread_stack_use_is_safe(int stacksize) {
   volatile char buffer[stacksize];
   int i;
@@ -550,7 +552,7 @@ static int decode(char * word, char * msg, int * allZones) {
 /*
  * panel io thread
  * Every INTERVAL seconds, this thread reads and writes bits to the panel's keybus interface.
- * The bits are assembled into messages that get decoded by the message i/o thread.
+ * The read bits are assembled into messages that get decoded by the message i/o thread.
  *
  */
 static void * panel_io(void *arg) {
@@ -794,46 +796,46 @@ static void * predict(void * arg) {
   
       // Read output of Rscript until EOF and act on R's predictions
       while (fgets(rout, ROUT_MAX, fp) != NULL) {
-        printf("%s", rout);
+        fprintf(stdout, "%s", rout);
         if (strstr(rout, "prediction 1:  1") != NULL) {
-          //printf("*** R *** prediction 1 is FALSE\n");
+          //fprintf(stdout, "*** R *** prediction 1 is FALSE\n");
         } else if (strstr(rout, "prediction 1:  2") != NULL) {
-          //printf("*** R *** prediction 1 is TRUE\n");
+          //fprintf(stdout, "*** R *** prediction 1 is TRUE\n");
           system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
         } else if (strstr(rout, "prediction 2:  1") != NULL) {
-          //printf("*** R *** prediction 2 is FALSE\n");
+          //fprintf(stdout, "*** R *** prediction 2 is FALSE\n");
         } else if (strstr(rout, "prediction 2:  2") != NULL) {
-          //printf("*** R *** prediction 2 is TRUE\n");
+          //fprintf(stdout, "*** R *** prediction 2 is TRUE\n");
           system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
         } else if (strstr(rout, "prediction 3:  1") != NULL) {
-          //printf("*** R *** prediction 3 is FALSE\n");
+          //fprintf(stdout, "*** R *** prediction 3 is FALSE\n");
         } else if (strstr(rout, "prediction 3:  2") != NULL) {
-          //printf("*** R *** prediction 3 is TRUE\n");
+          //fprintf(stdout, "*** R *** prediction 3 is TRUE\n");
           system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
         } else if (strstr(rout, "prediction 4:  1") != NULL) {
-          //printf("*** R *** prediction 4 is FALSE\n");
+          //fprintf(stdout, "*** R *** prediction 4 is FALSE\n");
         } else if (strstr(rout, "prediction 4:  2") != NULL) {
-          //printf("*** R *** prediction 5 is TRUE\n");
+          //fprintf(stdout, "*** R *** prediction 5 is TRUE\n");
           system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
         } else if (strstr(rout, "prediction 5:  1") != NULL) {
-          //printf("*** R *** prediction 5 is FALSE\n");
+          //fprintf(stdout, "*** R *** prediction 5 is FALSE\n");
         } else if (strstr(rout, "prediction 5:  2") != NULL) {
-          //printf("*** R *** prediction 5 is TRUE\n");
+          //fprintf(stdout, "*** R *** prediction 5 is TRUE\n");
           system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
         } else if (strstr(rout, "prediction 6:  1") != NULL) {
-          //printf("*** R *** prediction 6 is FALSE\n");
+          //fprintf(stdout, "*** R *** prediction 6 is FALSE\n");
         } else if (strstr(rout, "prediction 6:  2") != NULL) {
-          //printf("*** R *** prediction 6 is TRUE\n");
+          //fprintf(stdout, "*** R *** prediction 6 is TRUE\n");
           system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
         } else if (strstr(rout, "prediction 7:  1") != NULL) {
-          //printf("*** R *** prediction 7 is FALSE\n");
+          //fprintf(stdout, "*** R *** prediction 7 is FALSE\n");
         } else if (strstr(rout, "prediction 7:  2") != NULL) {
-          //printf("*** R *** prediction 7 is TRUE\n");
+          //fprintf(stdout, "*** R *** prediction 7 is TRUE\n");
           system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
         } else if (strstr(rout, "prediction 8:  1") != NULL) {
-          //printf("*** R *** prediction 8 is FALSE\n");
+          //fprintf(stdout, "*** R *** prediction 8 is FALSE\n");
         } else if (strstr(rout, "prediction 8:  2") != NULL) {
-          //printf("*** R *** prediction 8 is TRUE\n");
+          //fprintf(stdout, "*** R *** prediction 8 is TRUE\n");
           system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
         }
       }
@@ -863,6 +865,7 @@ static int create_socket(int port)
     perror("server: could not open socket\n");
     exit(EXIT_FAILURE);;
   }
+
   memset(&server_addr, 0, sizeof(server_addr)); 
   server_addr.sin_family = AF_INET;
   server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -872,11 +875,13 @@ static int create_socket(int port)
     perror("server: bind() failed\n");
     exit(EXIT_FAILURE);;
   }
+
   res = listen(listenfd, BACKLOG);
   if (res == -1) {
     perror("server: listen() failed\n");
     exit(EXIT_FAILURE);;
   }
+
   return listenfd;
 } // create_socket()
 
@@ -1011,14 +1016,14 @@ static void panserv(struct status * pstat, int port) {
       continue;
     }
 
-    if (getnameinfo ((struct sockaddr *) &client_addr, addrlen,
-        host, NI_MAXHOST, service, NI_MAXSERV, 0) == 0)
+    if (!getnameinfo ((struct sockaddr *) &client_addr, addrlen,
+        host, NI_MAXHOST, service, NI_MAXSERV, 0))
       snprintf(addrStr, ADDRSTRLEN, "(%s, %s)", host, service);
     else
       snprintf(addrStr, ADDRSTRLEN, "(?UNKNOWN?)");
-    printf("server: connection requested from %s\n", addrStr);
+    fprintf(stdout, "server: connection requested from %s\n", addrStr);
 
-    if (hosts_ctl("kprw-server", STRING_UNKNOWN, host, STRING_UNKNOWN) == 0) {
+    if (!hosts_ctl("kprw-server", STRING_UNKNOWN, host, STRING_UNKNOWN)) {
       fprintf(stderr, "Client %s connection disallowed\n", inet_ntoa(client_addr.sin_addr));
       close(connfd);
       continue;
@@ -1034,8 +1039,8 @@ static void panserv(struct status * pstat, int port) {
       continue;
     }
 
-    printf("server: client %s connected with %s encryption\n",
-           inet_ntoa(client_addr.sin_addr), SSL_get_cipher(ssl));
+    fprintf(stdout, "server: client %s connected with %s encryption\n",
+            inet_ntoa(client_addr.sin_addr), SSL_get_cipher(ssl));
 
     memset(&buffer, 0, BUF_LEN);
     res = SSL_read(ssl, buffer, (BUF_LEN-1)); // read command from socket
@@ -1046,10 +1051,10 @@ static void panserv(struct status * pstat, int port) {
       continue;
     }
 
-    printf("server: panel received command %s", buffer);
+    fprintf(stdout, "server: panel received command %s", buffer);
 
     /*
-     * Decode command sent from client.
+     * Decode and process a command sent from client.
      * Check for bad commands.
      * Map to keypad data and send to panel.
      *
@@ -1137,7 +1142,7 @@ static void panserv(struct status * pstat, int port) {
       }
     }
     
-    // send back zone status, either as JSON or text
+    // send back zone and system status, either as JSON or text
     if (tag) { // send zone data as JSON
       snprintf(txBuf, sizeof(txBuf), jsonObj,
                pstat->obsTime,
@@ -1167,7 +1172,7 @@ static void panserv(struct status * pstat, int port) {
       }
       
       tag = 0;
-    } else { // send zone data as text
+    } else { // send zone data as text, this is the default format
       snprintf(txBuf, sizeof(txBuf), "%s, %s, %s, %s, %s,",
                pstat->ledStatus, pstat->zone1Status, pstat->zone2Status,
                pstat->zone3Status, pstat->zone4Status);
@@ -1212,13 +1217,13 @@ int main(int argc, char *argv[])
   if (argc != 2) {
     fprintf(stderr, "usage: %s port<49152–65535>\n", argv[0]);
     exit(EXIT_FAILURE);
-  }
-  else
+  } else {
     port = strtol(argv[1], NULL, 10);
     if (port < 49152 || port > 65535) {
       fprintf(stderr, "Port number must be in the range of 49152 to 65535\n");
       exit(EXIT_FAILURE);
     }
+  }
 
   // Check if running with real-time linux.
   uname(&u);
@@ -1227,7 +1232,7 @@ int main(int argc, char *argv[])
     crit2 = ((fscanf(fd, "%d", &flag) == 1) && (flag == 1));
     fclose(fd);
   }
-  fprintf(stderr, "This is a %s kernel.\n", (crit1 && crit2)  ? "PREEMPT RT" : "vanilla");
+  fprintf(stdout, "This is a %s kernel.\n", (crit1 && crit2)  ? "PREEMPT RT" : "vanilla");
   if (!(crit1 && crit2)) {
     fprintf(stderr, "Can't run under a vanilla kernel\n");
     exit(EXIT_FAILURE);
@@ -1258,7 +1263,7 @@ int main(int argc, char *argv[])
   // set main thread cpu affinity
   main_thread = pthread_self();
   res = pthread_setaffinity_np(main_thread, sizeof(cpuset_main), &cpuset_main);
-  if (res != 0) {
+  if (res) {
     perror("Main thread cpu affinity set failed\n");
     exit(EXIT_FAILURE);
   }
@@ -1275,7 +1280,7 @@ int main(int argc, char *argv[])
   // Turn off mmap usage.
   mallopt(M_MMAP_MAX, 0);
 
-  // Pre-fault our stack
+  // Pre-fault our stack and display page fault stats
   reserve_process_memory(MAX_SAFE_STACK);
   show_new_pagefault_count("malloc() and touch generated", ">=0", ">=0");
 
