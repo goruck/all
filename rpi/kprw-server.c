@@ -315,8 +315,7 @@ static inline unsigned int getBinaryData(char *st, int offset, int length)
 {
   unsigned int buf = 0, j;
 
-  for (j = 0; j< length; j++)
-  {
+  for (j = 0; j< length; j++) {
     buf <<=1;
     if ( *(st + offset + j) == '1' ) buf |= 1;
   }
@@ -334,62 +333,77 @@ static inline unsigned int getBinaryData(char *st, int offset, int length)
 // fifo1 - stores panel to keypad and keypad to panel data
 static inline int pushElement1(char *element, int num) {
   int nextElement, i;
-  
-  nextElement = (m_Write1 + num) % FIFO_SIZE;
 
-  if (nextElement != m_Read1) // fifo not full
-    for (i = 0; i < num; i++)
+  // increment or reset pointer
+  nextElement = ((m_Write1 + num) >= FIFO_SIZE) ? 0 : (m_Write1 + num);
+
+  if (nextElement != m_Read1) { // fifo not full
+    for (i = 0; i < num; i++) {
       m_Data1[m_Write1 + i] = element[i];
+    }
+  }
   
   // if fifo was full, data will be overwritten
-
   m_Write1 = nextElement;
+
   return i; // return number of elements pushed
 }
 
 static inline int popElement1(char *element, int num) {
   int nextElement, i;
 
-  if (m_Read1 == m_Write1)
+  if (m_Read1 == m_Write1) {
     return 0; // fifo is empty
+  }
 
-  nextElement = (m_Read1 + num) % FIFO_SIZE;
+  // increment or reset pointer
+  nextElement = ((m_Read1 + num) >= FIFO_SIZE) ? 0 : (m_Read1 + num);
 
-  for (i = 0; i < num; i++)
+  for (i = 0; i < num; i++) {
     element[i] = m_Data1[m_Read1 + i];
+  }
 
   m_Read1 = nextElement;
+
   return i;
 }
 
 // fifo2 - stores keypad data to be sent to panel
 static inline int pushElement2(char *element, int num) {
   int nextElement, i;
-  
-  nextElement = (m_Write2 + num) % FIFO_SIZE;
 
-  if (nextElement != m_Read2)
-    for (i = 0; i < num; i++)
+  // increment or reset pointer
+  nextElement = ((m_Write2 + num) >= FIFO_SIZE) ? 0 : (m_Write2 + num);
+
+  if (nextElement != m_Read2) {
+    for (i = 0; i < num; i++) {
       m_Data2[m_Write2 + i] = element[i];
-  else
+    }
+  } else {
     return 0; // fifo is full, data not overwritten
+  }
 
   m_Write2 = nextElement;
+
   return i;
 }
 
 static inline int popElement2(char *element, int num) {
   int nextElement, i;
 
-  if (m_Read2 == m_Write2)
+  if (m_Read2 == m_Write2) {
     return 0; // fifo is empty
+  }
 
-  nextElement = (m_Read2 + num) % FIFO_SIZE;
+  // increment or reset pointer
+  nextElement = ((m_Read2 + num) >= FIFO_SIZE) ? 0 : (m_Read2 + num);
 
-  for (i = 0; i < num; i++)
+  for (i = 0; i < num; i++) {
     element[i] = m_Data2[m_Read2 + i];
+  }
 
   m_Read2 = nextElement;
+
   return i;
 }
 
@@ -583,7 +597,7 @@ static void * panel_io(void *arg) {
          * If invalid, repeat last keypad write by not fetching new data from fifo.
          * Also, do not store either panel or keypad data.
          *
-         * Invalid words may be do to a real-time task with higher prority
+         * Invalid words may be due to a real-time task with higher prority
          *   than this thread preempting it, or latencies caused by page faults.
          * Despite best efforts to make ensure robust real-time performance
          *   these error checks are still required to be 100% safe. 
