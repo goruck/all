@@ -141,7 +141,7 @@
 #define AWAY	"1111111111011000111111111111111111111111111111111111111111111111"
 
 // Rscript
-#define POPEN_FMT     "/home/pi/R_HOME/R-3.1.2/bin/Rscript --vanilla /home/pi/all/R/predknn.R %s %s 2> /dev/null"
+#define POPEN_FMT     "/home/pi/R_HOME/R-3.1.2/bin/Rscript --vanilla /home/pi/all/R/predknn.R %s %s %s 2> /dev/null"
 #define RARG_SIZE     128
 #define ROUT_MAX      128
 #define PCMD_BUF_SIZE (sizeof(POPEN_FMT) + RARG_SIZE)
@@ -748,8 +748,8 @@ static void * msg_io(void * arg) {
       snprintf(buf, sizeof(buf),
                "index:%lu,%-50s, data: 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n",
                index++, msg, data0, data1, data2, data3, data4, data5, data6, data7);
-      fputs(buf, stdout); // display message output of panel and keypad data
-      fflush(stdout);
+      //fputs(buf, stdout); // display message output of panel and keypad data
+      //fflush(stdout);
     }
 
   } // while
@@ -764,7 +764,7 @@ static void * msg_io(void * arg) {
  */
 static void * predict(void * arg) {
   int res;
-  char rout[ROUT_MAX];
+  char rout[ROUT_MAX], tsBuf[sizeof("2016-05-22T12:15:22Z")];
   char popenCmd[PCMD_BUF_SIZE];
   char obsTimeBuf[RARG_SIZE] = "", zoneBuf[RARG_SIZE] = "", oldZoneBuf[RARG_SIZE] = "";
   const char * format = " %lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,"
@@ -773,6 +773,8 @@ static void * predict(void * arg) {
                         "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu";
   struct timespec t;
   struct status * sptr = (struct status *) arg;
+  struct tm *tmp;
+  time_t tstamp;
   FILE * fp;
   
   // detach the thread since we don't care about its return status
@@ -787,6 +789,18 @@ static void * predict(void * arg) {
     t.tv_nsec += PREDICT_UPDATE; // thread runs every PREDICT_UPDATE seconds
     tnorm(&t);
     clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &t, NULL);
+
+    // Time and date stamp observation, rounded to nearest second
+    tstamp = time(NULL);
+    tmp = gmtime(&tstamp); // Coordinated Universal Time (UTC) aka GMT timezone
+    if (tmp == NULL) {
+      perror("gmtime failed\n");
+      exit(EXIT_FAILURE);
+    }
+    if (!strftime(tsBuf, sizeof(tsBuf), "%FT%TZ", tmp)) {
+      fprintf(stderr, "strftime returned 0\n");
+      exit(EXIT_FAILURE);
+    }
 
     // Build strings from observation data for Rscript arguments
     snprintf(obsTimeBuf, sizeof(obsTimeBuf), " %lu", sptr->obsTime);
@@ -810,7 +824,7 @@ static void * predict(void * arg) {
 
     if (strcmp(zoneBuf, oldZoneBuf)) { // only run on zone changes
       // Build and execute command to run Rscript
-      snprintf(popenCmd, PCMD_BUF_SIZE, POPEN_FMT, obsTimeBuf, zoneBuf);
+      snprintf(popenCmd, PCMD_BUF_SIZE, POPEN_FMT, tsBuf, obsTimeBuf, zoneBuf);
       fp = popen(popenCmd, "r");
       if (fp == NULL) {
         fprintf(stderr, "popen() failed\n");
