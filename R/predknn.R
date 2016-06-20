@@ -6,12 +6,12 @@ cat("********** New R Run **********\n")
 TEMPORAL_CUTOFF <- -120 # 120 seconds ago
 TEMPORAL_VALUE  <- -9999 # a long time ago
 library(class) # for knn
-library(lubridate) # for date / time conversions
-### function to convert time stamp from UTC to local time and extract hour
+### extract hour from timestamp (stay in UTC tz)
 extractHour <- function(dateTime) {
-  td <- parse_date_time(dateTime, orders="ymd hms", tz="UTC")
-  td_local <- with_tz(td, tz="America/Los_Angeles")
-  h <- hour(td_local)
+  op <- options(digits.secs = 3) # 3 digit precision on seconds
+  td <- strptime(dateTime, format = "%Y-%m-%dT%H:%M:%OSZ", tz = "UTC")
+  h <- round(as.POSIXlt(td)$hour + as.POSIXlt(td)$min/60)
+  options(op) # restore previous options
   return(h)
 }
 ### function to limit values in the dataframe
@@ -23,7 +23,7 @@ limitNum <- function(num) {
 ### get zone data from R's arguements and condition it
 args = commandArgs(trailingOnly=TRUE)
 ts <- args[1] # observation timestamp in UTC format
-hr <- extractHour(ts)
+hr <- extractHour(ts) # extract observation hour
 obsTime <- as.integer(args[2]) # observation time in seconds (derived from linux system time)
 zoneTimes <- lapply(strsplit(args[3], ","), as.numeric)[[1]] # abs zone act/deact times
 zoneRelTimes <- zoneTimes - obsTime # calulate relative zone act/deact times
@@ -78,7 +78,7 @@ predictPattern <- function(zaKeep, zdKeep, pattern, df, k) {
   #dfKeepFalse <- y[1:x, ]
   #dfKeep <- rbind(dfKeepTrue, dfKeepFalse)
 
-  ### replace date / time stamps with only observation hour in local time
+  ### replace date / time stamps with only observation hour
   dfKeep["clock"] <- lapply(dfKeep["clock"], extractHour)
   
   ### apply the limit function to all elements except the clock and pattern columns
