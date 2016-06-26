@@ -22,7 +22,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <fcntl.h>
+#include <fcntl.h>		// Needed for file I/O
 #include <sys/mman.h>		// Needed for mlockall()
 #include <unistd.h>
 #include <stdint.h>
@@ -145,6 +145,7 @@
 #define RARG_SIZE     128
 #define ROUT_MAX      128
 #define PCMD_BUF_SIZE (sizeof(POPEN_FMT) + RARG_SIZE)
+#define RLOGPATH      "/home/pi/all/R/rlog.txt"
 
 // structure to hold a snapshot of the panel status and sensor observations
 struct status {
@@ -748,8 +749,8 @@ static void * msg_io(void * arg) {
       snprintf(buf, sizeof(buf),
                "index:%lu,%-50s, data: 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n",
                index++, msg, data0, data1, data2, data3, data4, data5, data6, data7);
-      //fputs(buf, stdout); // display message output of panel and keypad data
-      //fflush(stdout);
+      fputs(buf, stdout); // display message output of panel and keypad data
+      fflush(stdout);
     }
 
   } // while
@@ -763,7 +764,7 @@ static void * msg_io(void * arg) {
  *
  */
 static void * predict(void * arg) {
-  int res;
+  int res, rLogFp;
   char rout[ROUT_MAX], tsBuf[sizeof("2016-05-22T12:15:22Z")];
   char popenCmd[PCMD_BUF_SIZE];
   char obsTimeBuf[RARG_SIZE] = "", zoneBuf[RARG_SIZE] = "", oldZoneBuf[RARG_SIZE] = "";
@@ -823,6 +824,14 @@ static void * predict(void * arg) {
              sptr->zoneDeAct[28], sptr->zoneDeAct[29], sptr->zoneDeAct[30], sptr->zoneDeAct[31]);
 
     if (strcmp(zoneBuf, oldZoneBuf)) { // only run on zone changes
+      /* Open the R log file for writing. If it exists, append to it; 
+         otherwise, create a new file.  */ 
+      rLogFp = open(RLOGPATH, O_WRONLY | O_CREAT | O_APPEND, 0666);
+      if (rLogFp == -1) {
+        perror ("R log open() failed\n");
+        continue;
+      }
+
       // Build and execute command to run Rscript
       snprintf(popenCmd, PCMD_BUF_SIZE, POPEN_FMT, tsBuf, obsTimeBuf, zoneBuf);
       fp = popen(popenCmd, "r");
@@ -831,9 +840,16 @@ static void * predict(void * arg) {
         continue;
       }
   
-      // Read output of Rscript until EOF and act on R's predictions
+      // Read output of Rscript until EOF, log and act on R's predictions
       while (fgets(rout, ROUT_MAX, fp) != NULL) {
+        res = write(rLogFp, rout, strlen(rout));
+        if (res != strlen(rout)) {
+          perror("R log write() failed\n");
+          continue;
+        }
+
         fprintf(stdout, "%s", rout);
+
         if (strstr(rout, "prediction 1:  1") != NULL) {
           //fprintf(stdout, "*** R *** prediction 1 is FALSE\n");
         } else if (strstr(rout, "prediction 1:  2") != NULL) {
@@ -875,6 +891,12 @@ static void * predict(void * arg) {
           //fprintf(stdout, "*** R *** prediction 8 is TRUE\n");
           system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
         }
+      }
+
+      res = close(rLogFp); 
+      if (res == -1) {
+        perror ("R log close() failed\n");
+        exit(EXIT_FAILURE);
       }
 
       res = pclose(fp);
