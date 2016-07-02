@@ -105,8 +105,6 @@
 #define MAX_BITS	(64) // max 64-bit word read from panel
 #define MAX_DATA 	(1*1024) // 1 KB data buffer of 64-bit data words - ~66 seconds @ 1 kHz.
 #define FIFO_SIZE	(MAX_BITS*MAX_DATA) // FIFO depth
-#define MSG_IO_UPDATE   (5000000) // 5 ms message io thread update period
-#define PREDICT_UPDATE  (NSEC_PER_SEC) // 1 sec predict thread update period
 
 // keypad button bit mappings
 // no button:	0xff 0xff 0xff 0xff 0xff 0xff 0xff 0xff
@@ -140,12 +138,21 @@
 // away:	0xff 0xd8 0xff 0xff 0xff 0xff 0xff 0xff
 #define AWAY	"1111111111011000111111111111111111111111111111111111111111111111"
 
-// Rscript
-#define POPEN_FMT     "/home/pi/R_HOME/R-3.1.2/bin/Rscript --vanilla /home/pi/all/R/predknn.R %s %s %s 2> /dev/null"
-#define RARG_SIZE     128
-#define ROUT_MAX      128
-#define PCMD_BUF_SIZE (sizeof(POPEN_FMT) + RARG_SIZE)
-#define RLOGPATH      "/home/pi/all/R/rlog.txt"
+// predict thread
+#define POPEN_FMT      "/home/pi/R_HOME/R-3.1.2/bin/Rscript --vanilla /home/pi/all/R/predknn.R %s %s %s 2> /dev/null"
+#define RARG_SIZE      256 // max number of characters allowed in argument to the Rscript
+#define ROUT_MAX       256 // max number of characters read from output of Rscript
+#define PCMD_BUF_SIZE  (sizeof(POPEN_FMT) + RARG_SIZE) // size of buffer passed to popen()
+#define RLOGPATH       "/home/pi/all/R/rlog.txt"
+#define INTZONES       {26, 27, 28, 29} // list of interior zones (zone numbering starts with 0)
+#define EXITZONE       0 // zone number of front door which is main exit point from house
+#define CONZONELT      0 // lower threshold of concurent zone activity in seconds
+#define CONZONEUT      1 // upper threshold of concurent zone activity in seconds
+#define PREDICT_UPDATE 5000000 // 5 ms predict thread update period in nanoseconds
+
+// message i/o thread
+#define NUMZONES        32 // number of zones in system
+#define MSG_IO_UPDATE   5000000 // 5 ms message io thread update period in nanoseconds
 
 // structure to hold a snapshot of the panel status and sensor observations
 struct status {
@@ -157,6 +164,7 @@ struct status {
   long unsigned obsTime;       // zone sensor absolute observation time
   long unsigned zoneAct[32];   // zone sensor absolute activation times
   long unsigned zoneDeAct[32]; // zone sensor absolute deactivation times
+  int numOcc;		       // estimated number of occupants in house
 };
 
 // global for direct gpio access
@@ -765,6 +773,9 @@ static void * msg_io(void * arg) {
  */
 static void * predict(void * arg) {
   int res, rLogFp;
+  int i, j, occ = 0, val, lastDoorCloseTime = 0, maxOcc = 0;
+  int intZone[] = INTZONES;
+  int size = sizeof(intZone) / sizeof *(intZone); 
   char rout[ROUT_MAX], tsBuf[sizeof("2016-05-22T12:15:22Z")];
   char popenCmd[PCMD_BUF_SIZE];
   char obsTimeBuf[RARG_SIZE] = "", zoneBuf[RARG_SIZE] = "", oldZoneBuf[RARG_SIZE] = "";
@@ -824,6 +835,32 @@ static void * predict(void * arg) {
              sptr->zoneDeAct[28], sptr->zoneDeAct[29], sptr->zoneDeAct[30], sptr->zoneDeAct[31]);
 
     if (strcmp(zoneBuf, oldZoneBuf)) { // only run on zone changes
+
+      // try to predict number of occupants based on sensor activity
+      if (sptr->zoneDeAct[EXITZONE] > lastDoorCloseTime) { // exterior zone triggered
+        //printf("front door closed, resetting counter\n");
+        maxOcc = 0; // reset occupant counter since someone probably exited the house
+        lastDoorCloseTime = sptr->zoneDeAct[EXITZONE];
+      }
+      for (j = 0; j < size; j++) { // scan through zones looking for activity
+        //printf("zone - time: %lu\n", sptr->zoneAct[intZone[j]] - sptr->obsTime);
+        if (!(sptr->obsTime - sptr->zoneAct[intZone[j]])) occ = 1; // single person detect
+        for (i = j; i < size; i++) { // multiple person detect
+          val = abs(sptr->zoneAct[intZone[j]] - sptr->zoneAct[intZone[i]]);
+          if ((val > CONZONELT) && (val < CONZONEUT)) { // find zones activated within thresholds
+            occ++;
+            //printf("zoneBuf: %s\n", zoneBuf);
+            //printf("i: %i, j: %i, val: %i\n",i,j,val);
+            //printf("zai[%i]: %lu,zaj[%i]: %lu\n",intZone[i],sptr->zoneAct[intZone[i]],intZone[j],sptr->zoneAct[intZone[j]]);
+            //printf("occ: %i\n", occ);
+          }
+        }
+      }
+      if (occ > maxOcc) maxOcc = occ; // max hold
+      sptr->numOcc = maxOcc;
+      //printf("occMax: %i\n", maxOcc);
+      occ = 0;
+
       /* Open the R log file for writing. If it exists, append to it; 
          otherwise, create a new file.  */ 
       rLogFp = open(RLOGPATH, O_WRONLY | O_CREAT | O_APPEND, 0666);
@@ -1048,7 +1085,8 @@ static void panserv(struct status * pstat, int port) {
                         "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu],"
                         "\"zoneDeAct\":["
                         "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,"
-                        "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu]}\n";
+                        "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu],"
+                        "\"numOcc\":%i}\n";
   int listenfd= 0, connfd = 0, res, num, i, tag = 0;
   long chkbuf;
   socklen_t addrlen;  
@@ -1220,7 +1258,8 @@ static void panserv(struct status * pstat, int port) {
                pstat->zoneDeAct[16], pstat->zoneDeAct[17], pstat->zoneDeAct[18], pstat->zoneDeAct[19],
                pstat->zoneDeAct[20], pstat->zoneDeAct[21], pstat->zoneDeAct[22], pstat->zoneDeAct[23],
                pstat->zoneDeAct[24], pstat->zoneDeAct[25], pstat->zoneDeAct[26], pstat->zoneDeAct[27],
-               pstat->zoneDeAct[28], pstat->zoneDeAct[29], pstat->zoneDeAct[30], pstat->zoneDeAct[31]);
+               pstat->zoneDeAct[28], pstat->zoneDeAct[29], pstat->zoneDeAct[30], pstat->zoneDeAct[31],
+               pstat->numOcc);
 
       res = SSL_write(ssl, txBuf, strlen(txBuf)); // write json to socket
       if (res <= 0) {
