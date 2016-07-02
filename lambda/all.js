@@ -90,6 +90,8 @@ function onIntent(intentRequest, session, callback) {
         sendPolyInSession(intent, session, callback);
     } else if ("TrainIsIntent" === intentName) {
         trainInSession(intent, session, callback);
+    } else if ("OccupancyIsIntent" === intentName) {
+        anyoneHomeInSession(intent, session, callback);
     } else if ("AMAZON.HelpIntent" === intentName) {
         getWelcomeResponse(callback);
     } else if ("AMAZON.StopIntent" === intentName) {
@@ -325,6 +327,33 @@ function sendPolyInSession(intent, session, callback) {
 }
 
 /*
+ * Check to see if anyone is at home.
+ *
+ */
+function anyoneHomeInSession(intent, session, callback) {
+    var cardTitle = intent.name;
+    var sessionAttributes = {};
+    var repromptText = "";
+    var shouldEndSession = true;
+    var speechOutput = "";
+
+    getPanelStatus('tag', function (panelStatus) { // 'tag' returns zone status as JSON
+        var obj = JSON.parse(panelStatus);
+        var numOcc = obj.numOcc;
+
+        if (!numOcc) {
+            speechOutput = "there is probably no one at home right now";
+        } else if (numOcc === 1) {
+            speechOutput = "there is probably at least one person at home right now";
+        } else if (numOcc > 1) {
+            speechOutput = "there are probably at least "+numOcc.toString()+" people at home right now";
+        }
+        callback(sessionAttributes,
+                 buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+    });
+}
+
+/*
  * Tag observations for machine learning. Store in AWS SimpleDB database.
  * TODO: add error checking. 
  */
@@ -499,7 +528,7 @@ function zoneToPlace(zone, sensor) {
 	    "5":  "breakfast nook center left window",
 	    "6":  "breakfast nook center right window",
 	    "7":  "breakfast nook right window",
-	   "8":  "family room slider door"
+	    "8":  "family room slider door"
         },
         "Zone3": {
             "1":  "family room left window",
