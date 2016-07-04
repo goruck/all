@@ -337,7 +337,7 @@ function anyoneHomeInSession(intent, session, callback) {
     var shouldEndSession = true;
     var speechOutput = "";
 
-    getPanelStatus('tag', function (panelStatus) { // 'tag' returns zone status as JSON
+    getPanelStatus('sendJSON', function (panelStatus) { // 'sendJSON' returns zone status as JSON
         var obj = JSON.parse(panelStatus);
         var numOcc = obj.numOcc;
 
@@ -370,7 +370,7 @@ function trainInSession(intent, session, callback) {
     AWS.config.region = 'us-west-2';
     var simpledb = new AWS.SimpleDB({apiVersion: '2009-04-15'});
 
-    getPanelStatus('tag', function writeObsToDb(panelStatus) { // 'tag' returns zone status as JSON
+    getPanelStatus('sendJSON', function writeObsToDb(panelStatus) { // 'sendJSON' returns zone status as JSON
         var d = new Date();
         var n = d.toISOString(); // use ISO format to enable lexicographical sort in SimpleDB
         var obj = JSON.parse(panelStatus);
@@ -449,7 +449,7 @@ var socketOptions = {
 /*
  * Gets the panel status to be used in the intent handlers.
  * This function is also used to send commands to the server.
- * serverCmd = 'tag' returns status as JSON.
+ * serverCmd = 'sendJSON' returns status as JSON.
  * serverCmd = 'idle' returns status as text (legacy mode).
  *
  */
