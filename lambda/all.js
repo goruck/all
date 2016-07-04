@@ -383,24 +383,24 @@ function trainInSession(intent, session, callback) {
 
         // build SimpleDB attributes
         var att = [{Name:'clock',Value:n},{Name:'sample',Value:obsTime.toString()}];
-        for (i = 0; i < relZoneAct.length; i++) {
+        for (i = 0; i < relZoneAct.length; i++) { // zone active times
             var name = 'za'+(i+1).toString();
             var value = relZoneAct[i].toString();
             var obj = {Name:name,Value:value};
             att.push(obj);
         }
-        for (i = 0; i < relZoneDeAct.length; i++) {
+        for (i = 0; i < relZoneDeAct.length; i++) { // zone deactivation times
             name = 'zd'+(i+1).toString();
             value = relZoneDeAct[i].toString();
             obj = {Name:name,Value:value};
             att.push(obj);
         }
-        for (i = 0; i < NUM_OF_PATTERNS; i++) {
+        for (i = 0; i < NUM_OF_PATTERNS; i++) { // observation state
             name = 'zzpattern'+(i+1).toString(); // prepend 'zz' to get ordering right
             if (patternSlot.value == (i+1)) { // use '==' to force type conversion
                 (stateSlot.value === 'true') ? value = 'TRUE' : value = 'FALSE';
             } else {
-                value = 'FALSE';
+                value = 'NA'; // set value to NA for all other patterns
             }
             obj = {Name:name,Value:value};
             att.push(obj);
