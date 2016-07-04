@@ -96,6 +96,9 @@ predictPattern <- function(zaKeep, zdKeep, pattern, df, k, useClk) {
 
   ### replace date / time stamps with only observation hour
   dfKeep["clock"] <- lapply(dfKeep["clock"], extractHour)
+
+  ### replace any pattern NA's with FALSE
+  dfKeep[pattern][is.na(dfKeep[pattern])] <- FALSE
   
   ### apply the limit function to all elements except the clock and pattern columns
   drops <- c("clocks", pattern)
