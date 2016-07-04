@@ -146,8 +146,8 @@
 #define RLOGPATH       "/home/pi/all/R/rlog.txt"
 #define INTZONES       {26, 27, 28, 29} // list of interior zones (zone numbering starts with 0)
 #define EXITZONE       0 // zone number of front door which is main exit point from house
-#define CONZONELT      0 // lower threshold of concurent zone activity in seconds
-#define CONZONEUT      1 // upper threshold of concurent zone activity in seconds
+#define CONZONELL      0 // lower limit of concurent zone activity in seconds
+#define CONZONEUL      10 // upper limit of concurent zone activity in seconds
 #define PREDICT_UPDATE 5000000 // 5 ms predict thread update period in nanoseconds
 
 // message i/o thread
@@ -847,7 +847,7 @@ static void * predict(void * arg) {
         if (!(sptr->obsTime - sptr->zoneAct[intZone[j]])) occ = 1; // single person detect
         for (i = j; i < size; i++) { // multiple person detect
           val = abs(sptr->zoneAct[intZone[j]] - sptr->zoneAct[intZone[i]]);
-          if ((val > CONZONELT) && (val < CONZONEUT)) { // find zones activated within thresholds
+          if ((val > CONZONELL) && (val < CONZONEUL)) { // find zones activated within limits
             occ++;
             //printf("zoneBuf: %s\n", zoneBuf);
             //printf("i: %i, j: %i, val: %i\n",i,j,val);
@@ -1087,7 +1087,7 @@ static void panserv(struct status * pstat, int port) {
                         "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,"
                         "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu],"
                         "\"numOcc\":%i}\n";
-  int listenfd= 0, connfd = 0, res, num, i, tag = 0;
+  int listenfd= 0, connfd = 0, res, num, i, sendJSON = 0;
   long chkbuf;
   socklen_t addrlen;  
   struct sockaddr_in client_addr;
@@ -1169,9 +1169,9 @@ static void panserv(struct status * pstat, int port) {
         strncpy(wordk, AWAY, MAX_BITS);
       else if (!strncmp(buffer, "idle", 4))
         strncpy(wordk, IDLE, MAX_BITS);
-      else if (!strncmp(buffer, "tag", 3)) {
+      else if (!strncmp(buffer, "sendJSON", 3)) {
         strncpy(wordk, IDLE, MAX_BITS);
-        tag = 1;
+        sendJSON = 1;
       } else {
         fprintf(stderr, "server: invalid panel command\n");
         strncpy(wordk, IDLE, MAX_BITS);
@@ -1240,7 +1240,7 @@ static void panserv(struct status * pstat, int port) {
     }
     
     // send back zone and system status, either as JSON or text
-    if (tag) { // send zone data as JSON
+    if (sendJSON) { // send zone data as JSON
       snprintf(txBuf, sizeof(txBuf), jsonObj,
                pstat->obsTime,
                pstat->zoneAct[0],  pstat->zoneAct[1],  pstat->zoneAct[2],  pstat->zoneAct[3],
@@ -1269,7 +1269,7 @@ static void panserv(struct status * pstat, int port) {
         continue;
       }
       
-      tag = 0;
+      sendJSON = 0;
     } else { // send zone data as text, this is the default format
       snprintf(txBuf, sizeof(txBuf), "%s, %s, %s, %s, %s,",
                pstat->ledStatus, pstat->zone1Status, pstat->zone2Status,
