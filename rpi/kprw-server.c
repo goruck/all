@@ -1169,7 +1169,7 @@ static void panserv(struct status * pstat, int port) {
         strncpy(wordk, AWAY, MAX_BITS);
       else if (!strncmp(buffer, "idle", 4))
         strncpy(wordk, IDLE, MAX_BITS);
-      else if (!strncmp(buffer, "sendJSON", 3)) {
+      else if (!strncmp(buffer, "sendJSON", 8)) {
         strncpy(wordk, IDLE, MAX_BITS);
         sendJSON = 1;
       } else {
