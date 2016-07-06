@@ -927,6 +927,16 @@ static void * predict(void * arg) {
         } else if (strstr(rout, "prediction 8:  2") != NULL) {
           //fprintf(stdout, "*** R *** prediction 8 is TRUE\n");
           system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
+        } else if (strstr(rout, "prediction 9:  1") != NULL) {
+          //fprintf(stdout, "*** R *** prediction 9 is FALSE\n");
+        } else if (strstr(rout, "prediction 9:  2") != NULL) {
+          //fprintf(stdout, "*** R *** prediction 9 is TRUE\n");
+          system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
+        } else if (strstr(rout, "prediction 10:  1") != NULL) {
+          //fprintf(stdout, "*** R *** prediction 9 is FALSE\n");
+        } else if (strstr(rout, "prediction 10:  2") != NULL) {
+          //fprintf(stdout, "*** R *** prediction 9 is TRUE\n");
+          system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
         }
       }
 
