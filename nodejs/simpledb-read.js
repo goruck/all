@@ -11,7 +11,8 @@ var fs = require('fs');
 // form pattern for SimpleDB query
 var d = new Date();
 var n = '"'+d.toISOString()+'"';
-var str = 'select * from lindoSimpledb where clock < '+n+' order by clock desc';
+//var str = 'select * from lindoSimpledb where clock < '+n+' order by clock desc';
+var str = 'select * from panelSimpledb where clock < '+n+' order by clock desc';
 
 var params = {
   SelectExpression: str
@@ -53,7 +54,8 @@ simpledb.select(params, function(err, data) {
 
         // write to file
         var options = {flag: 'a'};
-        fs.writeFileSync('/home/pi/all/R/testFromSimpledb.csv', arr+'\n', options);
+        //fs.writeFileSync('/home/pi/all/R/testFromSimpledb.csv', arr+'\n', options);
+        fs.writeFileSync('/home/pi/all/R/panelSimpledb.csv', arr+'\n', options);
         console.log(i+' wrote: '+arr);
       }
     }
