@@ -379,7 +379,7 @@ function trainInSession(intent, session, callback) {
         var relZoneAct = calcRelT(obsTime, zoneAct);
         var zoneDeAct = obj.zoneDeAct;
         var relZoneDeAct = calcRelT(obsTime, zoneDeAct);
-        const NUM_OF_PATTERNS = 8; // max number of patterns to train
+        const NUM_OF_PATTERNS = 10; // max number of patterns to train
 
         // build SimpleDB attributes
         var att = [{Name:'clock',Value:n},{Name:'sample',Value:obsTime.toString()}];
@@ -409,7 +409,8 @@ function trainInSession(intent, session, callback) {
         // write observations to database
         var params = {
             Attributes: att,
-            DomainName: 'lindoSimpledb',
+            //DomainName: 'lindoSimpledb',
+            DomainName: 'panelSimpledb',
             ItemName: n
         };
         simpledb.putAttributes(params, function(err, data) {
