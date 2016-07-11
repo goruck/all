@@ -79,7 +79,7 @@ function onIntent(intentRequest, session, callback) {
     var intent = intentRequest.intent,
         intentName = intentRequest.intent.name;
 
-    // Dispatch to your skill's intent handlers
+    // Dispatch to skill's intent handlers
     if ("MyNumIsIntent" === intentName) {
         sendKeyInSession(intent, session, callback);
     } else if ("MyCodeIsIntent" === intentName) {
@@ -92,6 +92,8 @@ function onIntent(intentRequest, session, callback) {
         trainInSession(intent, session, callback);
     } else if ("OccupancyIsIntent" === intentName) {
         anyoneHomeInSession(intent, session, callback);
+    } else if ("PredIsIntent" === intentName) {
+        predInSession(intent, session, callback);
     } else if ("AMAZON.HelpIntent" === intentName) {
         getWelcomeResponse(callback);
     } else if ("AMAZON.StopIntent" === intentName) {
@@ -354,6 +356,35 @@ function anyoneHomeInSession(intent, session, callback) {
 }
 
 /*
+ * Return the last true prediction.
+ *
+ */
+function predInSession(intent, session, callback) {
+    var cardTitle = intent.name;
+    var sessionAttributes = {};
+    var repromptText = "";
+    var shouldEndSession = true;
+    var speechOutput = "";
+
+    getPanelStatus('sendJSON', function (panelStatus) { // 'sendJSON' returns zone status as JSON
+        var obj = JSON.parse(panelStatus);
+        var lastTruePred = obj.lastTruePred;
+        var timeStamp = obj.timeStamp;
+        var d = new Date(timeStamp);
+        var h = d.getHours();
+        var m = d.getMinutes();
+
+        if (!lastTruePred) {
+            speechOutput = "no true predictions have been made";
+        } else {
+            speechOutput = predToPatt(lastTruePred)+" at "+h+" "+m;
+        }
+        callback(sessionAttributes,
+                 buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+    });
+}
+
+/*
  * Tag observations for machine learning. Store in AWS SimpleDB database.
  * TODO: add error checking. 
  */
@@ -573,6 +604,25 @@ function findPlacesNotReady(panelStatus) {
         }
     }
     return placesNotReady;
+}
+
+/*
+ * Mapping from prediction number to friendly pattern names.
+ */
+function predToPatt(predNum) {
+    var pattern = {
+        1: "from front door to playroom via hallway",
+        2: "from outside to playroom",
+        3: "from family room to playroom",
+        4: "slow walk from kid's rooms to playroom via hallway",
+        5: "fast walk from kid's rooms to playroom via hallway",
+        6: "from master bedroom to kitchen in the early morning",
+        7: "undefined",
+        8: "undefined",
+        9: "undefined",
+        10:"undefined"
+    }
+    return pattern[predNum];
 }
 
 /*
