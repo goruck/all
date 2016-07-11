@@ -139,16 +139,26 @@
 #define AWAY	"1111111111011000111111111111111111111111111111111111111111111111"
 
 // predict thread
-#define POPEN_FMT      "/home/pi/R_HOME/R-3.1.2/bin/Rscript --vanilla /home/pi/all/R/predknn.R %s %s %s 2> /dev/null"
-#define RARG_SIZE      256 // max number of characters allowed in argument to the Rscript
-#define ROUT_MAX       256 // max number of characters read from output of Rscript
-#define PCMD_BUF_SIZE  (sizeof(POPEN_FMT) + RARG_SIZE) // size of buffer passed to popen()
-#define RLOGPATH       "/home/pi/all/R/rlog.txt"
-#define INTZONES       {26, 27, 28, 29} // list of interior zones (zone numbering starts with 0)
-#define EXITZONE       0 // zone number of front door which is main exit point from house
-#define CONZONELL      0 // lower limit of concurent zone activity in seconds
-#define CONZONEUL      10 // upper limit of concurent zone activity in seconds
-#define PREDICT_UPDATE 5000000 // 5 ms predict thread update period in nanoseconds
+#define POPEN_FMT        "/home/pi/R_HOME/R-3.1.2/bin/Rscript --vanilla /home/pi/all/R/predknn.R %s %s %s 2> /dev/null"
+#define RARG_SIZE        256 // max number of characters allowed in argument to the Rscript
+#define ROUT_MAX         256 // max number of characters read from output of Rscript
+#define PCMD_BUF_SIZE    (sizeof(POPEN_FMT) + RARG_SIZE) // size of buffer passed to popen()
+#define RLOGPATH         "/home/pi/all/R/rlog.txt"
+#define INTZONES         {26, 27, 28, 29} // list of interior zones (zone numbering starts with 0)
+#define EXITZONE         0 // zone number of front door which is main exit point from house
+#define CONZONELL        0 // lower limit of concurent zone activity in seconds
+#define CONZONEUL        10 // upper limit of concurent zone activity in seconds
+#define PREDICT_UPDATE   5000000 // 5 ms predict thread update period in nanoseconds
+#define PRLIGHTIP        "192.168.1.105" // IP addr of Playroom Light switch
+#define MBLIGHTIP        "192.168.1.115" // Master Bedroom Light
+#define BPLIGHTIP        "192.168.1.101" // Back Porch Light
+#define FPLIGHTIP        "192.168.1.116" // Master Bedroom Light
+#define SCMD_BUF_SIZE    sizeof("/home/pi/bin/wemo.sh 192.168.1.105 OFF > /dev/null")
+#define SCMD_FMT         "/home/pi/bin/wemo.sh %s %s > /dev/null"
+#define SRCHSTR_BUF_SIZE sizeof("prediction 10:  2")
+#define SRCHSTR_FMT      "prediction %i:  %i"
+#define NUMPRED          10 // max number of predictions
+#define TS_BUF_SIZE      sizeof("2016-05-22T12:15:22Z")
 
 // message i/o thread
 #define NUMZONES        32 // number of zones in system
@@ -165,6 +175,8 @@ struct status {
   long unsigned zoneAct[32];   // zone sensor absolute activation times
   long unsigned zoneDeAct[32]; // zone sensor absolute deactivation times
   int numOcc;		       // estimated number of occupants in house
+  int lastTruePred;            // last true prediction
+  char timeStamp[TS_BUF_SIZE]; // wall clock time and date stamp
 };
 
 // global for direct gpio access
@@ -772,12 +784,15 @@ static void * msg_io(void * arg) {
  *
  */
 static void * predict(void * arg) {
-  int res, rLogFp;
+  int res, rLogFp, predNum;
   int i, j, occ = 0, val, lastDoorCloseTime = 0, maxOcc = 0;
   int intZone[] = INTZONES;
   int size = sizeof(intZone) / sizeof *(intZone); 
-  char rout[ROUT_MAX], tsBuf[sizeof("2016-05-22T12:15:22Z")];
+  char rout[ROUT_MAX];
+  char tsBuf[TS_BUF_SIZE];
+  char sysCmd[SCMD_BUF_SIZE];
   char popenCmd[PCMD_BUF_SIZE];
+  char srchStr[SRCHSTR_BUF_SIZE];
   char obsTimeBuf[RARG_SIZE] = "", zoneBuf[RARG_SIZE] = "", oldZoneBuf[RARG_SIZE] = "";
   const char * format = " %lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,"
                         "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,"
@@ -839,20 +854,21 @@ static void * predict(void * arg) {
       // try to predict number of occupants based on sensor activity
       if (sptr->zoneDeAct[EXITZONE] > lastDoorCloseTime) { // exterior zone triggered
         //printf("front door closed, resetting counter\n");
-        maxOcc = 0; // reset occupant counter since someone probably exited the house
+        maxOcc = 0; // reset occupant counter since at least one person probably exited the house
         lastDoorCloseTime = sptr->zoneDeAct[EXITZONE];
-      }
-      for (j = 0; j < size; j++) { // scan through zones looking for activity
-        //printf("zone - time: %lu\n", sptr->zoneAct[intZone[j]] - sptr->obsTime);
-        if (!(sptr->obsTime - sptr->zoneAct[intZone[j]])) occ = 1; // single person detect
-        for (i = j; i < size; i++) { // multiple person detect
-          val = abs(sptr->zoneAct[intZone[j]] - sptr->zoneAct[intZone[i]]);
-          if ((val > CONZONELL) && (val < CONZONEUL)) { // find zones activated within limits
-            occ++;
-            //printf("zoneBuf: %s\n", zoneBuf);
-            //printf("i: %i, j: %i, val: %i\n",i,j,val);
-            //printf("zai[%i]: %lu,zaj[%i]: %lu\n",intZone[i],sptr->zoneAct[intZone[i]],intZone[j],sptr->zoneAct[intZone[j]]);
-            //printf("occ: %i\n", occ);
+      } else {
+        for (j = 0; j < size; j++) { // scan through zones looking for activity
+          //printf("zone - time: %lu\n", sptr->zoneAct[intZone[j]] - sptr->obsTime);
+          if (!(sptr->obsTime - sptr->zoneAct[intZone[j]])) occ = 1; // single person detect
+          for (i = j; i < size; i++) { // multiple person detect
+            val = abs(sptr->zoneAct[intZone[j]] - sptr->zoneAct[intZone[i]]);
+            if ((val > CONZONELL) && (val < CONZONEUL)) { // find zones activated within limits
+              occ++;
+              //printf("zoneBuf: %s\n", zoneBuf);
+              //printf("i: %i, j: %i, val: %i\n",i,j,val);
+              //printf("zai[%i]: %lu,zaj[%i]: %lu\n",intZone[i],sptr->zoneAct[intZone[i]],intZone[j],sptr->zoneAct[intZone[j]]);
+              //printf("occ: %i\n", occ);
+            }
           }
         }
       }
@@ -887,13 +903,72 @@ static void * predict(void * arg) {
 
         fprintf(stdout, "%s", rout);
 
+        /*
+         * Do something with the predictions.
+         * A "1" prediction is FALSE, "2" is TRUE.
+         * For now, just call a script to turn on / off the Wemo switches in the house.
+         * A more flexible mapping of predictions to actions will be needed at some point.
+         *
+         */
+        for(i = 0; i < NUMPRED; i++) { // search predictions
+          predNum = i + 1;
+          snprintf(srchStr, SRCHSTR_BUF_SIZE, SRCHSTR_FMT, predNum, 2); // 2 = TRUE
+          if (strstr(rout, srchStr) != NULL) { // a prediction was TRUE
+            sptr->lastTruePred = predNum; // record last true prediction
+            strcpy(sptr->timeStamp, tsBuf); // record time and date stamp
+            switch(predNum) {
+              case 1:
+                //;
+                break;
+              case 2:
+                snprintf(sysCmd, SCMD_BUF_SIZE, SCMD_FMT, PRLIGHTIP, "ON");
+                system(sysCmd);
+                break;
+              case 3:
+                snprintf(sysCmd, SCMD_BUF_SIZE, SCMD_FMT, PRLIGHTIP, "ON");
+                system(sysCmd);
+                break;
+              case 4:
+                snprintf(sysCmd, SCMD_BUF_SIZE, SCMD_FMT, PRLIGHTIP, "ON");
+                system(sysCmd);
+                break;
+              case 5:
+                snprintf(sysCmd, SCMD_BUF_SIZE, SCMD_FMT, PRLIGHTIP, "ON");
+                system(sysCmd);
+                break;
+              case 6:
+                snprintf(sysCmd, SCMD_BUF_SIZE, SCMD_FMT, BPLIGHTIP, "ON");
+                system(sysCmd);
+                break;
+              case 7:
+                //;
+                break;
+              case 8:
+                //;
+                break;
+              case 9:
+                //;
+                break;
+              case 10:
+                //;
+                break;
+              default:
+                //;
+                break;
+            }
+          } else { // a prediction was FALSE
+            //;
+          }
+        }
+
+        /*
         if (strstr(rout, "prediction 1:  1") != NULL) {
-          //fprintf(stdout, "*** R *** prediction 1 is FALSE\n");
+          //
         } else if (strstr(rout, "prediction 1:  2") != NULL) {
-          //fprintf(stdout, "*** R *** prediction 1 is TRUE\n");
-          system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
+          snprintf(sysCmd, SCMD_BUF_SIZE, SCMD_FMT, PRLIGHTIP, "ON");
+          system(sysCmd);
         } else if (strstr(rout, "prediction 2:  1") != NULL) {
-          //fprintf(stdout, "*** R *** prediction 2 is FALSE\n");
+          //
         } else if (strstr(rout, "prediction 2:  2") != NULL) {
           //fprintf(stdout, "*** R *** prediction 2 is TRUE\n");
           system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
@@ -937,7 +1012,8 @@ static void * predict(void * arg) {
         } else if (strstr(rout, "prediction 10:  2") != NULL) {
           //fprintf(stdout, "*** R *** prediction 9 is TRUE\n");
           system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
-        }
+        } */
+
       }
 
       res = close(rLogFp); 
@@ -1089,14 +1165,16 @@ static void panserv(struct status * pstat, int port) {
   char addrStr[ADDRSTRLEN];
   char host[NI_MAXHOST];
   char service[NI_MAXSERV];
-  const char *jsonObj = "{\"obsTime\":%lu,"
+  const char *jsonFmt = "{\"obsTime\":%lu,"
                         "\"zoneAct\":["
                         "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,"
                         "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu],"
                         "\"zoneDeAct\":["
                         "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,"
                         "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu],"
-                        "\"numOcc\":%i}\n";
+                        "\"numOcc\":%i,"
+                        "\"lastTruePred\":%i,"
+                        "\"timeStamp\":\"%s\"}\n";
   int listenfd= 0, connfd = 0, res, num, i, sendJSON = 0;
   long chkbuf;
   socklen_t addrlen;  
@@ -1251,7 +1329,7 @@ static void panserv(struct status * pstat, int port) {
     
     // send back zone and system status, either as JSON or text
     if (sendJSON) { // send zone data as JSON
-      snprintf(txBuf, sizeof(txBuf), jsonObj,
+      snprintf(txBuf, sizeof(txBuf), jsonFmt,
                pstat->obsTime,
                pstat->zoneAct[0],  pstat->zoneAct[1],  pstat->zoneAct[2],  pstat->zoneAct[3],
                pstat->zoneAct[4],  pstat->zoneAct[5],  pstat->zoneAct[6],  pstat->zoneAct[7],
@@ -1269,7 +1347,7 @@ static void panserv(struct status * pstat, int port) {
                pstat->zoneDeAct[20], pstat->zoneDeAct[21], pstat->zoneDeAct[22], pstat->zoneDeAct[23],
                pstat->zoneDeAct[24], pstat->zoneDeAct[25], pstat->zoneDeAct[26], pstat->zoneDeAct[27],
                pstat->zoneDeAct[28], pstat->zoneDeAct[29], pstat->zoneDeAct[30], pstat->zoneDeAct[31],
-               pstat->numOcc);
+               pstat->numOcc, pstat->lastTruePred, pstat->timeStamp);
 
       res = SSL_write(ssl, txBuf, strlen(txBuf)); // write json to socket
       if (res <= 0) {
