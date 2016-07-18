@@ -139,7 +139,7 @@
 #define AWAY	"1111111111011000111111111111111111111111111111111111111111111111"
 
 // predict thread
-#define POPEN_FMT        "/home/pi/R_HOME/R-3.1.2/bin/Rscript --vanilla /home/pi/all/R/predknn.R %s %s %s 2> /dev/null"
+#define POPEN_FMT        "/home/pi/R_HOME/R-3.1.2/bin/Rscript --vanilla /home/pi/all/R/predsvm.R %s %s %s 2> /dev/null"
 #define RARG_SIZE        256 // max number of characters allowed in argument to the Rscript
 #define ROUT_MAX         256 // max number of characters read from output of Rscript
 #define PCMD_BUF_SIZE    (sizeof(POPEN_FMT) + RARG_SIZE) // size of buffer passed to popen()
@@ -164,19 +164,18 @@
 #define NUMZONES        32 // number of zones in system
 #define MSG_IO_UPDATE   5000000 // 5 ms message io thread update period in nanoseconds
 
-// structure to hold a snapshot of the panel status and sensor observations
+// structure to hold a snapshot of the panel status, sensor observations and predictions
 struct status {
-  char ledStatus[50];          // panel main led status lights
-  char zone1Status[50];        // panel zone 1 status lights
-  char zone2Status[50];        // panel zone 2 status lights
-  char zone3Status[50];        // panel zone 3 status lights
-  char zone4Status[50];        // panel zone 4 status lights
-  long unsigned obsTime;       // zone sensor absolute observation time
-  long unsigned zoneAct[32];   // zone sensor absolute activation times
-  long unsigned zoneDeAct[32]; // zone sensor absolute deactivation times
-  int numOcc;		       // estimated number of occupants in house
-  int lastTruePred;            // last true prediction
-  char timeStamp[TS_BUF_SIZE]; // wall clock time and date stamp
+  char ledStatus[50];                       // panel main led status lights
+  char zone1Status[50];                     // panel zone 1 status lights
+  char zone2Status[50];                     // panel zone 2 status lights
+  char zone3Status[50];                     // panel zone 3 status lights
+  char zone4Status[50];                     // panel zone 4 status lights
+  long unsigned obsTime;                    // zone sensor absolute observation time
+  long unsigned zoneAct[32];                // zone sensor absolute activation times
+  long unsigned zoneDeAct[32];              // zone sensor absolute deactivation times
+  int numOcc;		                    // estimated number of occupants in house
+  char lastTruePred[NUMPRED][TS_BUF_SIZE];  // time of last true predictions
 };
 
 // global for direct gpio access
@@ -784,7 +783,7 @@ static void * msg_io(void * arg) {
  *
  */
 static void * predict(void * arg) {
-  int res, rLogFp, predNum;
+  int res, rLogFp;
   int i, j, occ = 0, val, lastDoorCloseTime = 0, maxOcc = 0;
   int intZone[] = INTZONES;
   int size = sizeof(intZone) / sizeof *(intZone); 
@@ -911,14 +910,16 @@ static void * predict(void * arg) {
          *
          */
         for(i = 0; i < NUMPRED; i++) { // search predictions
-          predNum = i + 1;
-          snprintf(srchStr, SRCHSTR_BUF_SIZE, SRCHSTR_FMT, predNum, 2); // 2 = TRUE
+          snprintf(srchStr, SRCHSTR_BUF_SIZE, SRCHSTR_FMT, (i + 1), 2); // 2 = TRUE
           if (strstr(rout, srchStr) != NULL) { // a prediction was TRUE
-            sptr->lastTruePred = predNum; // record last true prediction
-            strcpy(sptr->timeStamp, tsBuf); // record time and date stamp
-            switch(predNum) {
-              case 1:
+            strcpy(sptr->lastTruePred[i], tsBuf); // record timestamp of last true prediction
+            switch(i) {
+              case 0: // act on prediction 1
                 //;
+                break;
+              case 1: // act on prediction 2
+                snprintf(sysCmd, SCMD_BUF_SIZE, SCMD_FMT, PRLIGHTIP, "ON");
+                system(sysCmd);
                 break;
               case 2:
                 snprintf(sysCmd, SCMD_BUF_SIZE, SCMD_FMT, PRLIGHTIP, "ON");
@@ -933,12 +934,11 @@ static void * predict(void * arg) {
                 system(sysCmd);
                 break;
               case 5:
-                snprintf(sysCmd, SCMD_BUF_SIZE, SCMD_FMT, PRLIGHTIP, "ON");
+                snprintf(sysCmd, SCMD_BUF_SIZE, SCMD_FMT, BPLIGHTIP, "ON");
                 system(sysCmd);
                 break;
               case 6:
-                snprintf(sysCmd, SCMD_BUF_SIZE, SCMD_FMT, BPLIGHTIP, "ON");
-                system(sysCmd);
+                //;
                 break;
               case 7:
                 //;
@@ -946,10 +946,7 @@ static void * predict(void * arg) {
               case 8:
                 //;
                 break;
-              case 9:
-                //;
-                break;
-              case 10:
+              case 9: // act on prediction 10
                 //;
                 break;
               default:
@@ -1173,8 +1170,8 @@ static void panserv(struct status * pstat, int port) {
                         "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,"
                         "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu],"
                         "\"numOcc\":%i,"
-                        "\"lastTruePred\":%i,"
-                        "\"timeStamp\":\"%s\"}\n";
+                        "\"lastTruePred\":["
+                        "\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"]}\n";
   int listenfd= 0, connfd = 0, res, num, i, sendJSON = 0;
   long chkbuf;
   socklen_t addrlen;  
@@ -1347,7 +1344,10 @@ static void panserv(struct status * pstat, int port) {
                pstat->zoneDeAct[20], pstat->zoneDeAct[21], pstat->zoneDeAct[22], pstat->zoneDeAct[23],
                pstat->zoneDeAct[24], pstat->zoneDeAct[25], pstat->zoneDeAct[26], pstat->zoneDeAct[27],
                pstat->zoneDeAct[28], pstat->zoneDeAct[29], pstat->zoneDeAct[30], pstat->zoneDeAct[31],
-               pstat->numOcc, pstat->lastTruePred, pstat->timeStamp);
+               pstat->numOcc,
+               pstat->lastTruePred[0],pstat->lastTruePred[1],pstat->lastTruePred[2],pstat->lastTruePred[3],
+               pstat->lastTruePred[4],pstat->lastTruePred[5],pstat->lastTruePred[6],pstat->lastTruePred[7],
+               pstat->lastTruePred[8],pstat->lastTruePred[9]);
 
       res = SSL_write(ssl, txBuf, strlen(txBuf)); // write json to socket
       if (res <= 0) {
