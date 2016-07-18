@@ -1,5 +1,5 @@
 /*
- * read out new observations from SimpleDB
+ * read out new observations from SimpleDB and update database and models
  *
  */
 
@@ -22,13 +22,13 @@ simpledb.select(params, function(err, data) {
   if (err) {
     console.log(err, err.stack);
   } else {
-    //console.log(data);
-    //console.log(data.Items[0].Attributes);
     // read timestamp of last observation
     var lastItem = fs.readFileSync('/home/pi/all/nodejs/lastItem.txt').toString();
+    var newData = false;
 
     for (i = 0; i < data.Items.length; i++) {
-      if (data.Items[i].Name > lastItem) {
+      if (data.Items[i].Name > lastItem) { // there's new data
+        newData = true;
         // alphanumeric sort
         var sortedItem = data.Items[i].Attributes.sort(function (a, b) {
           var reA = /[^a-zA-Z]/g;
@@ -59,10 +59,24 @@ simpledb.select(params, function(err, data) {
         console.log(i+' wrote: '+arr);
       }
     }
-    
-    // save timestamp of last observation for next run
-    options = {flag: 'w'};
-    fs.writeFileSync('/home/pi/all/nodejs/lastItem.txt', data.Items[0].Name, options);
-    console.log('last obs time: ' +data.Items[0].Name);
+
+    if (newData) {
+      // save timestamp of last observation for next run
+      options = {flag: 'w'};
+      fs.writeFileSync('/home/pi/all/nodejs/lastItem.txt', data.Items[0].Name, options);
+      console.log('last obs time: ' +data.Items[0].Name);
+
+      // regenerate svm models with new data
+      var exec = require('child_process').exec;
+      var cmd = '/home/pi/R_HOME/R-3.1.2/bin/Rscript --vanilla /home/pi/all/R/genSvmModels.R';
+
+      exec(cmd, function(error, stdout, stderr) {
+        console.log('stdout: ' + stdout);
+        console.log('stderr: ' + stderr);
+        if (error !== null) {
+          console.log('exec error: ' + error);
+        }
+      });
+    }
   }
 });
