@@ -81,7 +81,8 @@ df = read.csv("/home/pi/all/R/panelSimpledb.csv")
 n <- nrow(df) # number of observations
 #k <- floor(sqrt(n)) # calculate k for knn
 k <- 1 # generally a good default value for current data set
-cat("n: ", n, "k: ", k, "\n")
+kc <- 3 # for preds that use clock
+cat("n: ", n, "k: ", k, "kc: ", kc, "\n")
 
 ### define function to make a prediction for a specific pattern
 predictPattern <- function(zaKeep, zdKeep, pattern, df, k, useClk) {
@@ -120,7 +121,7 @@ predictPattern <- function(zaKeep, zdKeep, pattern, df, k, useClk) {
   dfKeep["clock"] <- lapply(dfKeep["clock"], extractHr)
   
   ### apply the limit function to all elements except the clock and pattern columns
-  drops <- c("clocks", pattern)
+  drops <- c("clock", pattern)
   dfKeep[, !(names(dfKeep) %in% drops)] <- apply(dfKeep[, !(names(dfKeep) %in% drops)], c(1, 2), limitNum)
 
   ### merge the training and test data
@@ -189,17 +190,17 @@ cat("prediction 5: ", knnPred, " prob: ", attr(knnPred, "prob"), "\n")
 #ret <- predictPattern(zaKeep, zdKeep, "pattern5", df, k, useClk = FALSE)
 #cat("prediction 5: ", ret$knnPred, " prob: ", attr(ret$knnPred, "prob"), "k: ", ret$knnK, "n: ", ret$n, "\n")
 
-knnPred <- predictPattern(zaKeep, zdKeep, "pattern6", df, k, useClk = TRUE)
+knnPred <- predictPattern(zaKeep, zdKeep, "pattern6", df, kc, useClk = TRUE)
 cat("prediction 6: ", knnPred, " prob: ", attr(knnPred, "prob"), "\n")
 #ret <- predictPattern(zaKeep, zdKeep, "pattern6", df, k, useClk = TRUE)
 #cat("prediction 6: ", ret$knnPred, " prob: ", attr(ret$knnPred, "prob"), "k: ", ret$knnK, "n: ", ret$n, "\n")
 
-knnPred <- predictPattern(zaKeep, zdKeep, "pattern7", df, k, useClk = TRUE)
+knnPred <- predictPattern(zaKeep, zdKeep, "pattern7", df, kc, useClk = TRUE)
 cat("prediction 7: ", knnPred, " prob: ", attr(knnPred, "prob"), "\n")
 #ret <- predictPattern(zaKeep, zdKeep, "pattern7", df, k, useClk = TRUE)
 #cat("prediction 7: ", ret$knnPred, " prob: ", attr(ret$knnPred, "prob"), "k: ", ret$knnK, "n: ", ret$n, "\n")
 
-knnPred <- predictPattern(zaKeep, zdKeep, "pattern8", df, k, useClk = TRUE)
+knnPred <- predictPattern(zaKeep, zdKeep, "pattern8", df, kc, useClk = TRUE)
 cat("prediction 8: ", knnPred, " prob: ", attr(knnPred, "prob"), "\n")
 #ret <- predictPattern(zaKeep, zdKeep, "pattern8", df, k, useClk = TRUE)
 #cat("prediction 8: ", ret$knnPred, " prob: ", attr(ret$knnPred, "prob"), "k: ", ret$knnK, "n: ", ret$n, "\n")
