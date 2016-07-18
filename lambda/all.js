@@ -365,22 +365,54 @@ function predInSession(intent, session, callback) {
     var repromptText = "";
     var shouldEndSession = true;
     var speechOutput = "";
+    const offset = -420; // -7 * 60 mins offset between PT and UTC
 
     getPanelStatus('sendJSON', function (panelStatus) { // 'sendJSON' returns zone status as JSON
         var obj = JSON.parse(panelStatus);
-        var lastTruePred = obj.lastTruePred;
-        var timeStamp = obj.timeStamp;
-        var d = new Date(timeStamp);
-        var h = d.getHours();
-        var m = d.getMinutes();
+        var lastTruePred = obj.lastTruePred; // array containing timestamps of true predictions
 
-        if (!lastTruePred) {
+        // find the prediction that was last true
+        var maxms = 0,
+            lastTrueIdx = NaN, // array index of last true prediction in lastTruePred
+            ms = 0;
+        for (i = 0; i < lastTruePred.length; i++) {
+            if (lastTruePred[i] != "") {
+                ms = Date.parse(lastTruePred[i]); // milliseconds since January 1, 1970, 00:00:00 UTC
+                if (ms > maxms) {
+                    lastTrueIdx = i;
+                    maxms = ms;
+                }  
+            }
+        }
+
+        if (lastTrueIdx === NaN) {
             speechOutput = "no true predictions have been made";
         } else {
-            speechOutput = predToPatt(lastTruePred)+" at "+h+" "+m;
+            var timeStamp = lastTruePred[lastTrueIdx]; // timestamp of last true prediction
+
+            // Convert timestamp in UTC to local time  
+            var utcms = Date.parse(timeStamp); // milliseconds since January 1, 1970, 00:00:00 UTC
+            var localms = utcms + (offset * 60000); // local time in ms
+            var local = new Date(localms); // local time in date / time format
+            var mo = (local.getMonth() + 1).toString();
+            if (mo.length === 1) {
+                mo = "0"+mo;
+            }
+            var d  = local.getDate().toString();
+            if (d.length === 1) {
+                d = "0"+d;
+            }
+            var h  = local.getHours().toString();
+            var m  = local.getMinutes().toString();
+            if (m.length === 1) {
+                m = "O"+m;
+            }
+
+            speechOutput = predToPatt(lastTrueIdx + 1)+" at "+h+" "+m+" on <say-as interpret-as='date'>????"+mo+d+"</say-as>";
         }
+
         callback(sessionAttributes,
-                 buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                 buildSpeechletResponseSSML(intent.name, speechOutput, repromptText, shouldEndSession));
     });
 }
 
@@ -660,6 +692,27 @@ function buildSpeechletResponse(title, output, repromptText, shouldEndSession) {
             outputSpeech: {
                 type: "PlainText",
                 text: repromptText
+            }
+        },
+        shouldEndSession: shouldEndSession
+    };
+}
+
+function buildSpeechletResponseSSML(title, output, repromptText, shouldEndSession) {
+    return {
+        outputSpeech: {
+            type: "SSML",
+            "ssml": "<speak>"+output+"</speak>"
+        },
+        card: {
+            type: "Simple",
+            title: "SessionSpeechlet - " + title,
+            content: "SessionSpeechlet - " + output
+        },
+        reprompt: {
+            outputSpeech: {
+                type: "SSML",
+                "ssml": "<speak>"+repromptText+"</speak>"
             }
         },
         shouldEndSession: shouldEndSession
