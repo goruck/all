@@ -14,7 +14,7 @@
  *
  * See https://github.com/goruck/mall for details. 
  *
- * Lindo St. Angel 2015/16. 
+ * (c) Lindo St. Angel 2015/16. 
  *
  */
 
@@ -139,7 +139,7 @@
 #define AWAY	"1111111111011000111111111111111111111111111111111111111111111111"
 
 // predict thread
-#define POPEN_FMT        "/home/pi/R_HOME/R-3.1.2/bin/Rscript --vanilla /home/pi/all/R/predsvm.R %s %s %s 2> /dev/null"
+#define POPEN_FMT        "/home/pi/R_HOME/R-3.1.2/bin/Rscript --vanilla /home/pi/all/R/predsvm2.R %s %s %s 2> /dev/null"
 #define RARG_SIZE        256 // max number of characters allowed in argument to the Rscript
 #define ROUT_MAX         256 // max number of characters read from output of Rscript
 #define PCMD_BUF_SIZE    (sizeof(POPEN_FMT) + RARG_SIZE) // size of buffer passed to popen()
@@ -155,8 +155,8 @@
 #define FPLIGHTIP        "192.168.1.116" // Master Bedroom Light
 #define SCMD_BUF_SIZE    sizeof("/home/pi/bin/wemo.sh 192.168.1.105 OFF > /dev/null")
 #define SCMD_FMT         "/home/pi/bin/wemo.sh %s %s > /dev/null"
-#define SRCHSTR_BUF_SIZE sizeof("prediction 10:  2")
-#define SRCHSTR_FMT      "prediction %i:  %i"
+#define SRCHSTR_BUF_SIZE sizeof("pred:  10")
+#define SRCHSTR_FMT      "pred:  %i"
 #define NUMPRED          10 // max number of predictions
 #define TS_BUF_SIZE      sizeof("2016-05-22T12:15:22Z")
 
@@ -904,24 +904,21 @@ static void * predict(void * arg) {
 
         /*
          * Do something with the predictions.
-         * A "1" prediction is FALSE, "2" is TRUE.
          * For now, just call a script to turn on / off the Wemo switches in the house.
          * A more flexible mapping of predictions to actions will be needed at some point.
          *
+         * This routine scans the string coming back from R, looking for a true prediction.
+         * The null case (i == 0) is not scanned since that would mean no pattern was found. 
          */
-        for(i = 0; i < NUMPRED; i++) { // search predictions
-          snprintf(srchStr, SRCHSTR_BUF_SIZE, SRCHSTR_FMT, (i + 1), 2); // 2 = TRUE
+        for(i = 1; i < (NUMPRED + 1); i++) { // search if a prediction was found
+          snprintf(srchStr, SRCHSTR_BUF_SIZE, SRCHSTR_FMT, i);
           if (strstr(rout, srchStr) != NULL) { // a prediction was TRUE
             strcpy(sptr->lastTruePred[i], tsBuf); // record timestamp of last true prediction
             switch(i) {
-              case 0: // act on prediction 1
-                //;
+              case 1: // act on prediction 1
+                //
                 break;
-              case 1: // act on prediction 2
-                snprintf(sysCmd, SCMD_BUF_SIZE, SCMD_FMT, PRLIGHTIP, "ON");
-                system(sysCmd);
-                break;
-              case 2:
+              case 2: // act on prediction 2
                 snprintf(sysCmd, SCMD_BUF_SIZE, SCMD_FMT, PRLIGHTIP, "ON");
                 system(sysCmd);
                 break;
@@ -934,11 +931,12 @@ static void * predict(void * arg) {
                 system(sysCmd);
                 break;
               case 5:
-                snprintf(sysCmd, SCMD_BUF_SIZE, SCMD_FMT, BPLIGHTIP, "ON");
+                snprintf(sysCmd, SCMD_BUF_SIZE, SCMD_FMT, PRLIGHTIP, "ON");
                 system(sysCmd);
                 break;
               case 6:
-                //;
+                snprintf(sysCmd, SCMD_BUF_SIZE, SCMD_FMT, BPLIGHTIP, "ON");
+                system(sysCmd);
                 break;
               case 7:
                 //;
@@ -946,14 +944,17 @@ static void * predict(void * arg) {
               case 8:
                 //;
                 break;
-              case 9: // act on prediction 10
+              case 9: // act on prediction 9
+                //;
+                break;
+              case 10: // act on prediction 10
                 //;
                 break;
               default:
                 //;
                 break;
             }
-          } else { // a prediction was FALSE
+          } else { // the null case (unless there was an error)
             //;
           }
         }
