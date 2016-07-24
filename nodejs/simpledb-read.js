@@ -68,7 +68,7 @@ simpledb.select(params, function(err, data) {
 
       // regenerate svm models with new data
       var exec = require('child_process').exec;
-      var cmd = '/home/pi/R_HOME/R-3.1.2/bin/Rscript --vanilla /home/pi/all/R/genSvmModels.R';
+      var cmd = '/home/pi/R_HOME/R-3.1.2/bin/Rscript --vanilla /home/pi/all/R/genSvmModels2.R';
 
       exec(cmd, function(error, stdout, stderr) {
         console.log('stdout: ' + stdout);
