@@ -155,10 +155,9 @@
 #define FPLIGHTIP        "192.168.1.116" // Master Bedroom Light
 #define SCMD_BUF_SIZE    sizeof("/home/pi/bin/wemo.sh 192.168.1.105 OFF > /dev/null")
 #define SCMD_FMT         "/home/pi/bin/wemo.sh %s %s > /dev/null"
-#define SRCHSTR_BUF_SIZE sizeof("pred:  10")
-#define SRCHSTR_FMT      "pred:  %i"
 #define NUMPRED          10 // max number of predictions
 #define TS_BUF_SIZE      sizeof("2016-05-22T12:15:22Z")
+#define MINPROB          80 // min probability estimate (in %) to be taken as valid
 
 // message i/o thread
 #define NUMZONES        32 // number of zones in system
@@ -786,12 +785,13 @@ static void * predict(void * arg) {
   int res, rLogFp;
   int i, j, occ = 0, val, lastDoorCloseTime = 0, maxOcc = 0;
   int intZone[] = INTZONES;
-  int size = sizeof(intZone) / sizeof *(intZone); 
+  int size = sizeof(intZone) / sizeof *(intZone);
+  long int rPredProb[2], pop = 0, pred = 0, prob = 0;
+  char *p;
   char rout[ROUT_MAX];
   char tsBuf[TS_BUF_SIZE];
   char sysCmd[SCMD_BUF_SIZE];
   char popenCmd[PCMD_BUF_SIZE];
-  char srchStr[SRCHSTR_BUF_SIZE];
   char obsTimeBuf[RARG_SIZE] = "", zoneBuf[RARG_SIZE] = "", oldZoneBuf[RARG_SIZE] = "";
   const char * format = " %lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,"
                         "%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,"
@@ -903,18 +903,40 @@ static void * predict(void * arg) {
         fprintf(stdout, "%s", rout);
 
         /*
-         * Do something with the predictions.
-         * For now, just call a script to turn on / off the Wemo switches in the house.
-         * A more flexible mapping of predictions to actions will be needed at some point.
-         *
-         * This routine scans the string coming back from R, looking for a true prediction.
-         * The null case (i == 0) is not scanned since that would mean no pattern was found. 
-         */
-        for(i = 1; i < (NUMPRED + 1); i++) { // search if a prediction was found
-          snprintf(srchStr, SRCHSTR_BUF_SIZE, SRCHSTR_FMT, i);
-          if (strstr(rout, srchStr) != NULL) { // a prediction was TRUE
-            strcpy(sptr->lastTruePred[i], tsBuf); // record timestamp of last true prediction
-            switch(i) {
+        * Parse prediction number and its probability from R's output.
+        * Assumes output is in the form "pred: n prob: .pp"
+        *   where n is the prediction number and pp is its probability.
+        */
+        if (strstr(rout, "pred:") != NULL) {
+          p = rout;
+          i = 0;
+          while (*p) { // While there are more characters to process...
+            if (isdigit(*p)) { // Upon finding a digit, ...
+              pop = strtol(p, &p, 10); // Read pred or prob
+              rPredProb[i++] = pop; // pred is 1st element, prob is 2nd
+            } else { // Otherwise, move on to the next character.
+              p++;
+            }
+          }
+
+          pred = rPredProb[0];
+          prob = rPredProb[1];
+
+          /*
+           * Do something with the predictions.
+           * For now, just call a script to turn on / off the Wemo switches in the house.
+           * A more flexible mapping of predictions to actions will be needed at some point.
+           *
+           */
+          if (prob > MINPROB) { // only act if prob estimate is high enough
+            if (pred) { // record timestamp of last true prediction
+              strcpy(sptr->lastTruePred[pred], tsBuf);
+            }
+
+            switch(pred) {
+              case 0: // null case - no predictions were true
+                //
+                break;
               case 1: // act on prediction 1
                 //
                 break;
@@ -940,78 +962,22 @@ static void * predict(void * arg) {
                 break;
               case 7:
                 //;
-                break;
+              break;
               case 8:
                 //;
-                break;
+              break;
               case 9: // act on prediction 9
                 //;
-                break;
+              break;
               case 10: // act on prediction 10
                 //;
-                break;
+              break;
               default:
                 //;
-                break;
+              break;
             }
-          } else { // the null case (unless there was an error)
-            //;
           }
         }
-
-        /*
-        if (strstr(rout, "prediction 1:  1") != NULL) {
-          //
-        } else if (strstr(rout, "prediction 1:  2") != NULL) {
-          snprintf(sysCmd, SCMD_BUF_SIZE, SCMD_FMT, PRLIGHTIP, "ON");
-          system(sysCmd);
-        } else if (strstr(rout, "prediction 2:  1") != NULL) {
-          //
-        } else if (strstr(rout, "prediction 2:  2") != NULL) {
-          //fprintf(stdout, "*** R *** prediction 2 is TRUE\n");
-          system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
-        } else if (strstr(rout, "prediction 3:  1") != NULL) {
-          //fprintf(stdout, "*** R *** prediction 3 is FALSE\n");
-        } else if (strstr(rout, "prediction 3:  2") != NULL) {
-          //fprintf(stdout, "*** R *** prediction 3 is TRUE\n");
-          system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
-        } else if (strstr(rout, "prediction 4:  1") != NULL) {
-          //fprintf(stdout, "*** R *** prediction 4 is FALSE\n");
-        } else if (strstr(rout, "prediction 4:  2") != NULL) {
-          //fprintf(stdout, "*** R *** prediction 5 is TRUE\n");
-          system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
-        } else if (strstr(rout, "prediction 5:  1") != NULL) {
-          //fprintf(stdout, "*** R *** prediction 5 is FALSE\n");
-        } else if (strstr(rout, "prediction 5:  2") != NULL) {
-          //fprintf(stdout, "*** R *** prediction 5 is TRUE\n");
-          system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
-        } else if (strstr(rout, "prediction 6:  1") != NULL) {
-          //fprintf(stdout, "*** R *** prediction 6 is FALSE\n");
-        } else if (strstr(rout, "prediction 6:  2") != NULL) {
-          //fprintf(stdout, "*** R *** prediction 6 is TRUE\n");
-          system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
-        } else if (strstr(rout, "prediction 7:  1") != NULL) {
-          //fprintf(stdout, "*** R *** prediction 7 is FALSE\n");
-        } else if (strstr(rout, "prediction 7:  2") != NULL) {
-          //fprintf(stdout, "*** R *** prediction 7 is TRUE\n");
-          system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
-        } else if (strstr(rout, "prediction 8:  1") != NULL) {
-          //fprintf(stdout, "*** R *** prediction 8 is FALSE\n");
-        } else if (strstr(rout, "prediction 8:  2") != NULL) {
-          //fprintf(stdout, "*** R *** prediction 8 is TRUE\n");
-          system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
-        } else if (strstr(rout, "prediction 9:  1") != NULL) {
-          //fprintf(stdout, "*** R *** prediction 9 is FALSE\n");
-        } else if (strstr(rout, "prediction 9:  2") != NULL) {
-          //fprintf(stdout, "*** R *** prediction 9 is TRUE\n");
-          system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
-        } else if (strstr(rout, "prediction 10:  1") != NULL) {
-          //fprintf(stdout, "*** R *** prediction 9 is FALSE\n");
-        } else if (strstr(rout, "prediction 10:  2") != NULL) {
-          //fprintf(stdout, "*** R *** prediction 9 is TRUE\n");
-          system("/home/pi/bin/wemo.sh 192.168.1.105 ON > /dev/null");
-        } */
-
       }
 
       res = close(rLogFp); 
