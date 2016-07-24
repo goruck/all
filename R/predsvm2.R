@@ -8,7 +8,7 @@ cat("********** New R Run (svm2) **********\n")
 MODFILE <- "/home/pi/all/R/models/pattern.svm" # svm model path
 TEMPORAL_CUTOFF <- -120 # time limit in secs
 TEMPORAL_VALUE  <- -120 # time limit value in secs
-USECLK <- TRUE # use clock in predictions?
+USECLK <- TRUE # should clock be used as a predictor?
 library(e1071) # for svm
 ### function to extract hour from UTC timestamp
 extractHr <- function(dateTime) {
@@ -65,9 +65,9 @@ print(newData, row.names = FALSE)
 
 ### form test data set
 if (USECLK == TRUE) {
-  testData <- data.frame(x = newData[, 1:(ncol(newData)-1)], y = as.factor(0))
+  testData <- data.frame(x = newData[, 1:ncol(newData)], y = as.factor(0))
 } else if (USECLK == FALSE) {
-  testData <- data.frame(x = newData[, 2:(ncol(newData)-1)], y = as.factor(0))
+  testData <- data.frame(x = newData[, 2:ncol(newData)], y = as.factor(0))
 }
   
 ### load svm model for patterns, if model is found it will be called "svmOpt"
@@ -78,12 +78,13 @@ if (file.exists(MODFILE)) {
   ### make predictions
   svmPred <- predict(svmOpt, testData, probability = TRUE)
 
-  ### output prediction number and probability
+  ### output prediction number and its probability
   ### note: pred of 0 indicates no pattern was identified
+  ### note: leading 0 is removed from the prob estimate and only 2 sig digits returned
   predNum <- as.character(svmPred) # convert factor to character
-  cat("pred: ", predNum, "\n")
   probs <- attributes(svmPred)$probabilities
-  cat("prob: ", probs[1, colnames(probs) == predNum], "\n")
+  predNumProb <- probs[1, colnames(probs) == predNum]
+  cat("pred:", predNum, "prob:", sub("^0.", "\\1.", sprintf("%.2f", predNumProb)), "\n")
 }
 
 cat("********** End R Run (svm2) **********\n")
