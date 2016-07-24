@@ -408,7 +408,7 @@ function predInSession(intent, session, callback) {
                 m = "O"+m;
             }
 
-            speechOutput = predToPatt(lastTrueIdx + 1)+" at "+h+" "+m+" on <say-as interpret-as='date'>????"+mo+d+"</say-as>";
+            speechOutput = predToPatt(lastTrueIdx)+" at "+h+" "+m+" on <say-as interpret-as='date'>????"+mo+d+"</say-as>";
         }
 
         callback(sessionAttributes,
