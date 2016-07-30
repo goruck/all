@@ -620,7 +620,8 @@ function zoneToPlace(zone, sensor) {
 
 /*
  * Find friendly names of places not ready to be armed.
- * Assumes at least one zone is not ready. Will fail otherwise. 
+ * Assumes at least one zone is not ready. Will fail otherwise.
+ * Ignores motion sensors since they aren't relevant for arming. 
  */
 function findPlacesNotReady(panelStatus) {
     var zoneRegex = /(Zone\d \d{1,2})((, \d{1,2}){1,8})?/g;
@@ -632,7 +633,10 @@ function findPlacesNotReady(panelStatus) {
         var sensorsNotReady = zonesNotReady[i].slice(6).match(sensorRegex); // array with sensors in zone not ready
         for(j = 0; j < sensorsNotReady.length; j++) {
             var sensorNotReady = sensorsNotReady[j];
-	    placesNotReady += zoneToPlace(zoneNotReady, sensorNotReady) +',';
+            var place = zoneToPlace(zoneNotReady, sensorNotReady);
+            if (place.indexOf("motion") === -1) { // ignore motion sensors
+	        placesNotReady += place +',';
+            }
         }
     }
     return placesNotReady;
@@ -650,7 +654,7 @@ function predToPatt(predNum) {
         5: "fast walk from kid's rooms to playroom via hallway",
         6: "from master bedroom to kitchen in the early morning",
         7: "undefined",
-        8: "undefined",
+        8: "from playroom to kid's rooms via hallway",
         9: "undefined",
         10:"undefined"
     }
