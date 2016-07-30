@@ -93,6 +93,8 @@
 #define PANEL_IO_PRI	(90) // panel io thread priority - panel io pri must be highest
 #define MAX_SAFE_STACK	(32*1024*1024) // 32MB pagefault free buffer
 #define MY_STACK_SIZE   (100*1024) // 100KB thread stack size
+
+// panel i/o thread
 #define NSEC_PER_SEC    (1000000000LU) // 1 second.
 #define INTERVAL        (10*1000) // 10 us timeslice.
 #define CLK_PER		(1000000L) // 1 ms clock period.
@@ -157,7 +159,7 @@
 #define SCMD_FMT         "/home/pi/bin/wemo.sh %s %s > /dev/null"
 #define NUMPRED          10 // max number of predictions
 #define TS_BUF_SIZE      sizeof("2016-05-22T12:15:22Z")
-#define MINPROB          80 // min probability estimate (in %) to be taken as valid
+#define MINPROB          50 // min probability estimate (in %) to be taken as valid
 
 // message i/o thread
 #define NUMZONES        32 // number of zones in system
@@ -242,7 +244,7 @@ static void reserve_process_memory(int size) {
   locked for this process. All malloc() and new() calls come from
   the memory pool reserved and locked above. Issuing free() and
   delete() does NOT make this locking undone. So, with this locking
-  mechanism we can build C/C++ applications that will never run into
+  mechanism we can build C/C++ applications that will almost never run into
   a major/minor pagefault, even with swapping enabled. */
   free(buffer);
 
@@ -695,7 +697,7 @@ static void * panel_io(void *arg) {
  *
  */
 static void * msg_io(void * arg) {
-  int cmd, res, zone, allZones[32];
+  int cmd, res, zone, allZones[NUMZONES];
   int data0, data1, data2, data3;
   int data4, data5, data6, data7;
   long unsigned int index = 0;
@@ -712,9 +714,7 @@ static void * msg_io(void * arg) {
   }
 
   // clear zone activity marker arrays
-  for (zone = 0; zone < 32; zone++) {
-    allZones[zone] = 0;
-  }
+  memset(&allZones, 0, sizeof(allZones));
 
   strncpy(wordk, IDLE, MAX_BITS);
   clock_gettime(CLOCK_MONOTONIC, &t);
@@ -743,7 +743,7 @@ static void * msg_io(void * arg) {
       if (cmd == 0x3e) strcpy(sptr->zone4Status, msg);
 
       // update zone sensor activity and deactivity markers
-      for (zone = 0; zone < 32; zone++) {
+      for (zone = 0; zone < NUMZONES; zone++) {
         if (allZones[zone]) { // zone is currently active
           if (sptr->zoneAct[zone] <= sptr->zoneDeAct[zone]) { // zone was marked inactive
             sptr->zoneAct[zone] = t.tv_sec; // zone is now active, so record time
@@ -786,7 +786,8 @@ static void * predict(void * arg) {
   int i, j, occ = 0, val, lastDoorCloseTime = 0, maxOcc = 0;
   int intZone[] = INTZONES;
   int size = sizeof(intZone) / sizeof *(intZone);
-  long int rPredProb[2], pop = 0, pred = 0, prob = 0;
+  long int rPredProb[4], pop = 0, predNoClk = 0, probNoClk = 0;
+  long int predClk = 0, probClk = 0, pred = 0, prob = 0;
   char *p;
   char rout[ROUT_MAX];
   char tsBuf[TS_BUF_SIZE];
@@ -809,6 +810,9 @@ static void * predict(void * arg) {
     perror("message i/o thread detach failed\n");
     exit(EXIT_FAILURE);
   }
+
+  // init prediction / probability array
+  memset(&rPredProb, 0, sizeof(rPredProb));
 
   clock_gettime(CLOCK_MONOTONIC, &t);
   while (1) {
@@ -852,28 +856,21 @@ static void * predict(void * arg) {
 
       // try to predict number of occupants based on sensor activity
       if (sptr->zoneDeAct[EXITZONE] > lastDoorCloseTime) { // exterior zone triggered
-        //printf("front door closed, resetting counter\n");
         maxOcc = 0; // reset occupant counter since at least one person probably exited the house
         lastDoorCloseTime = sptr->zoneDeAct[EXITZONE];
       } else {
         for (j = 0; j < size; j++) { // scan through zones looking for activity
-          //printf("zone - time: %lu\n", sptr->zoneAct[intZone[j]] - sptr->obsTime);
           if (!(sptr->obsTime - sptr->zoneAct[intZone[j]])) occ = 1; // single person detect
           for (i = j; i < size; i++) { // multiple person detect
             val = abs(sptr->zoneAct[intZone[j]] - sptr->zoneAct[intZone[i]]);
             if ((val > CONZONELL) && (val < CONZONEUL)) { // find zones activated within limits
               occ++;
-              //printf("zoneBuf: %s\n", zoneBuf);
-              //printf("i: %i, j: %i, val: %i\n",i,j,val);
-              //printf("zai[%i]: %lu,zaj[%i]: %lu\n",intZone[i],sptr->zoneAct[intZone[i]],intZone[j],sptr->zoneAct[intZone[j]]);
-              //printf("occ: %i\n", occ);
             }
           }
         }
       }
       if (occ > maxOcc) maxOcc = occ; // max hold
       sptr->numOcc = maxOcc;
-      //printf("occMax: %i\n", maxOcc);
       occ = 0;
 
       /* Open the R log file for writing. If it exists, append to it; 
@@ -903,11 +900,14 @@ static void * predict(void * arg) {
         fprintf(stdout, "%s", rout);
 
         /*
-        * Parse prediction number and its probability from R's output.
-        * Assumes output is in the form "pred: n prob: .pp"
-        *   where n is the prediction number and pp is its probability.
-        */
-        if (strstr(rout, "pred:") != NULL) {
+         * Parse prediction number and its probability from R's output.
+         * Assumes output is in the form "pred: n prob: .pp"
+         * where n is the prediction number and pp is its probability.
+         *
+         */
+        if (strstr(rout, "pred:") != NULL) { // found a prediction in R's output...
+
+          // Extract predictions and probabilities.
           p = rout;
           i = 0;
           while (*p) { // While there are more characters to process...
@@ -919,18 +919,40 @@ static void * predict(void * arg) {
             }
           }
 
-          pred = rPredProb[0];
-          prob = rPredProb[1];
+          predNoClk = rPredProb[0]; // prediction w/o clock as predictor
+          probNoClk = rPredProb[1]; // probability w/o clock as predictor
+          predClk   = rPredProb[2]; // prediction w/clock as predictor
+          probClk   = rPredProb[3]; // probability w/o clock as predictor
 
           /*
-           * Do something with the predictions.
+           * Apply rules to the predictions from both models.
+           * If both models predict the same pattern, choose the higher probability prediction.
+           * (In the case of both models making the same non-null prediction, a higher probability
+           * pattern from the model using clock as a predictor is likely a timed pattern.)
+           * If one model hasn't identified any pattern and the other has, pick the non-null case.
+           *
+           */
+          if (predNoClk == predClk) {
+            pred = (probClk > probNoClk) ? predClk : predNoClk;
+            prob = (probClk > probNoClk) ? probClk : probNoClk;
+          } else if (predClk && !predNoClk) {
+            pred = predClk;
+            prob = probClk;
+          } else if (!predClk && predNoClk) {
+            pred = predNoClk;
+            prob = probNoClk;
+          }
+
+          /*
+           * Do something with the prediction. 
            * For now, just call a script to turn on / off the Wemo switches in the house.
            * A more flexible mapping of predictions to actions will be needed at some point.
            *
            */
-          if (prob > MINPROB) { // only act if prob estimate is high enough
-            if (pred) { // record timestamp of last true prediction
-              strcpy(sptr->lastTruePred[pred], tsBuf);
+          if (prob >= MINPROB) { // only if probability is high enough...
+
+            if(pred) {
+             strcpy(sptr->lastTruePred[pred], tsBuf); // record timestamp of last true prediction
             }
 
             switch(pred) {
@@ -938,7 +960,8 @@ static void * predict(void * arg) {
                 //
                 break;
               case 1: // act on prediction 1
-                //
+                snprintf(sysCmd, SCMD_BUF_SIZE, SCMD_FMT, PRLIGHTIP, "ON");
+                system(sysCmd);
                 break;
               case 2: // act on prediction 2
                 snprintf(sysCmd, SCMD_BUF_SIZE, SCMD_FMT, PRLIGHTIP, "ON");
