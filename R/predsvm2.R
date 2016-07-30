@@ -1,14 +1,17 @@
-### make a prediction from an svm model
-### note: this version uses one svm model
+### Make a prediction on new sensor data; this version uses two svm models
+### One model with clock as predictor and one model w/o it
+### Each model is multi-classifier SVM that predicts all patterns
+### This output should be processed by rules to decide which
+### prediction to keep. 
 ### (c) Lindo St. Angel 2016
 
 cat("********** New R Run (svm2) **********\n")
 
 ### setup
-MODFILE <- "/home/pi/all/R/models/pattern.svm" # svm model path
+MOD_NO_CLK_FN <- "/home/pi/all/R/models/pattern-nc.svm" # file name of svm model w/o clock predictor
+MOD_CLK_FN <- "/home/pi/all/R/models/pattern-c.svm" # file name of svm model w/ clock predictor
 TEMPORAL_CUTOFF <- -120 # time limit in secs
 TEMPORAL_VALUE  <- -120 # time limit value in secs
-USECLK <- TRUE # should clock be used as a predictor?
 library(e1071) # for svm
 ### function to extract hour from UTC timestamp
 extractHr <- function(dateTime) {
@@ -48,6 +51,8 @@ colnames(df) <- c("clock","za1","za2","za3","za4","za5","za6","za7","za8",
                   "zd25","zd26","zd27","zd28","zd29","zd30","zd31","zd32")
 
 ### filters to select zone data of interest
+### z1 = front door; z16 = family room slider; z27 = front motion
+### z28 = hall motion; z29 = upstairs motion; z30 = playroom motion; z32 = playroom door
 zaKeep = c("za1","za16","za27","za28","za29","za30","za32")
 #zaKeep = NULL
 #zdKeep = c("zd1","zd16","zd27","zd28","zd29","zd30","zd32")
@@ -62,29 +67,41 @@ newData[newData < TEMPORAL_CUTOFF] <- TEMPORAL_VALUE
 ### add back in clock data column and output test observation
 newData <- merge(df["clock"], newData)
 print(newData, row.names = FALSE)
-
-### form test data set
-if (USECLK == TRUE) {
-  testData <- data.frame(x = newData[, 1:ncol(newData)], y = as.factor(0))
-} else if (USECLK == FALSE) {
-  testData <- data.frame(x = newData[, 2:ncol(newData)], y = as.factor(0))
-}
   
-### load svm model for patterns, if model is found it will be called "svmOpt"
+### load svm model for patterns, it will be called "svmOpt"
 ### then run a prediction on the new data and output results
-if (file.exists(MODFILE)) {
-  load(MODFILE)
+### two models are used, one that has clock as a predictor and one that does not
 
-  ### make predictions
-  svmPred <- predict(svmOpt, testData, probability = TRUE)
+### load model w/ clock as a predictor
+load(MOD_CLK_FN)
 
-  ### output prediction number and its probability
-  ### note: pred of 0 indicates no pattern was identified
-  ### note: leading 0 is removed from the prob estimate and only 2 sig digits returned
-  predNum <- as.character(svmPred) # convert factor to character
-  probs <- attributes(svmPred)$probabilities
-  predNumProb <- probs[1, colnames(probs) == predNum]
-  cat("pred:", predNum, "prob:", sub("^0.", "\\1.", sprintf("%.2f", predNumProb)), "\n")
-}
+### form test data set w/ clock data
+testData <- data.frame(x = newData[, 1:ncol(newData)], y = as.factor(0))
+
+### make predictions
+svmPred <- predict(svmOpt, testData, probability = TRUE)
+
+predNumClk <- as.character(svmPred) # convert factor to character
+probsClk <- attributes(svmPred)$probabilities
+predNumProbClk <- probsClk[1, colnames(probsClk) == predNumClk]
+
+### load model w/o clock as a predictor
+load(MOD_NO_CLK_FN)
+
+### form test data set w/o clock data
+testData <- data.frame(x = newData[, 2:ncol(newData)], y = as.factor(0))
+
+### make predictions
+svmPred <- predict(svmOpt, testData, probability = TRUE)
+
+predNum <- as.character(svmPred) # convert factor to character
+probs <- attributes(svmPred)$probabilities
+predNumProb <- probs[1, colnames(probs) == predNum]
+
+### output prediction number and its probability
+### note: pred of 0 indicates no pattern was identified
+### note: leading 0 is removed from the prob estimate and only 2 sig digits returned
+cat("pred:", predNum, "prob:", sub("^0.", "\\1.", sprintf("%.2f", predNumProb)), "(w/o clk) |",
+    "pred:", predNumClk, "prob:", sub("^0.", "\\1.", sprintf("%.2f", predNumProbClk)), "(w/clk)\n")
 
 cat("********** End R Run (svm2) **********\n")
