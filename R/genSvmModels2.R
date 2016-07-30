@@ -1,17 +1,26 @@
-### generate svm models for panel sensory data
-### note: this version generates one model for all patterns
+### Generate svm models for panel sensor data
+### This version generates two models
+### One model with clock as predictor and one model w/o it
+### Each model is multi-classifier SVM that predicts all patterns
+### The predictor should use both models with possibly rules to decide which
+### prediction to keep. 
 ### (c) Lindo St. Angel 2016
 
 ### setup
 remove(list=ls())
 library(e1071)
-MODFILE <- "/home/pi/all/R/models/pattern.svm" # svm model path
-USECLK <- TRUE # use clock in predictions?
+MOD_NO_CLK_FN <- "/home/pi/all/R/models/pattern-nc.svm" # file name of svm model w/o clock predictor
+MOD_CLK_FN <- "/home/pi/all/R/models/pattern-c.svm" # file name of svm model w/ clock predictor
 df = read.csv("/home/pi/all/R/panelSimpledb.csv") # data file of observations
-zaKeep = c("za1","za16","za27","za28","za29","za30","za32")
+
+### sensors of interest
+### z1 = front door; z16 = family room slider; z27 = front motion
+### z28 = hall motion; z29 = upstairs motion; z30 = playroom motion; z32 = playroom door
+zaKeep = c("za1","za16","za27","za28","za29","za30","za32") # activation times
 #zaKeep = NULL
 #zdKeep = c("zd1","zd16","zd27","zd28","zd29","zd30","zd32")
-zdKeep = NULL
+zdKeep = NULL # don't use deactivation times
+### generic pattern names to be predicted
 patterns <- c("pattern1", "pattern2", "pattern3", "pattern4", "pattern5",
               "pattern6", "pattern7", "pattern8", "pattern9", "pattern10")
 keep = c("clock", zaKeep, zdKeep, patterns)
@@ -52,22 +61,31 @@ dfKeep["clock"] <- lapply(dfKeep["clock"], extractHour)
 drops <- c("clock", patterns)
 dfKeep[, !(names(dfKeep) %in% drops)] <- apply(dfKeep[, !(names(dfKeep) %in% drops)], c(1, 2), limitNum)
 
-### create training data and labels
+### create training labels
 trainLabels <- apply(dfKeep[patterns], 1, findPatNum) # create new vector w/pattern number of true obs
 keep <- c("clock", zaKeep, zdKeep) # drop individual patterns from dataset
 dfKeep <- dfKeep[, keep]
-if (USECLK == TRUE) {
-  trainData = data.frame(x = dfKeep[, 1:ncol(dfKeep)], y = as.factor(trainLabels))
-} else if (USECLK == FALSE) {
-  trainData = data.frame(x = dfKeep[, 2:ncol(dfKeep)], y = as.factor(trainLabels))
-}
 
-### calculate optimal svm model
+### calculate optimal svm model w/ clock as a predictor
+trainData = data.frame(x = dfKeep[, 1:ncol(dfKeep)], y = as.factor(trainLabels))
+
 svmTuneOut = tune(svm, y~., data = trainData, kernel = "radial", scale = TRUE, probability = TRUE,
                   ranges = list(cost = c(0.1, 1, 10, 100, 1000), gamma = c(0.5, 1, 2, 3, 4)))
 
 svmOpt = svm(y~., data = trainData, kernel = "radial", gamma = svmTuneOut$best.model$gamma, cost = svmTuneOut$best.model$cost,
              scale = TRUE, decision.values = FALSE, probability = TRUE)
 
-### save svm model
-save(svmOpt, file = MODFILE)
+### save svm model with clock as predictor
+save(svmOpt, file = MOD_CLK_FN)
+
+### calculate optimal svm model w/o clock as a predictor
+trainData = data.frame(x = dfKeep[, 2:ncol(dfKeep)], y = as.factor(trainLabels))
+
+svmTuneOut = tune(svm, y~., data = trainData, kernel = "radial", scale = TRUE, probability = TRUE,
+                  ranges = list(cost = c(0.1, 1, 10, 100, 1000), gamma = c(0.5, 1, 2, 3, 4)))
+
+svmOpt = svm(y~., data = trainData, kernel = "radial", gamma = svmTuneOut$best.model$gamma, cost = svmTuneOut$best.model$cost,
+             scale = TRUE, decision.values = FALSE, probability = TRUE)
+
+### save svm model w/o clock as predictor
+save(svmOpt, file = MOD_NO_CLK_FN)
