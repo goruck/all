@@ -27,3 +27,18 @@ PollyIsIntent for polly
 TrainIsIntent {Pattern} {State}
 TrainIsIntent pattern {Pattern} is {State}
 TrainIsIntent pattern {Pattern} {State}
+
+OccupancyIsIntent is anyone home
+OccupancyIsIntent is anyone at home
+OccupancyIsIntent anyone home
+OccupancyIsIntent anyone there
+OccupancyIsIntent is anyone there
+OccupancyIsIntent occupancy
+OccupancyIsIntent occupied
+
+PredIsIntent prediction
+PredIsIntent last prediction
+PredIsIntent what was the last prediction
+PredIsIntent tell me the last prediction
+PredIsIntent say the last prediciton
+PredIsIntent last
