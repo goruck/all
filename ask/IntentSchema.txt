@@ -35,6 +35,12 @@
       ]
     },
     {
+      "intent": "OccupancyIsIntent"
+    },
+    {
+      "intent": "PredIsIntent"
+    },
+    {
       "intent": "WhatsMyStatusIntent"
     },
     {
