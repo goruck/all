@@ -10,6 +10,26 @@
 # Machine Learning with ALL
 Using machine learning (ML) with ALL seemed to be a natural fit given the amount of data captured by the security system's sensors. Door, window, and motion data is continually captured which reflects the movement of people into and around the house. Of course, normally this data is used for security monitoring purposes. The goal of adding machine learning to ALL was to be able to reliably predict patterns of people movement around the house that would trigger appropriate actions automatically while using inexpensive commodity sensors. A related goal was to use Alexa to help train the ML which also fits well with the overall intent of ALL.
 
+See http://machinelearningmastery.com/4-steps-to-get-started-in-machine-learning/ for a good overview of the steps listed below. Also see http://sebastianraschka.com/Articles/2014_intro_supervised_learning.html.
+
+## Preparation
+Explain how to come up to speed on then basics and rational for using R for both prep work and in the actual system (and list cons)
+
+## Problem Definition
+Understand and clearly describe the problem that is being solved including how training will be done.
+
+## Analyze Data
+Understand the information available that will be used to develop a model.
+
+## Prepare Data
+Discover and expose the structure in the dataset.
+
+## Evaluate Algorithms
+Develop a robust test harness and baseline accuracy from which to improve and spot check algorithms.
+
+## Implement and Improve Results
+Implement the real-time prediction of patterns and leverage results to develop more accurate models.
+
 # Updated System Block Diagram
 
 ![mall blockdia](https://cloud.githubusercontent.com/assets/12125472/17277822/c54cf904-5701-11e6-9e6b-d4d91deccab1.png)
