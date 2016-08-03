@@ -1,4 +1,16 @@
-updated block diagram shown below:
+*The V2 of ALL includes many updates to core functionality and adds machine learning capability to the reference design. The V2 README lists the major core updates and goes into detail regarding the machine learning aspects. The V1 README should still be used to understand the core details.*
+
+# Major Updates from V1
+* Machine learning based on data from security system sensor data.
+* Server optionally sends JSON in addition to default text status.
+* More robust error handling, in particular to the Raspberry PI real-time code.
+* Expanded Alexa skills. 
+* Fixed misc bugs and addressed corner cases.
+
+# Machine Learning with ALL
+Using machine learning (ML) with ALL seemed to be a natural fit given the amount of data captured by the security system's sensors. Door, window, and motion data is continually captured which reflects the movement of people into and around the house. Of course, normally this data is used for security monitoring purposes. The goal of adding machine learning to ALL was to be able to reliably predict patterns of people movement around the house that would trigger appropriate actions automatically while using inexpensive commodity sensors. A related goal was to use Alexa to help train the ML which also fits well with the overall intent of ALL.
+
+# Updated System Block Diagram
 
 ![mall blockdia](https://cloud.githubusercontent.com/assets/12125472/17277822/c54cf904-5701-11e6-9e6b-d4d91deccab1.png)
 
