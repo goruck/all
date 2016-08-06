@@ -1,25 +1,64 @@
 *The V2 of ALL includes many updates to core functionality and adds machine learning capability to the reference design. The V2 README lists the major core updates and goes into detail regarding the machine learning aspects. The V1 README should still be used to understand the core details.*
 
 # Major Updates from V1
-* Machine learning based on data from security system sensor data.
+* Machine learning model generation based on data from security system sensor data.
+* Machine learning prediction based on data from the security system sensor data. 
 * Server optionally sends JSON in addition to default text status.
 * More robust error handling, in particular to the Raspberry PI real-time code.
 * Expanded Alexa skills. 
 * Fixed misc bugs and addressed corner cases.
 
 # Machine Learning with ALL
-Using machine learning (ML) with ALL seemed to be a natural fit given the amount of data captured by the security system's sensors. Door, window, and motion data is continually captured which reflects the movement of people into and around the house. Of course, normally this data is used for security monitoring purposes. The goal of adding machine learning to ALL was to be able to reliably predict patterns of people movement around the house that would trigger appropriate actions automatically while using inexpensive commodity sensors. A related goal was to use Alexa to help train the ML which also fits well with the overall intent of ALL.
+Using machine learning (ML) with ALL seemed to be a natural fit given the amount of data captured by the security system's sensors. Door, window, and motion data is continually captured which reflects the movement of people into and around the house. Of course, normally this data is used for security monitoring purposes but here the goal of adding machine learning to ALL was to use this data to reliably predict patterns of people movement around the house that would trigger appropriate actions automatically. A related goal was to use Alexa to help train the ML in an intuitive and low-friction manner which also fits well with the overall intent of ALL.
 
-See http://machinelearningmastery.com/4-steps-to-get-started-in-machine-learning/ for a good overview of the steps listed below. Also see http://sebastianraschka.com/Articles/2014_intro_supervised_learning.html.
+Its important to note that simple rule based algorithms can be employed instead of ML to trigger actions based on the sensor data. However, this is really only feasible for the most basic cases. 
 
 ## Preparation
-Explain how to come up to speed on then basics and rational for using R for both prep work and in the actual system (and list cons)
+The popular open-source software R was selected as the main ML tool and was intended to be used for both modeling and runtime purposes in order to accelerate development. The excellent book [An Introduction to Statistical Learning](http://smile.amazon.com/dp/B01IBM7790) was extensively used as both a learning guide to ML and to R.
+
+The R software package was downloaded from [The R Project for Statistical Computing](https://www.r-project.org/) website and compiled on the Raspberry Pi since there are no pre-compiled packages available for Raspbian Wheezy. The following steps are required to install R on the Pi.
+
+```bash
+wget http://cran.rstudio.com/src/base/R-3/R-3.1.2.tar.gz
+mkdir R_HOME
+mv R-3.1.2.tar.gz R_HOME/
+cd R_HOME/
+tar zxvf R-3.1.2.tar.gz
+cd R-3.1.2/
+sudo apt-get install gfortran libreadline6-dev libx11-dev libxt-dev
+./configure
+make
+sudo make install
+```
+
+Note that this installs R version 3.1.2 which is the latest available for Raspbian Wheezy. 
 
 ## Problem Definition
-Understand and clearly describe the problem that is being solved including how training will be done.
+It is important to first understand and clearly describe the problem that is being solved including how training will be done. Here, the problem is to accurately predict a person's movement into and through the house using the security system's motion and door sensors (the window sensors are ignored for the present) and to take action on that prediction.
+
+The proof of concept system is installed in a two story house with a detached playroom / garage in the rear, accessible via a short walk. The relevant sensors are as follows.
+
+Zone | Sensor
+-----|-------
+1  | Front Door
+16 | Family Room Slider (rear house exit)
+27 | Front Motion
+28 | Hall Motion (first floor)
+29 | Upstairs Motion (second floor hall)
+30 | Playroom Motion (in detached unit behind house)
+32 | Playroom Door
+
+Thus, as a person traversed through the zones listed above the problem is to predict the path taken, speed of travel and direction of travel. An example path could be a person arriving home, entering through the front door, walking into the family room via the first floor hall, exiting the house through the rear family room slider door and into the playroom. Patterns can also be time of day dependent (example being a person arriving home around the same time in the evening and following the above path). These sensors and the time of day will be used as inputs to the ML model. 
+
+A related problem is how to train the model in the most intuitive and easiest manner possible for the user. A good solution is tagging the patterns as the occur with voice via Alexa. For example, if a person walked the above pattern at 7:00 PM, she would tell Alexa that ("Alexa, I'm home") which would trigger a sequence of events to capture an observation and update the ML model. 
 
 ## Analyze Data
-Understand the information available that will be used to develop a model.
+Considerable thought was put into understanding the sensor information available that is needed to develop the ML model. The native output from the sensors is binary - the sensor is either activated by movement or its not due to lack of movement. For security monitoring purposes this is normally sufficient but this binary information needs to be transformed into a continuous time series to be useful as inputs to the model described above. This transformation is accomplished by applying a time stamp to every activation or deactivation of a sensor which is implemented in a modified version of the thread called *msg_io()* that handles the message-level output processing in the Raspberry Pi real-time software described below. The time-stamped sensor data is not used directly to build / update the ML model or predict a pattern, instead a version of the time-stamped data is used which is the activation / deactivation times of the sample relative to the observation time. The relative data is required to ensure that the predictors used to build the model are consistent with new data used for prediction.
+
+An example training predictor vector is shown below.
+
+clock|sample|za1|za2|za3|za4|za5|za6|za7|za8|za9|za10|za11|za12|za13|za14|za15|za16|za17|za18|za19|za20|za21|za22|za23|za24|za25|za26|za27|za28|za29|za30|za31|za32|zd1|zd2|zd3|zd4|zd5|zd6|zd7|zd8|zd9|zd10|zd11|zd12|zd13|zd14|zd15|zd16|zd17|zd18|zd19|zd20|zd21|zd22|zd23|zd24|zd25|zd26|zd27|zd28|zd29|zd30|zd31|zd32|pattern1|pattern2|pattern3|pattern4|pattern5|pattern6|pattern7|pattern8|pattern9|pattern10
+2016-07-30T21:54:37.950Z|4134765|-14172|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-51|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-8066|-6541|-31|-37|-12|-70|-4134765|-72|-14164|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-47|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-30|-32|-6|-68|-4134765|-69|NA|NA|NA|NA|NA|NA|NA|TRUE|NA|NA
 
 ## Prepare Data
 Discover and expose the structure in the dataset.
