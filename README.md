@@ -57,8 +57,9 @@ Considerable thought was put into understanding the sensor information available
 
 An example training predictor vector is shown below.
 
-clock|sample|za1|za2|za3|za4|za5|za6|za7|za8|za9|za10|za11|za12|za13|za14|za15|za16|za17|za18|za19|za20|za21|za22|za23|za24|za25|za26|za27|za28|za29|za30|za31|za32|zd1|zd2|zd3|zd4|zd5|zd6|zd7|zd8|zd9|zd10|zd11|zd12|zd13|zd14|zd15|zd16|zd17|zd18|zd19|zd20|zd21|zd22|zd23|zd24|zd25|zd26|zd27|zd28|zd29|zd30|zd31|zd32|pattern1|pattern2|pattern3|pattern4|pattern5|pattern6|pattern7|pattern8|pattern9|pattern10
-2016-07-30T21:54:37.950Z|4134765|-14172|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-51|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-8066|-6541|-31|-37|-12|-70|-4134765|-72|-14164|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-47|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-4134765|-30|-32|-6|-68|-4134765|-69|NA|NA|NA|NA|NA|NA|NA|TRUE|NA|NA
+clock|sample|za1|za16|za27|za28|za29|za30|za32|pattern1|pattern2|pattern3|pattern4|pattern5|pattern6|pattern7|pattern8|pattern9|pattern10
+--|--|--|--|--|--|--|--|--|--|--|--|--|--|--|--|--|--|--|
+2016-07-30T21:54:37.950Z|4134765|-6541|-31|-37|-12|-70|-72|-47|NA|NA|NA|NA|NA|NA|NA|TRUE|NA|NA
 
 ## Prepare Data
 Discover and expose the structure in the dataset.
