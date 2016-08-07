@@ -147,6 +147,17 @@ Now that the structure in the dataset is understood the next step is to evaluate
 
 Training data
 
+```text
+      truth
+predict   0   2   3   4   5   6
+      0 107   0   0   0   0   0
+      2   0  17   0   0   0   0
+      3   0   0  12   0   0   0
+      4   0   0   0  22   0   0
+      5   0   0   0   0   7   0
+      6   0   0   0   0   0  11
+```
+
 |P/T| 0   | 2  | 3  | 4  | 5 | 6  |
 |---|-----|----|----|----|---|----|
 | **0** | 107 | 0  | 0  | 0  | 0 | 0  |
