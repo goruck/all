@@ -115,11 +115,12 @@ attach(dfKeep)
 result <- as.factor(dfKeep[, "pattern6"]) # response shows up as red (true) or blk (false)
 toPlot <- c("clock", "za29", "za27", "za28") #time & upstairs, front, hall motion
 plot(dfKeep[toPlot], pch=19, col=result) #pch=19 plots solid circles
-```
+
 ### apply the limit function to all elements except the clock and pattern columns
 drops <- c("clock", patterns)
 dfKeep[, !(names(dfKeep) %in% drops)] <- apply(dfKeep[, !(names(dfKeep) %in% drops)], c(1, 2), limitNum)
 df2Keep[, !(names(df2Keep) %in% drops)] <- apply(df2Keep[, !(names(df2Keep) %in% drops)], c(1, 2), limitNum)
+```
 
 ## Evaluate Algorithms
 Develop a robust test harness and baseline accuracy from which to improve and spot check algorithms.
