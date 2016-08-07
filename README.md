@@ -77,6 +77,7 @@ The axis for each plot is time in seconds from 0 to -120 with the exception of c
 * The data is not linearly separable between the true and false responses, so a non-linear model will be required.
 * The true responses tend to be tightly clustered and surrounded by false responses, perhaps indicating a higher order non-linear model will be needed.
 * The sensor predictors tend to be related by the fact they are offset in time from each other. The offset forms the basic pattern that needs to be classified.
+* The data appears relatively unstructured in that there are not well defined regions of true and false responses (the 'decision boundary'). 
 * Some patterns will have predictors that are not relevant since in general a path does not involve every sensor.
 * An ensemble of two models may be required, one with clock as a predictor and one without it to handle observations taken around a particular time and those at random times.
 * The data will need to be normalized given that the clock and sensor activation times are in different units. 
@@ -137,8 +138,23 @@ toPlot <- c("clock", "za29", "za27", "za28") #time & upstairs, front, hall motio
 plot(dfKeep[toPlot], pch=19, col=result) #pch=19 plots solid circles
 ```
 
-## Evaluate Algorithms
-Develop a robust test harness and baseline accuracy from which to improve and spot check algorithms.
+## Algorithm Evaluation
+Now that the structure in the dataset is understood the next step is to evaluate canidate model algorthims including a test harness. Given the realtively unstructured decision boundry and non-linear nature of the dataset, the K-Nearest Neighbors (KNN) and Support Vector Machine (SVM) algorthims seemed to be reasonable choices and were the focus of the evaluation. The algorthims would have to solve the classification problem of identifying a particular pattern from sensor data reflecting a person's movement through the house. The dataset provides a set of training observations that can be used to build a KNN- or SVM-based classifier. R was used to explore each algorthim's performance in this regard. See [An Introduction to Statistical Learning](http://smile.amazon.com/dp/B01IBM7790) for details about the KNN and SVM algorthims.
+
+### KNN
+
+### SVM
+
+      truth
+predict   0   2   3   4   5   6
+      0 107   0   0   0   0   0
+      2   0  17   0   0   0   0
+      3   0   0  12   0   0   0
+      4   0   0   0  22   0   0
+      5   0   0   0   0   7   0
+      6   0   0   0   0   0  11
+
+### Algorthim Selection
 
 ## Implement and Improve Results
 Implement the real-time prediction of patterns and leverage results to develop more accurate models.
