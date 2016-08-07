@@ -13,7 +13,7 @@ Using machine learning (ML) with ALL seemed to be a natural fit given the amount
 
 Its important to note that simple rule based algorithms can be employed instead of ML to trigger actions based on the sensor data. However, this is really only feasible for the most basic cases. 
 
-## Preparation
+## R Preparation
 The popular open-source software R was selected as the main ML tool and was intended to be used for both modeling and runtime purposes in order to accelerate development. The excellent book [An Introduction to Statistical Learning](http://smile.amazon.com/dp/B01IBM7790) was extensively used as both a learning guide to ML and to R.
 
 The R software package was downloaded from [The R Project for Statistical Computing](https://www.r-project.org/) website and compiled on the Raspberry Pi since there are no pre-compiled packages available for Raspbian Wheezy. The following steps are required to install R on the Pi.
@@ -52,7 +52,7 @@ Thus, as a person traversed through the zones listed above the problem is to pre
 
 A related problem is how to train the model in the most intuitive and easiest manner possible for the user. A good solution is tagging the patterns as the occur with voice via Alexa. For example, if a person walked the above pattern at 7:00 PM, she would tell Alexa that ("Alexa, I'm home") which would trigger a sequence of events to capture an observation and update the ML model. 
 
-## Analyze Data
+## Data Analysis
 Considerable thought was put into understanding the sensor information required to develop the ML model. The native output from the sensors is binary - the sensor is either activated by movement or its not due to lack of movement. For security monitoring purposes this is normally sufficient but this binary information needs to be transformed into a continuous time series to be useful as inputs to the model described above. This transformation is accomplished by applying a time-stamp to every activation or deactivation of a sensor. The timestamped sensor data is not used directly to build / update the ML model or predict a pattern, instead a version of the time-stamped data is used which is the activation / deactivation times of the sample relative to the observation time. The relative data is required to ensure that the training data used to build the model are consistent with new data used for prediction. Relative activation and deactivation times for each sensor along with the time and date, sample time, and the response ground truth for a specific pattern form a training predictor vector based on a single observation. A collection of these vectors form a dataset from which a model can be generated. Similarly, a test vector is formed from new sensor data (without the ground truth) that is used by the model to make predictions. 
 
 An example training predictor vector is shown below, where 'clock' is the time and date of the observation, 'sample' is a time-stamp value in seconds (derived from Linux system time of the server), 'zaNN' is the sensor activation time in seconds relative to the time-stamp, 'zdNN' is the sensor deactivation time in seconds relative to the time-stamp, and 'patternNN' is the response ground truth for a specific pattern for the given observation.
@@ -61,8 +61,65 @@ An example training predictor vector is shown below, where 'clock' is the time a
 |--------------------------|---------|--------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|------|----------|----------|----------|----------|----------|----------|----------|----------|-------|-------|------|------|------|------|----------|------|--------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|------|----------|----------|----------|----------|----------|----------|----------|----------|----------|----------|------|------|------|------|----------|------|----------|----------|----------|----------|----------|----------|----------|----------|----------|-----------|
 | 2016-07-30T21:54:37.950Z | 4134765 | -14172 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -51  | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -8066 | -6541 | -31  | -37  | -12  | -70  | -4134765 | -72  | -14164 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -47  | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -30  | -32  | -6   | -68  | -4134765 | -69  | NA       | NA       | NA       | NA       | NA       | NA       | NA       | TRUE     | NA       | NA        |
 
-## Prepare Data
-Discover and expose the structure in the dataset.
+## Data Preparation
+Once it was understood how to form a relevant sensor dataset for the model the next step was to discover and expose the structure in the dataset. Using the above transformations, a dataset of about 300 observations was collected and visualized in scatterplots using R's graphical capabilities. An example R generated scatterplot for 'pattern6' (walking from the upstairs to the kitchen via the front hall in the early morning) is shown in the figure below.
+
+![pattern6scatterplot](https://cloud.githubusercontent.com/assets/12125472/17462392/1b7a6948-5c60-11e6-9c5b-f902c87d2bfa.png)
+
+This plot was generated by the R code below. Note that a temporal filter is applied to the data that limits sensor times to 120 seconds which is about the maximum time it takes a person to walk a particular path through the house. 
+
+```R
+### setup
+remove(list=ls())
+set.seed(1234)
+df = read.csv("/home/lindo/dev/R/panelSimpledb-single.csv")
+zaKeep = c("za1","za16","za27","za28","za29","za30","za32")
+#zaKeep = NULL
+#zdKeep = c("zd1","zd16","zd27","zd28","zd29","zd30","zd32")
+zdKeep = NULL
+patterns <- c("pattern1", "pattern2", "pattern3", "pattern4", "pattern5",
+              "pattern6", "pattern7", "pattern8", "pattern9", "pattern10")
+keep = c("clock", zaKeep, zdKeep, patterns)
+dfKeep = df[sample(nrow(df)), keep]
+
+### convert any pattern column NA's into FALSE's
+dfKeep[patterns][is.na(dfKeep[patterns])] <- FALSE
+
+### extract hour from timestamp, stay in UTC
+extractHour2 <- function(dateTime) {
+  op <- options(digits.secs = 3) # 3 digit precision on seconds
+  td <- strptime(dateTime, format = "%Y-%m-%dT%H:%M:%OSZ", tz = "UTC")
+  h <- as.POSIXlt(td)$hour #+ (as.POSIXlt(td)$min)/60
+  options(op) # restore options
+  return(h)
+}
+### replace date / time stamps with only observation hour in local time
+dfKeep["clock"] <- lapply(dfKeep["clock"], extractHour2)
+
+### function to limit values in the dataframe
+TEMPORAL_CUTOFF <- -120 # 2 minutes ago
+TEMPORAL_VALUE  <- -120 # limit to 2 minutes
+limitNum <- function(num) {
+  if (num < TEMPORAL_CUTOFF) {
+    num <- TEMPORAL_VALUE
+  }
+  return(num)
+}
+
+### apply the limit function to all elements except the clock and pattern columns
+drops <- c("clock", patterns)
+dfKeep[, !(names(dfKeep) %in% drops)] <- apply(dfKeep[, !(names(dfKeep) %in% drops)], c(1, 2), limitNum)
+
+### look at scatterplot of sensors data
+attach(dfKeep)
+result <- as.factor(dfKeep[, "pattern6"]) # response shows up as red (true) or blk (false)
+toPlot <- c("clock", "za29", "za27", "za28") #time & upstairs, front, hall motion
+plot(dfKeep[toPlot], pch=19, col=result) #pch=19 plots solid circles
+```
+### apply the limit function to all elements except the clock and pattern columns
+drops <- c("clock", patterns)
+dfKeep[, !(names(dfKeep) %in% drops)] <- apply(dfKeep[, !(names(dfKeep) %in% drops)], c(1, 2), limitNum)
+df2Keep[, !(names(df2Keep) %in% drops)] <- apply(df2Keep[, !(names(df2Keep) %in% drops)], c(1, 2), limitNum)
 
 ## Evaluate Algorithms
 Develop a robust test harness and baseline accuracy from which to improve and spot check algorithms.
