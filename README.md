@@ -146,18 +146,7 @@ Now that the structure in the dataset is understood the next step is to evaluate
 ### SVM
 
 
-|             |          Grouping           ||
-First Header  | Second Header | Third Header |
- ------------ | :-----------: | -----------: |
-Content       |          *Long Cell*        ||
-Content       |   **Cell**    |         Cell |
-
-New section   |     More      |         Data |
-And more      | With an escaped '\|'         ||
-[Prototype table]
-
-
-|   | 0  | 2 | 3 | 4  | 5 | 6 |
+|T/P| 0  | 2 | 3 | 4  | 5 | 6 |
 |---|----|---|---|----|---|---|
 | 0 | 63 | 0 | 2 | 1  | 0 | 0 |
 | 2 | 5  | 7 | 0 | 0  | 0 | 0 |
