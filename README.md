@@ -145,14 +145,26 @@ Now that the structure in the dataset is understood the next step is to evaluate
 
 ### SVM
 
-      truth
-predict   0   2   3   4   5   6
-      0 107   0   0   0   0   0
-      2   0  17   0   0   0   0
-      3   0   0  12   0   0   0
-      4   0   0   0  22   0   0
-      5   0   0   0   0   7   0
-      6   0   0   0   0   0  11
+
+|             |          Grouping           ||
+First Header  | Second Header | Third Header |
+ ------------ | :-----------: | -----------: |
+Content       |          *Long Cell*        ||
+Content       |   **Cell**    |         Cell |
+
+New section   |     More      |         Data |
+And more      | With an escaped '\|'         ||
+[Prototype table]
+
+
+|   | 0  | 2 | 3 | 4  | 5 | 6 |
+|---|----|---|---|----|---|---|
+| 0 | 63 | 0 | 2 | 1  | 0 | 0 |
+| 2 | 5  | 7 | 0 | 0  | 0 | 0 |
+| 3 | 0  | 0 | 4 | 0  | 0 | 0 |
+| 4 | 0  | 0 | 0 | 11 | 0 | 0 |
+| 5 | 0  | 0 | 0 | 0  | 6 | 0 |
+| 6 | 0  | 0 | 0 | 0  | 0 | 4 |
 
 ### Algorthim Selection
 
