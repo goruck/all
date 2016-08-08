@@ -62,7 +62,7 @@ An example training predictor vector is shown below, where 'clock' is the time a
 | 2016-07-30T21:54:37.950Z | 4134765 | -14172 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -51  | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -8066 | -6541 | -31  | -37  | -12  | -70  | -4134765 | -72  | -14164 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -47  | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -30  | -32  | -6   | -68  | -4134765 | -69  | NA       | NA       | NA       | NA       | NA       | NA       | NA       | TRUE     | NA       | NA        |
 
 ## Data Preparation
-Once it was understood how to form a relevant sensor dataset for the model the next step was to discover and expose the structure in the dataset. Using the above transformations, a dataset of about 300 observations was collected and visualized in scatterplots using R's graphical capabilities. The R code that generated these plots can be found [here](genScatterPlots.R) and the observation dataset can be found [here](panelSimpledb.csv).
+Once it was understood how to form a relevant sensor dataset for the model the next step was to discover and expose the structure in the dataset. Using the above transformations, a dataset of about 300 observations was collected and visualized in scatterplots using R's graphical capabilities. The R code that generated these plots can be found [here](https://github.com/goruck/mall/blob/newstatus/R/genScatterPlots.R) and the observation dataset can be found [here](https://github.com/goruck/mall/blob/newstatus/R/panelSimpledb.csv).
 
 An example R generated scatterplot for the response 'pattern6' (walking from the upstairs to the kitchen via the front hall in the early morning) is shown in the figure below. Note that a temporal filter is always applied to the data that limits sensor times to 120 seconds which is about the maximum time it takes a person to walk a particular path through the house. Sensor data outside this window is not relevant. 
 
@@ -88,9 +88,9 @@ Now that the structure in the dataset is understood the next step is to evaluate
 ### KNN
 
 ### SVM
-An SVM with a radial kernel was selected given the non-linear class boundries of the datasets. Cross-validation was used to select the best values of the parameters gamma and cost associated with the model. The R script to generate and test the SVM model can be found [here](genSvmTest.R). The script generates confusion matrices for training and validation data. These matrices are shown below and reflect reasonably good prediction performance from the model. 
+An SVM with a radial kernel was selected given the non-linear class boundries of the datasets. Cross-validation was used to select the best values of the parameters gamma and cost associated with the model. The R script to generate and test the SVM model can be found [here](https://github.com/goruck/mall/blob/newstatus/R/genSvmTest.R). The script generates confusion matrices for training and validation data. These matrices are shown below and reflect reasonably good prediction performance from the model. 
 
-Confusion matrix for the training data:
+Confusion matrix for the training data shown below. The numbers in the row and column headers represent the pattern number classified with 0 being the null case (i.e., no pattern was classified). Note that only patterns 2 through 6 were used in this case. 
 
 ```text
       truth
@@ -102,10 +102,10 @@ predict   0   2   3   4   5   6
       5   0   0   0   0   7   0
       6   0   0   0   0   0  11
 ```
-Confusion matrix for the test data:
+Confusion matrix for the test data shown below. 
 
 ```text
-truth
+      truth
 predict  0  2  3  4  5  6
       0 63  0  2  1  0  0
       2  5  7  0  0  0  0
