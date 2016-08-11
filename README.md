@@ -83,14 +83,15 @@ The axis for each plot is time in seconds from 0 to -120 with the exception of c
 * The data will need to be normalized given that the clock and sensor activation times are in different units. 
 
 ## Algorithm Evaluation
-Now that the structure in the dataset is understood the next step is to evaluate canidate model algorthims including a test harness. Given the realtively unstructured decision boundry and non-linear nature of the dataset, the K-Nearest Neighbors (KNN) and Support Vector Machine (SVM) algorthims are reasonable choices and were the focus of the evaluation. The algorthims would have to solve the classification problem of identifying a particular pattern from sensor data reflecting a person's movement through the house. The dataset provides a set of training observations that can be used to build a KNN- or SVM-based classifier. R was used to explore each algorthim's performance in this regard. See [An Introduction to Statistical Learning](http://smile.amazon.com/dp/B01IBM7790) for details about the KNN and SVM algorthims.
+Now that the structure in the dataset is understood the next step is to evaluate candidate model algorithms including a test harness. Given the relatively unstructured decision boundary and non-linear nature of the dataset, the K-Nearest Neighbors (KNN) and Support Vector Machine (SVM) algorithms are reasonable choices and were the focus of the evaluation given that they are non-parametric methods and have high flexibility. The algorithms would have to solve the classification problem of identifying a particular pattern from sensor data reflecting a person's movement through the house. The dataset provides a set of training observations that can be used to build a KNN- or SVM-based classifier. R was used to explore each algorithm's performance in this regard. See [An Introduction to Statistical Learning](http://smile.amazon.com/dp/B01IBM7790) for details about the KNN and SVM algorithms.
 
 ### KNN
+Although KNN gave generally good prediction results, overall it had lower accuracy than SVM. It is a 'lazy learner' and forms predictions on the entire dataset without having to fit a model first, its runtime performance tended to get quickly worse as the dataset grew which is a disadvantage of the approach. Also, the selection of the parameter K, the number of nearest neighbors to be used by the classifier, is critical to performance which proved to be difficult to determine as the dataset grew. Despite its primary advantage of being a very simple approach to achieving good performance, the overall advantages of SVM became apparent and the focus turned there. 
 
 ### SVM
-An SVM with a radial kernel was selected given the non-linear class boundries of the datasets. Cross-validation was used to select the best values of the parameters gamma and cost associated with the model. The R script to generate and test the SVM model can be found [here](https://github.com/goruck/mall/blob/newstatus/R/genSvmTest.R). The script generates confusion matrices for training and validation data. These matrices are shown below and reflect reasonably good prediction performance from the model. 
+An SVM with a radial kernel was selected given the non-linear class boundaries of the datasets. Cross-validation was used to select the best values of the parameters gamma and cost associated with the model. The R script to generate and test the SVM model can be found [here](https://github.com/goruck/mall/blob/newstatus/R/genSvmTest.R). The script generates confusion matrices for training and validation data. These matrices are shown below and reflect reasonably good prediction performance from the model. 
 
-Confusion matrix for the training data shown below. The numbers in the row and column headers represent the pattern number classified with 0 being the null case (i.e., no pattern was classified). Note that only patterns 2 through 6 were used in this case. 
+The confusion matrix for the training data shown below. The numbers in the row and column headers represent the pattern number classified with 0 being the null case (i.e., no pattern was classified). Note that only patterns 2 through 6 were used in this case. 
 
 ```text
       truth
@@ -102,7 +103,7 @@ predict   0   2   3   4   5   6
       5   0   0   0   0   7   0
       6   0   0   0   0   0  11
 ```
-Confusion matrix for the test data shown below. 
+The confusion matrix for the test data shown below. 
 
 ```text
       truth
@@ -115,7 +116,7 @@ predict  0  2  3  4  5  6
       6  0  0  0  0  0  4
 ```
 
-### Algorthim Selection
+Based on these results the SVM approach was chosen. 
 
 ## Implement and Improve Results
 Implement the real-time prediction of patterns and leverage results to develop more accurate models.
