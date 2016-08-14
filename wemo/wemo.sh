@@ -1,1 +1,0 @@
-/home/pi/bin/wemo.sh
