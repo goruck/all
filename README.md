@@ -72,10 +72,19 @@ Once it was understood how to form a relevant sensor dataset for the model the n
 
 Eight unique patterns were used to generate the observations. Each pattern corresponds to a path, direction, and speed of a person walking though the house and the approximate hour of the day this pattern occurred. The patterns and the zones they activate are summarized in the table below.
 
-Number | Path | z1 | z16 | z27 | z28 | z29 | z30 | z32 | clock | Remark
--------|------|-----|-----|-----|-----|-----|-----|-----|-------|-------
-0 | null | NA | NA | NA | NA | NA | NA | NA | NA | Virtual pattern that indicates no path has been classified.
-1 | from front door into playroom via house in the evening | &#10004 | &#10004 | &#10004 | &#10004 | NA | &#10004 | &#10004 | ~ 7:00PM |
+Number | Path ID | z1 | z16 | z27 | z28 | z29 | z30 | z32 | clock
+-------|---------|----|-----|-----|-----|-----|-----|-----|-------
+0 | virtual pattern that indicates no path has been classified | N | N | N | N | N | N | N | N
+1 | from front door into playroom in the evening | Y | Y | Y | Y | N | Y | Y | ~7:00PM
+2 | from outside into playroom | N | N | N | N | N | Y | Y | N
+3 | from family room into playroom | N | N | N | N | N | Y | Y | N
+4 | slow walk from kid's rooms to playroom | N | Y | Y | Y | N | Y | Y | N
+5 | fast walk from kid's rooms to playroom | N | Y | Y | Y | N | Y | Y | N
+6 | from master bedroom to kitchen in the early morning via living room | N | N | Y | N | Y | N | N | ~4:00AM
+7 | reserved | N | N | N | N | N | N | N | N
+8 | from playroom to kid's rooms | N | Y | Y | Y | N | Y | Y | N
+9 | reserved | N | N | N | N | N | N | N | N
+10 | reserved | N | N | N | N | N | N | N | N
 
 An example R generated scatterplot for the response 'pattern6' (walking from the upstairs to the kitchen via the front hall in the early morning) is shown in the figure below. Note that a temporal filter is always applied to the data that limits sensor times to 120 seconds which is about the maximum time it takes a person to walk a particular path through the house. Sensor data outside this window is not relevant. 
 
