@@ -174,17 +174,56 @@ Levels:
  0 1 2 3 4 5 6 8
 ```
 
-## Implement and Improve Results
+## Implementation
 Now that the algorithm was selected, the next step was to implement the real-time prediction of patterns, develop an Alexa skill that performs voice tagging of training observations, and develop a method to periodically re-fit the SVM with new training data.
 
-### Real-time Prediction
-A new thread called *predict()* was added to the Raspberry Pi real-time software which runs every PREDICT_UPDATE seconds and sends sensor data to an R script via the *popen()* system command to make a prediction. The prediction R script is found [here](https://github.com/goruck/mall/blob/newstatus/R/predsvm2.R). The thread reads the prediction from R, applies some confidence checking rules and does something if a true prediction is determined. Currently, various WeMo light switches in the house are controlled by the thread in response to predictions in a hardcoded manner. At some point a more flexible and extensible mapping of predictions to actions will be implemented. The WeMo devices are controlled by a bash script called by a *system()* command. The WeMo bash script can be found [here](https://github.com/goruck/mall/blob/newstatus/wemo/wemo.sh). 
+### Real-time Prediction and Action
+A new thread called *predict()* was added to the [Raspberry Pi real-time software](https://github.com/goruck/mall/blob/newstatus/rpi/kprw-server.c) which runs periodically and sends sensor data to an R script via the *popen()* system command to make a prediction. The prediction R script is found [here](https://github.com/goruck/mall/blob/newstatus/R/predsvm2.R). The thread reads the prediction from R, applies some confidence checking rules and does something if a true prediction is determined. Currently, various WeMo light switches in the house are controlled by the thread in response to predictions in a hardcoded manner. At some point a more flexible and extensible mapping of predictions to actions will be implemented. The WeMo devices are controlled by a bash script called by a *system()* command. The WeMo bash script can be found [here](https://github.com/goruck/mall/blob/newstatus/wemo/wemo.sh). 
 
 Two models are used in the prediction R script, one that uses the clock as a prediction and one that does not. If both models predict the same pattern, the higher probability prediction is selected (in the case of both models making the same non-null prediction, a higher probability pattern from the model using clock as a predictor is likely a timed pattern that uses the clock). If one model has not identified any pattern and the other has, then the non-null case is selected.
+
+The thread has the capability to log the output of the prediction R script which includes a timestamp, sensor states, and the prediction with probabilities. A sample from the log is below which correctly identifies the observation as being 'pattern 4' (slow walk from kid's rooms to playroom) with a higher probability that its a non-timed (i.e., not at any specific time of day) path. 
+
+```text
+********** New R Run (svm2) **********
+timestamp: 2016-08-11T12:56:35Z 
+ clock  za1 za16 za27 za28 za29 za30 za32
+    12 -120  -56  -85  -74 -103   -1  -26
+pred: 4 prob: .74 (w/o clk) | pred: 4 prob: .66 (w/clk)
+********** End R Run (svm2) **********
+```
 
 There is also a rather naive approach implemented in the thread to predict the number of occupants in the house based on concurrent motion and door sensor activity. However it does provide surprisingly accurate results based on subjective testing. The pattern predictions can probably be used to provide a more accurate occupancy estimate, that work is planned for a future rev of the code. 
 
 The latency between sensor activity and prediction leading to the activation of a WeMo device is less than a second based on subjective testing. This is acceptable for now but as the dataset grows the model will become more complex (given its non-parametric nature) and so the latency will increase. There is also considerable latency added by using the R script via *popen()* since it adds its own overhead. Although using the R script accelerated overall development (since it was easy to reuse much of the R work from earlier stages in the project), at some point a C SVM library will probably be used in the thread instead of calling the R script in order to reduce latency. R itself uses a C/C++ library implementation of the popular *LIBSVM* package so it would be relatively straightforward to use it in the thread. More information on *LIBSVM* can be found [here](https://www.csie.ntu.edu.tw/~cjlin/libsvm/).
+
+### Alexa Skill for Voice Tagging
+An [AWS SimpleDB](https://aws.amazon.com/simpledb/) database was created to store the observations that the Alexa voice tagging skill generates. The database was created by the code shown below. This assumes that the AWS SDK has been installed on the machine. See [AWS SDK for JavaScript in Node.js](https://aws.amazon.com/sdk-for-node-js/) for how to do this.
+
+```javascript
+var AWS = require('/usr/local/lib/node_modules/aws-sdk');
+
+var fs = require('fs');
+
+AWS.config.region = 'us-west-2';
+
+var simpledb = new AWS.SimpleDB({apiVersion: '2009-04-15'});
+
+// create domain
+var params = {
+  DomainName: 'panelSimpledb' // required
+};
+simpledb.createDomain(params, function(err, data) {
+  if (err) console.log(err, err.stack); // an error occurred
+  else     console.log(data);           // successful response
+});
+```
+
+
+The thread *msg_io()* in the Raspberry Pi real-time software was modified to calculate the timestamped sensor data as described above and the Pi's server was modified to return that along with other information as JSON in response to a command from the Alexa skill running in AWS Lambda. 
+
+### Model Retraining
+TBD
 
 # Updated System Block Diagram
 
