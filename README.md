@@ -70,7 +70,7 @@ An example training predictor vector is shown below, where 'clock' is the time a
 ## Data Preparation
 Once it was understood how to form a relevant sensor dataset for the model the next step was to discover and expose the structure in the dataset. Using the above transformations, a dataset of about 300 observations was collected and visualized in scatterplots using R's graphical capabilities. The R code that generated these plots can be found [here](https://github.com/goruck/mall/blob/newstatus/R/genScatterPlots.R) and the observation dataset can be found [here](https://github.com/goruck/mall/blob/newstatus/R/panelSimpledb.csv).
 
-Eight unique patterns were used to generate the observations. Each pattern corresponds to a path, direction, and speed of a person walking though the house and the approximate hour of the day this pattern occurred. The patterns and the zones they activate are summarized in the table below.
+Eight unique patterns were used to generate the observations. Each pattern corresponds to a path, direction, and speed of a person walking though the house and the approximate hour of the day this pattern occurred. The training was done by walking the pattern a few times and then invoking an Alexa skill that aquired the sensor data. The patterns and the zones they activate are summarized in the table below.
 
 Pattern Number | Path | z1 | z16 | z27 | z28 | z29 | z30 | z32 | clock
 -------|---------|----|-----|-----|-----|-----|-----|-----|-------
@@ -107,13 +107,16 @@ The axis for each plot is time in seconds from 0 to -120 with the exception of c
 ## Algorithm Evaluation
 Now that the structure in the dataset is understood candidate model algorithms were evaluated using an R-based test harness.
 
-Given the relatively unstructured decision boundary and non-linear nature of the dataset, the K-Nearest Neighbors (KNN), Random Forests and Support Vector Machine (SVM) algorithms are reasonable choices given that they are well-understood, non-parametric methods and have high flexibility (note that all non-parametric models have the disadvantage of growing more complex as the number of observations increases). See [An Introduction to Statistical Learning](http://smile.amazon.com/dp/B01IBM7790) for details about the KNN, Random Forests, and SVM algorithms and their relative strengths and weaknesses. Both KNN and SVM approaches were evaluated but overall SVM seemed to offer better over performance (at the expense of more complexity) for the sensor dataset and so therefore was selected. The algorithm would have to solve the multi-classification problem of identifying a particular pattern from sensor data reflecting a person's movement through the house. The dataset provides a set of training observations that can be used to build a SVM-based binary classifier. 
+Given the relatively unstructured decision boundary and non-linear nature of the dataset, the K-Nearest Neighbors (KNN), Random Forests and Support Vector Machine (SVM) algorithms are reasonable choices given that they are well-understood, non-parametric methods and have high flexibility (note that non-parametric models generally have the disadvantage of growing more complex as the number of observations increases). See [An Introduction to Statistical Learning](http://smile.amazon.com/dp/B01IBM7790) for details about the KNN, Random Forests, and SVM algorithms and their relative strengths and weaknesses. In the interest of time, only KNN and SVM approaches were evaluated and overall SVM seemed to offer better over performance (at the expense of more complexity) for the sensor dataset and so therefore was selected. The algorithm would have to solve the multi-classification problem of identifying a particular pattern from sensor data reflecting a person's movement through the house. The dataset provides a set of training observations that can be used to build a SVM-based binary multiple classifier. SVM uses the one-versus-one for multiple classification. 
 
-An SVM with a radial kernel was selected given the non-linear class boundaries of the datasets. Cross-validation was used to select the best values of the parameters gamma and cost associated with the model. The R script to generate and test the SVM model can be found [here](https://github.com/goruck/mall/blob/newstatus/R/genSvmTest.R) with the dataset [here](https://github.com/goruck/mall/blob/newstatus/R/panelSimpledb.csv). The script generates confusion matrices for training and validation data. These matrices are shown below and reflect reasonably good prediction performance from the model. 
+An SVM with a radial kernel was selected given the non-linear class boundaries of the datasets. Cross-validation was used to select the best values of the parameters gamma and cost associated with the model. The R script to generate and test the SVM model can be found [here](https://github.com/goruck/mall/blob/newstatus/R/genSvmTest.R) with the dataset [here](https://github.com/goruck/mall/blob/newstatus/R/panelSimpledb.csv). The script generates confusion matrices for training and validation data.
 
-The confusion matrix for the training data shown below. The numbers in the row and column headers represent the pattern number classified with 0 being the null case (i.e., no pattern was classified). Note that only patterns 1 through 8 were used and with clock as a factor in these examples. 
+The confusion matrix for the training data shown below. The numbers in the row and column headers represent the pattern number classified with 0 being the null case (i.e., no pattern was classified). Note that only patterns 1 through 8 were used and with clock as a factor in these examples. This data indicates that model is trained very well except for pattern 8. This is most likely because pattern does not yet have enough training samples in the current dataset. 
 
 ```text
+> ### training error of optimal svm model with clock as a predictor
+> svmPred = predict(svmOpt, trainData, probability = TRUE)
+> table(predict = svmPred, truth = trainLabels)
        truth
 predict   0   1   2   3   4   5   6   8
       0 125   0   0   0   0   0   0   5
@@ -124,11 +127,13 @@ predict   0   1   2   3   4   5   6   8
       5   0   0   0   0   0   6   0   0
       6   0   0   0   0   0   0  12   0
       8   0   0   0   0   0   0   0   0
-
 ```
-The confusion matrix for the test data shown below. 
+The confusion matrix for the test data shown below where a number of false negatives are shown particularly for patterns 2, 3, 5, and 8. This could indicate that the model is over-fitted or, as in the case of pattern 8, patterns have insufficient training data. The model will need to be refined as the dataset grows with additional training observations and its prediction performance is evaluated over time. 
 
 ```text
+> ### test error of optimal svm model with clock as a predictor
+> svmPred = predict(svmOpt, testData, probability = TRUE)
+> table(predict = svmPred, truth = testLabels)
        truth
 predict  0  1  2  3  4  5  6  8
       0 51  0  4  2  0  2  0  3
@@ -139,7 +144,34 @@ predict  0  1  2  3  4  5  6  8
       5  0  0  0  0  0  5  0  0
       6  0  0  0  0  0  0  4  0
       8  0  0  0  0  0  0  0  0
+```
 
+R's summary function can be used to obtain some information about the SVM fit, the output is shown below. It can be seen that there is a large number of support vectors which indicates a complex decision boundary. This is also evident from the scatterplots above. 
+
+```text
+> summary(svmOpt)
+
+Call:
+svm(formula = y ~ ., data = trainData, kernel = "radial", gamma = svmTuneOut$best.model$gamma, 
+    cost = svmTuneOut$best.model$cost, decision.values = FALSE, probability = TRUE, 
+    scale = TRUE)
+
+
+Parameters:
+    SVM-Type: C-classification 
+  SVM-Kernel: radial 
+        cost: 100 
+       gamma: 1 
+
+Number of Support Vectors:  149
+
+ ( 94 16 2 13 4 9 5 6 )
+
+
+Number of Classes:  8 
+
+Levels: 
+ 0 1 2 3 4 5 6 8
 ```
 
 ## Implement and Improve Results
