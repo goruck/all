@@ -226,7 +226,9 @@ The existing Lambda Node.js code in [all.js](https://github.com/goruck/mall/blob
 The existing thread *msg_io()* in the [Raspberry Pi real-time software](https://github.com/goruck/mall/blob/newstatus/rpi/kprw-server.c) was modified to calculate the timestamped sensor data as described above and the Pi's server was modified to return that along with other information as JSON in response to a command from the Alexa skill running in AWS Lambda. Using JSON over raw text greatly simplifies the Node.js code running in Lambda. 
 
 ### Model Retraining
-TBD
+The SVM models needs to be periodically refitted as new observations are taken, ground truth tagged by Alexa, and stored in SimpleDB. This is accomplished by a new Node.js routine running locally on the Raspberry Pi that is run as a cron job every day at midnight. When the routine, *simpledb-read.js*, run it reads SimpleDB and compares the latest observation with what was previously read. If there are new observation(s), the data is copied from SimpleDB and appended to a local copy and then the SVM models are refitted with it. The SVM model generation is done using R which is called from the Node.js routine. From that point forward, the updated models are used for real-time prediction in the *predict()* thread.
+
+The Node.js routine, *simpledb-read.js*, can be found [here](https://github.com/goruck/mall/blob/newstatus/nodejs/simpledb-read.js). The R script that generates the models, *genSvmModels2.R*, can be found [here](https://github.com/goruck/mall/blob/newstatus/R/genSvmModels2.R).
 
 # Updated System Block Diagram
 
