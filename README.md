@@ -77,12 +77,12 @@ Number | Path ID | z1 | z16 | z27 | z28 | z29 | z30 | z32 | clock
 0 | virtual pattern that indicates no path has been classified | N | N | N | N | N | N | N | N
 1 | from front door into playroom in the evening | Y | Y | Y | Y | N | Y | Y | ~7:00PM
 2 | from outside into playroom | N | N | N | N | N | Y | Y | N
-3 | from family room into playroom | N | N | N | N | N | Y | Y | N
-4 | slow walk from kid's rooms to playroom | N | Y | Y | Y | N | Y | Y | N
-5 | fast walk from kid's rooms to playroom | N | Y | Y | Y | N | Y | Y | N
+3 | from family room into playroom | N | Y | N | N | N | Y | Y | N
+4 | slow walk from kid's rooms to playroom | N | Y | Y | Y | Y | Y | Y | N
+5 | fast walk from kid's rooms to playroom | N | Y | Y | Y | Y | Y | Y | N
 6 | from master bedroom to kitchen in the early morning via living room | N | N | Y | N | Y | N | N | ~4:00AM
 7 | reserved | N | N | N | N | N | N | N | N
-8 | from playroom to kid's rooms | N | Y | Y | Y | N | Y | Y | N
+8 | from playroom to kid's rooms | N | Y | Y | Y | Y | Y | Y | N
 9 | reserved | N | N | N | N | N | N | N | N
 10 | reserved | N | N | N | N | N | N | N | N
 
