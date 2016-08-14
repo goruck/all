@@ -70,6 +70,13 @@ An example training predictor vector is shown below, where 'clock' is the time a
 ## Data Preparation
 Once it was understood how to form a relevant sensor dataset for the model the next step was to discover and expose the structure in the dataset. Using the above transformations, a dataset of about 300 observations was collected and visualized in scatterplots using R's graphical capabilities. The R code that generated these plots can be found [here](https://github.com/goruck/mall/blob/newstatus/R/genScatterPlots.R) and the observation dataset can be found [here](https://github.com/goruck/mall/blob/newstatus/R/panelSimpledb.csv).
 
+Eight unique patterns were used to generate the observations. Each pattern corresponds to a path, direction, and speed of a person walking though the house and the approximate hour of the day this pattern occurred. The patterns and the zones they activate are summarized in the table below.
+
+Number | Path | z1 | z16 | z27 | z28 | z29 | z30 | z32 | clock | Remark
+-------|------|-----|-----|-----|-----|-----|-----|-----|-------|-------
+0 | null | NA | NA | NA | NA | NA | NA | NA | NA | Virtual pattern that indicates no path has been classified.
+1 | from front door into playroom via house in the evening | &#10004 | &#10004 | &#10004 | &#10004 | NA | &#10004 | &#10004 | ~ 7:00PM |
+
 An example R generated scatterplot for the response 'pattern6' (walking from the upstairs to the kitchen via the front hall in the early morning) is shown in the figure below. Note that a temporal filter is always applied to the data that limits sensor times to 120 seconds which is about the maximum time it takes a person to walk a particular path through the house. Sensor data outside this window is not relevant. 
 
 ![pattern6scatterplot](https://cloud.githubusercontent.com/assets/12125472/17462392/1b7a6948-5c60-11e6-9c5b-f902c87d2bfa.png)
@@ -89,47 +96,42 @@ The axis for each plot is time in seconds from 0 to -120 with the exception of c
 * The data will need to be normalized given that the clock and sensor activation times are in different units. 
 
 ## Algorithm Evaluation
-Now that the structure in the dataset is understood the next step is to evaluate candidate model algorithms including a test harness. I used the following advice for ML model selection give by [this excellent article](http://www.kdnuggets.com/2016/04/deep-learning-vs-svm-random-forest.html) by Sebastian Raschka to help guide my evaluation:
+Now that the structure in the dataset is understood candidate model algorithms were evaluated using an R-based test harness.
 
-* Define a performance metric to evaluate your model
-* Ask yourself: What performance score is desired, what hardware is required, what is the project deadline
-* Start with the simplest model
-* If you don't meet your expected goal, try more complex models (if possible)
+Given the relatively unstructured decision boundary and non-linear nature of the dataset, the K-Nearest Neighbors (KNN), Random Forests and Support Vector Machine (SVM) algorithms are reasonable choices given that they are well-understood, non-parametric methods and have high flexibility (note that all non-parametric models have the disadvantage of growing more complex as the number of observations increases). See [An Introduction to Statistical Learning](http://smile.amazon.com/dp/B01IBM7790) for details about the KNN, Random Forests, and SVM algorithms and their relative strengths and weaknesses. Both KNN and SVM approaches were evaluated but overall SVM seemed to offer better over performance (at the expense of more complexity) for the sensor dataset and so therefore was selected. The algorithm would have to solve the multi-classification problem of identifying a particular pattern from sensor data reflecting a person's movement through the house. The dataset provides a set of training observations that can be used to build a SVM-based binary classifier. 
 
-Given the relatively unstructured decision boundary and non-linear nature of the dataset, the K-Nearest Neighbors (KNN), Random Forests and Support Vector Machine (SVM) algorithms are reasonable choices given that they are non-parametric methods and have high flexibility (note that all non-parametric models have the disadvantage of growing more complex as the number of observations increases). These approaches tend to lend themselves well to relatively small datasets with fewer outliers which is consistent with the sensor datasets. In the interest of time, KNN and SVM algorithms were the focus of the evaluation. The algorithms would have to solve the multi-classification problem of identifying a particular pattern from sensor data reflecting a person's movement through the house. The dataset provides a set of training observations that can be used to build a KNN- or SVM-based classifier. R was used to explore each algorithm's performance in this regard. See [An Introduction to Statistical Learning](http://smile.amazon.com/dp/B01IBM7790) for details about the KNN, Random Forests, and SVM algorithms and their relative strengths and weaknesses.
+An SVM with a radial kernel was selected given the non-linear class boundaries of the datasets. Cross-validation was used to select the best values of the parameters gamma and cost associated with the model. The R script to generate and test the SVM model can be found [here](https://github.com/goruck/mall/blob/newstatus/R/genSvmTest.R) with the dataset [here](https://github.com/goruck/mall/blob/newstatus/R/panelSimpledb.csv). The script generates confusion matrices for training and validation data. These matrices are shown below and reflect reasonably good prediction performance from the model. 
 
-### KNN
-Although KNN gave generally decent prediction results, overall it had lower accuracy than SVM. Also, the selection of the parameter K, the number of nearest neighbors to be used by the classifier, is critical to performance which proved to be difficult to optimally determine as the dataset grew. The other drawback of KNN is that the typical multi-class implementation is a One-vs-All approach which adds complexity. It does have the advantage of being a 'lazy learner' and forms predictions on the entire dataset without having to fit a model first. Despite it being a very simple approach to achieving decent performance, the overall advantages of SVM over KNN became apparent and the focus turned to SVM. 
-
-### SVM
-An SVM with a radial kernel was selected given the non-linear class boundaries of the datasets. Cross-validation was used to select the best values of the parameters gamma and cost associated with the model. The R script to generate and test the SVM model can be found [here](https://github.com/goruck/mall/blob/newstatus/R/genSvmTest.R). The script generates confusion matrices for training and validation data. These matrices are shown below and reflect reasonably good prediction performance from the model. 
-
-The confusion matrix for the training data shown below. The numbers in the row and column headers represent the pattern number classified with 0 being the null case (i.e., no pattern was classified). Note that only patterns 2 through 6 were used in this case. 
+The confusion matrix for the training data shown below. The numbers in the row and column headers represent the pattern number classified with 0 being the null case (i.e., no pattern was classified). Note that only patterns 1 through 8 were used and with clock as a factor in these examples. 
 
 ```text
-      truth
-predict   0   2   3   4   5   6
-      0 107   0   0   0   0   0
-      2   0  17   0   0   0   0
-      3   0   0  12   0   0   0
-      4   0   0   0  22   0   0
-      5   0   0   0   0   7   0
-      6   0   0   0   0   0  11
+       truth
+predict   0   1   2   3   4   5   6   8
+      0 125   0   0   0   0   0   0   5
+      1   0   5   0   0   0   0   0   0
+      2   0   0  18   0   0   0   0   0
+      3   0   0   0  10   0   0   0   0
+      4   0   0   0   0  24   0   0   0
+      5   0   0   0   0   0   6   0   0
+      6   0   0   0   0   0   0  12   0
+      8   0   0   0   0   0   0   0   0
+
 ```
 The confusion matrix for the test data shown below. 
 
 ```text
-      truth
-predict  0  2  3  4  5  6
-      0 63  0  2  1  0  0
-      2  5  7  0  0  0  0
-      3  0  0  4  0  0  0
-      4  0  0  0 11  0  0
-      5  0  0  0  0  6  0
-      6  0  0  0  0  0  4
-```
+       truth
+predict  0  1  2  3  4  5  6  8
+      0 51  0  4  2  0  2  0  3
+      1  0  2  0  0  0  0  0  0
+      2  0  0  2  0  0  0  0  0
+      3  1  0  0  6  0  0  0  0
+      4  0  0  0  0 10  0  0  0
+      5  0  0  0  0  0  5  0  0
+      6  0  0  0  0  0  0  4  0
+      8  0  0  0  0  0  0  0  0
 
-Based on these results the SVM approach was chosen. 
+```
 
 ## Implement and Improve Results
 Implement the real-time prediction of patterns and leverage results to develop more accurate models.
