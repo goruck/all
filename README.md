@@ -72,7 +72,7 @@ Once it was understood how to form a relevant sensor dataset for the model the n
 
 Eight unique patterns were used to generate the observations. Each pattern corresponds to a path, direction, and speed of a person walking though the house and the approximate hour of the day this pattern occurred. The patterns and the zones they activate are summarized in the table below.
 
-Number | Path ID | z1 | z16 | z27 | z28 | z29 | z30 | z32 | clock
+Pattern Number | Path | z1 | z16 | z27 | z28 | z29 | z30 | z32 | clock
 -------|---------|----|-----|-----|-----|-----|-----|-----|-------
 0 | virtual pattern that indicates no path has been classified | N | N | N | N | N | N | N | N
 1 | from front door into playroom in the evening | Y | Y | Y | Y | N | Y | Y | ~7:00PM
