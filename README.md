@@ -197,6 +197,10 @@ There is also a rather naive approach implemented in the thread to predict the n
 
 The latency between sensor activity and prediction leading to the activation of a WeMo device is less than a second based on subjective testing. This is acceptable for now but as the dataset grows the model will become more complex (given its non-parametric nature) and so the latency will increase. There is also considerable latency added by using the R script via *popen()* since it adds its own overhead. Although using the R script accelerated overall development (since it was easy to reuse much of the R work from earlier stages in the project), at some point a C SVM library will probably be used in the thread instead of calling the R script in order to reduce latency. R itself uses a C/C++ library implementation of the popular *LIBSVM* package so it would be relatively straightforward to use it in the thread. More information on *LIBSVM* can be found [here](https://www.csie.ntu.edu.tw/~cjlin/libsvm/).
 
+A simplified flowchart of the *predict()* thread operation is shown in the figure below.
+
+![predict](https://cloud.githubusercontent.com/assets/12125472/17653814/d18be5dc-624f-11e6-81a8-749abca92668.png)
+
 ### Alexa Skill Support for Voice Tagging and Prediction
 An [AWS SimpleDB](https://aws.amazon.com/simpledb/) database was created to store the observations that the Alexa voice tagging skill generates. The database was created by the code shown below. This assumes that the AWS SDK has been installed on the machine. See [AWS SDK for JavaScript in Node.js](https://aws.amazon.com/sdk-for-node-js/) for how to do this.
 
