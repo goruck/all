@@ -230,8 +230,8 @@ Currently, *TrainIsIntent* and *trainInSession()* uses 10 fixed patterns with th
 
 The existing thread *msg_io()* in the [Raspberry Pi real-time software](https://github.com/goruck/mall/blob/newstatus/rpi/kprw-server.c) was modified to calculate the timestamped sensor data as described above and the Pi's server was modified to return that along with other information as JSON in response to a command from the Alexa skill running in AWS Lambda. Using JSON over raw text greatly simplifies the Node.js code running in Lambda.
 
-A simplified flow diagram of the *TrainIsIntent* and *trainInSession()* functionality is shown in the figure below.
-![train-flow-chart](https://cloud.githubusercontent.com/assets/12125472/17654545/0c3c0a5a-6259-11e6-816d-a9396262a655.png)
+A simplified flow diagram of voice tagging using the *TrainIsIntent* and *trainInSession()* functionality is shown in the figure below.
+![train-flow-chart](https://cloud.githubusercontent.com/assets/12125472/17685887/e047bf92-631c-11e6-9c81-8d9390074ada.png)
 
 ### Model Retraining
 The SVM models needs to be periodically refitted as new observations are taken, ground truth tagged by Alexa, and stored in SimpleDB. This is accomplished by a new Node.js routine locally on the Raspberry Pi that is run as a cron job every day at midnight. When the routine, *simpledb-read.js*, is run it reads SimpleDB and compares the latest observation with what was previously read. If there are new observation(s), the data is copied from SimpleDB and appended to a local copy and then the SVM models are refitted with it. The SVM model generation is done using R which is called from the Node.js routine. From that point forward, the updated models are used for real-time prediction in the *predict()* thread.
