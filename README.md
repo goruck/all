@@ -239,6 +239,20 @@ The SVM models needs to be periodically refitted as new observations are taken, 
 
 The Node.js routine, *simpledb-read.js*, can be found [here](https://github.com/goruck/mall/blob/newstatus/nodejs/simpledb-read.js). The R script that generates the models, *genSvmModels2.R*, can be found [here](https://github.com/goruck/mall/blob/newstatus/R/genSvmModels2.R).
 
+# Results
+The model was trained using Alexa to voice tag observations for the patterns listed above. About ten true plus a few explicit false observations were required to get good accuracy prediction. The model was typically trained in the following way.
+
+1. Walk the path through the house in a specific direction, approximate pace, and time (if applicable).
+2. At the end of the path, tag the path with a pattern number by saying "Alexa, ask panel pattern n true", where n is the pattern number. 
+3. Walk the path the opposite direction at the same pace.
+4. At the end of the path, tag the path with a pattern number by saying "Alexa, ask panel pattern n false", where n is the pattern number. 
+
+These steps were repeated about ten times. The pattern prediction will become bidirectional if steps 3 and 4 are omitted and in that case observations for the other patterns will form the false data for the specific pattern. It was important to end each pattern at a sensor boundary since data is input to the predictor when motion triggers a change in sensor output.
+
+The model gets refitted with new data everyday at midnight, this process takes less than 2 minutes on the Raspberry Pi with the current dataset consuming about 85% of one of the Pi's CPU cores. 
+
+At this time only subjective real-time prediction performance is available. This indicates less than one second of latency between the end of a path and the activation of a WeMo light. The prediction accuracy is very high (probably 100%) when the only motion in the house is the person walking the pattern. The accuracy degrades when there is other motion in the house at the same time a pattern is being walked as this makes the sensor data noisy. The accuracy degrades more quickly for the patterns that depend on relatively few factors which suggests that one way to make the system more robust is to increase the number of motion sensors in the house. Also, the patterns that use relatively few factors (e.g., 2) it proved infeasible to make them unidirectional given the sparse dataset.
+
 # Updated System Block Diagram
 
 ![mall blockdia](https://cloud.githubusercontent.com/assets/12125472/17653362/2c429892-6249-11e6-92d7-58ead2fcd750.png)
