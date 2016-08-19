@@ -1,4 +1,4 @@
-*V2 of ALL includes many updates to core functionality and adds machine learning capability to the reference design. The V2 README lists the major core updates and goes into detail regarding the machine learning aspects which should be used to mainly understand how it may be used in conjunction with Alexa but as an introductory guide only to the subject itself. The V1 README should still be used to understand the core details.*
+*V2 of ALL includes many updates to core functionality and adds machine learning capability to the reference design. The V2 README lists the major core updates and goes into detail regarding the machine learning aspects which should be used to mainly understand how it may be used in conjunction with Alexa and only as an introductory guide only to the subject itself. The V1 README should still be used to understand the core details.*
 
 # Major Updates from V1
 * Machine learning model generation based on data from security system sensor data.
@@ -11,9 +11,9 @@
 # Machine Learning with ALL
 Using machine learning (ML) with ALL seemed to be a natural fit given the amount of data captured by the security system's sensors. Door, window, and motion data is continually captured which reflects the movement of people into and around the house. Of course, normally this data is used for security monitoring purposes but here the goal of adding machine learning to ALL was to use this data to reliably predict patterns of people movement around the house that would trigger appropriate actions automatically. A related goal was to use Alexa to help train the ML in an intuitive and low-friction manner which also fits well with the overall intent of ALL.
 
-Its important to note that simple rule based algorithms can be employed instead of ML to trigger actions based on the sensor data. However, this is really only feasible for the most basic cases. 
+Its important to note that simple rule based algorithms can be employed instead of ML to trigger actions based on the sensor data. However, this is really only feasible for the most basic patterns of movement around the house. 
 
-## R Preparation
+## Background Preparation
 The popular open-source software R was selected as the main ML tool and was intended to be used for both modeling and runtime purposes in order to accelerate development. The excellent book [An Introduction to Statistical Learning](http://smile.amazon.com/dp/B01IBM7790) was extensively used as both a learning guide to ML and to R.
 
 The R software package was downloaded from [The R Project for Statistical Computing](https://www.r-project.org/) website and compiled on the Raspberry Pi since there are no pre-compiled packages available for Raspbian Wheezy. The following steps are required to install R on the Pi.
@@ -31,12 +31,12 @@ make
 sudo make install
 ```
 
-Note that this installs R version 3.1.2 which is the latest available for Raspbian Wheezy. 
+Note that this installs R version 3.1.2 which is the latest compatible version for Raspbian Wheezy. 
 
 ## Problem Definition
 It is important to first understand and clearly describe the problem that is being solved including how training will be done. Here, the problem is to accurately predict a person's movement into and through the house using the security system's motion and door sensors (the window sensors are ignored for the present) and to take action on that prediction.
 
-The proof of concept system is installed in a two story house with a detached playroom / garage in the rear, accessible via a short walk. The relevant sensors are as follows.
+The proof of concept system is installed in a two story house with a detached playroom / garage in the rear, accessible via a short walk through the backyard. The relevant sensors are as follows.
 
 Zone | Sensor
 -----|-------
@@ -48,14 +48,14 @@ Zone | Sensor
 30 | Playroom Motion (in detached unit behind house)
 32 | Playroom Door
 
-Thus, as a person traversed through the zones listed above the problem is to predict the path taken, speed of travel and direction of travel. An example path could be a person arriving home, entering through the front door, walking into the family room via the first floor hall, exiting the house through the rear family room slider door and into the playroom. Patterns can also be time of day dependent (example being a person arriving home around the same time in the evening and following the above path). These sensors and the time of day will be used as inputs to the ML model. 
+Thus, as a person traversed through the zones listed above the problem is to predict the path taken, speed of travel and direction of travel. An example path could be a person arriving home, entering through the front door, walking into the family room via the first floor hall, exiting the house through the rear family room slider door and into the playroom. Patterns can also be time of day dependent (example being a person arriving home around the same time in the evening and following the above path). These sensors and the time of day will be used to fit the model and as inputs to the model to make predictions. 
 
 A related problem is how to train the model in the most intuitive and easiest manner possible for the user. A good solution is tagging the patterns as the occur with voice via Alexa. For example, if a person walked the above pattern at 7:00 PM, she would tell Alexa that ("Alexa, I'm home") which would trigger a sequence of events to capture an observation and update the ML model. 
 
 ## Data Analysis
-Considerable thought was put into understanding the sensor information required to develop the ML model. The native output from the sensors is binary - the sensor is either activated by movement or its not due to lack of movement. For security monitoring purposes this is normally sufficient but this binary information needs to be transformed into a continuous time series to be useful as inputs to the model described above. This transformation is accomplished by applying a time-stamp to every activation or deactivation of a sensor. The timestamped sensor data is not used directly to build / update the ML model or predict a pattern, instead a version of the time-stamped data is used which is the activation / deactivation times of the sample relative to the observation time. The relative data is required to ensure that the training data used to build the model are consistent with new data used for prediction. A sample transformation for a four sensor zone example is shown in the figure below.
+Considerable thought was put into understanding the sensor information required to develop the ML model. The native output from the sensors is binary - the sensor is either activated by movement or its not due to lack of movement. For security monitoring purposes this is normally sufficient but this binary information needs to be transformed into a continuous time series to be useful as inputs to the model described above. This transformation is accomplished by applying a time-stamp to every activation or deactivation of a sensor, which is called the 'absolute' time of an observation. The timestamped sensor data is not used directly to build / update the ML model or predict a pattern. Instead a version of the timestamped data is used which is the last activation / deactivation time of a sensor relative to the current observation time. The relative data is required to ensure that the training data used to build the model are consistent with new data used for prediction. An example transformation for a four sensor zone example is shown in the figure below.
 
-![transform](https://cloud.githubusercontent.com/assets/12125472/17723292/cfb8124a-63ed-11e6-8d9d-9e7bef22b131.png)
+![transform](https://cloud.githubusercontent.com/assets/12125472/17796938/5c71b182-6579-11e6-933e-779029eb6d16.png)
 
 Relative activation and deactivation times for each sensor along with the time and date, sample time, and the response ground truth for a specific pattern form a training predictor vector based on a single observation. A collection of these vectors form a dataset from which a model can be generated. Similarly, a test vector is formed from new sensor data (without the ground truth) that is used by the model to make predictions. 
 
@@ -107,7 +107,7 @@ Now that the structure in the dataset is understood candidate model algorithms w
 
 Given the relatively unstructured decision boundary and non-linear nature of the dataset, the K-Nearest Neighbors (KNN), Random Forests and Support Vector Machine (SVM) algorithms are reasonable choices given that they are well-understood, non-parametric methods and have high flexibility (note that non-parametric models generally have the disadvantage of growing more complex as the number of observations increases). See [An Introduction to Statistical Learning](http://smile.amazon.com/dp/B01IBM7790) for details about the KNN, Random Forests, and SVM algorithms and their relative strengths and weaknesses. In the interest of time, only KNN and SVM approaches were evaluated and overall SVM seemed to offer better over performance (at the expense of more complexity) for the sensor dataset and so therefore was selected. The algorithm would have to solve the multi-classification problem of identifying a particular pattern from sensor data reflecting a person's movement through the house. The dataset provides a set of training observations that can be used to build a SVM-based binary multiple classifier. SVM uses the one-versus-one for multiple classification. More information about using SVMs in R can be found [here](https://cran.r-project.org/web/packages/e1071/vignettes/svmdoc.pdf).
 
-An SVM with a radial kernel was selected given the non-linear class boundaries of the datasets. Cross-validation was used to select the best values of the parameters gamma and cost associated with the model. The R script to generate and test the SVM model can be found [here](https://github.com/goruck/mall/blob/newstatus/R/genSvmTest.R) with the dataset [here](https://github.com/goruck/mall/blob/newstatus/R/panelSimpledb.csv). The script generates confusion matrices for training and validation data.
+An SVM with a radial kernel was selected given the non-linear class boundaries of the datasets. Cross-validation was used to select the best values of the parameters *gamma* and *cost* associated with the model. The R script to generate and test the SVM model can be found [here](https://github.com/goruck/mall/blob/newstatus/R/genSvmTest.R) with the dataset [here](https://github.com/goruck/mall/blob/newstatus/R/panelSimpledb.csv). The script generates confusion matrices for training and validation data.
 
 The confusion matrix for the training data shown below. The numbers in the row and column headers represent the pattern number classified with 0 being the null case (i.e., no pattern was classified). Note that only patterns 1 through 8 were used and with clock as a factor in these examples. This data indicates that model is trained very well except for pattern 8. This is most likely because pattern does not yet have enough training samples in the current dataset. 
 
@@ -126,7 +126,7 @@ predict   0   1   2   3   4   5   6   8
       6   0   0   0   0   0   0  12   0
       8   0   0   0   0   0   0   0   0
 ```
-The confusion matrix for the test data shown below where a number of false negatives are shown particularly for patterns 2, 3, 5, and 8. This could indicate that the model is over-fitted or, as in the case of pattern 8, patterns have insufficient training data. The model will need to be refined as the dataset grows with additional training observations and its prediction performance is evaluated over time. 
+The confusion matrix for the test data shown below where a number of false negatives are shown particularly for patterns 2, 3, 5, and 8. This could indicate that the model is over-fitted or, as in the case of pattern 8, patterns have insufficient training data. Patterns 2 and 3 also use relatively few factors which likely increases the prediction error. The model will need to be refined as the dataset grows with additional training observations and its prediction performance is evaluated over time. 
 
 ```text
 > ### test error of optimal svm model with clock as a predictor
@@ -176,7 +176,7 @@ Levels:
 Now that the algorithm was selected, the next step was to implement the real-time prediction of patterns, develop an Alexa skill that performs voice tagging of training observations, and develop a method to periodically re-fit the SVM with new training data.
 
 ### Real-time Prediction and Action
-A new thread called *predict()* was added to the [Raspberry Pi real-time software](https://github.com/goruck/mall/blob/newstatus/rpi/kprw-server.c) which runs periodically and sends sensor data to an R script via the *popen()* system command to make a prediction. The prediction R script is found [here](https://github.com/goruck/mall/blob/newstatus/R/predsvm2.R). The thread reads the prediction from R, applies some confidence checking rules and does something if a true prediction is determined. Currently, various WeMo light switches in the house are controlled by the thread in response to predictions in a hardcoded manner but at some point a more flexible and extensible mapping of predictions to actions will be implemented. The WeMo devices are controlled by a bash script called by a *system()* command. The WeMo bash script can be found [here](https://github.com/goruck/mall/blob/newstatus/wemo/wemo.sh). 
+A new thread called *predict()* was added to the [Raspberry Pi real-time software](https://github.com/goruck/mall/blob/newstatus/rpi/kprw-server.c) which runs periodically and sends sensor data to an R script via the *popen()* Linux system command to make a prediction. The prediction R script is found [here](https://github.com/goruck/mall/blob/newstatus/R/predsvm2.R). The thread reads the prediction from R, applies some confidence checking rules and does something if a true prediction is determined. Currently, various WeMo light switches in the house are controlled by the thread in response to predictions in a hardcoded manner but at some point a more flexible and extensible mapping of predictions to actions will be implemented (perhaps by use of another Alexa skill). The WeMo devices are controlled by a bash script called by a *system()* Linux system command. The WeMo bash script can be found [here](https://github.com/goruck/mall/blob/newstatus/wemo/wemo.sh). 
 
 Two models are used in the prediction R script, one that uses the clock as a prediction and one that does not. If both models predict the same pattern, the higher probability prediction is selected (in the case of both models making the same non-null prediction, a higher probability pattern from the model using clock as a predictor is likely a timed pattern that uses the clock). If one model has not identified any pattern and the other has, then the non-null case is selected.
 
@@ -191,7 +191,7 @@ pred: 4 prob: .74 (w/o clk) | pred: 4 prob: .66 (w/clk)
 ********** End R Run (svm2) **********
 ```
 
-There is also a rather naive approach implemented in the thread to predict the number of occupants in the house based on concurrent motion and door sensor activity. However it does provide surprisingly accurate results based on subjective testing. The pattern predictions can probably be used to provide a more accurate occupancy estimate, that work is planned for a future rev of the code. 
+There is also a rather naive approach implemented in the thread to predict the number of occupants in the house based on concurrent motion and door sensor activity. However it does provide reasonably accurate results based on subjective testing if there is enough motion in the house. The pattern predictions can probably be used to provide a more accurate occupancy estimate, that work is planned for a future rev of the code. 
 
 The latency between sensor activity and prediction leading to the activation of a WeMo device is less than a second based on subjective testing. This is acceptable for now but as the dataset grows the model will become more complex (given its non-parametric nature) and so the latency will increase. There is also considerable latency added by using the R script via *popen()* since it adds its own overhead. Although using the R script accelerated overall development (since it was easy to reuse much of the R work from earlier stages in the project), at some point a C SVM library will probably be used in the thread instead of calling the R script in order to reduce latency. R itself uses a C/C++ library implementation of the popular *LIBSVM* package so it would be relatively straightforward to use it in the thread. More information on *LIBSVM* can be found [here](https://www.csie.ntu.edu.tw/~cjlin/libsvm/).
 
@@ -199,7 +199,7 @@ A simplified flowchart of the *predict()* thread operation is shown in the figur
 ![predict](https://cloud.githubusercontent.com/assets/12125472/17686336/8f334eba-6320-11e6-80fc-71a9ad5b9f41.png)
 
 ### Alexa Skill Support for Voice Tagging and Prediction
-An [AWS SimpleDB](https://aws.amazon.com/simpledb/) database was created to store the observations that the Alexa voice tagging skill generates. The database was created by the code shown below. This assumes that the AWS SDK has been installed on the machine. See [AWS SDK for JavaScript in Node.js](https://aws.amazon.com/sdk-for-node-js/) for how to do this.
+Firstly, an [AWS SimpleDB](https://aws.amazon.com/simpledb/) database was created to store the observations that the Alexa voice tagging skill generates. The database was created by the code shown below. This assumes that the AWS SDK has been installed on the machine. See [AWS SDK for JavaScript in Node.js](https://aws.amazon.com/sdk-for-node-js/) for how to do this.
 
 ```javascript
 var AWS = require('/usr/local/lib/node_modules/aws-sdk');
@@ -226,12 +226,12 @@ The existing Lambda Node.js code in [all.js](https://github.com/goruck/mall/blob
 
 Currently, *TrainIsIntent* and *trainInSession()* uses 10 fixed patterns with the mapping to specific paths through the home as shown above. This forces the user to remember the mapping during training. Although acceptable for test purposes, a more flexible approach is required whereby the user is asked to provide the path name during training or is offered to select a path from a menu in case the path already exists. These enhancements will be added in a future revision of the skill.
 
-The existing thread *msg_io()* in the [Raspberry Pi real-time software](https://github.com/goruck/mall/blob/newstatus/rpi/kprw-server.c) was modified to calculate the timestamped sensor data as described above and the Pi's server was modified to return that along with other information as JSON in response to a command from the Alexa skill running in AWS Lambda. Using JSON over raw text greatly simplifies the Node.js code running in Lambda.
+The existing thread *msg_io()* in the [Raspberry Pi real-time software](https://github.com/goruck/mall/blob/newstatus/rpi/kprw-server.c) was modified to calculate the timestamped sensor data as described above and the Pi's server was modified to return that along with other information as JSON in response to a command from the Alexa skill running in AWS Lambda. Using JSON instead of raw text greatly simplifies the Node.js code running in Lambda.
 
 A simplified flow diagram of voice tagging using the *TrainIsIntent* and *trainInSession()* functionality is shown in the figure below.
 ![train-flow-chart](https://cloud.githubusercontent.com/assets/12125472/17685887/e047bf92-631c-11e6-9c81-8d9390074ada.png)
 
-A simplified flow diagram of a prediction using *predInSession()* and *PredIsIntent* functionality is shown in the figure below.
+A simplified flow diagram of getting a prediction using *predInSession()* and *PredIsIntent* functionality is shown in the figure below.
 ![predict-flow-chart](https://cloud.githubusercontent.com/assets/12125472/17686224/9cdcf13e-631f-11e6-89a2-4c164cdfedbd.png)
 
 ### Model Retraining
@@ -251,7 +251,7 @@ These steps were repeated about ten times. The pattern prediction will become bi
 
 The model gets refitted with new data everyday at midnight, this process takes less than 2 minutes on the Raspberry Pi with the current dataset consuming about 85% of one of the Pi's CPU cores. 
 
-At this time only subjective real-time prediction performance is available. This indicates less than one second of latency between the end of a path and the activation of a WeMo light. The prediction accuracy is very high (probably 100%) when the only motion in the house is the person walking the pattern. The accuracy degrades when there is other motion in the house at the same time a pattern is being walked as this makes the sensor data noisy. The accuracy degrades more quickly for the patterns that depend on relatively few factors which suggests that one way to make the system more robust is to increase the number of motion sensors in the house. Also, the patterns that use relatively few factors (e.g., 2) it proved infeasible to make them unidirectional given the sparse dataset.
+At this time only subjective real-time prediction performance is available. This indicates less than one second of latency between the end of a path and the activation of a WeMo light. The prediction accuracy is very high (probably 100%) when the only motion in the house is the person walking the pattern. The accuracy degrades when there is other motion in the house at the same time a pattern is being walked as this makes the sensor data noisy. The accuracy degrades more quickly for the patterns that depend on relatively few factors which suggests that one way to make the system more robust is to increase the number of motion sensors in the house. Also, the patterns that use relatively few factors (e.g., #2) it proved infeasible to make them unidirectional given the sparse dataset.
 
 # Updated System Block Diagram
 
