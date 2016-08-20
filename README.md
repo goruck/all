@@ -255,7 +255,7 @@ At this time only subjective real-time prediction performance is available. This
 
 # Updated System Block Diagram
 
-![mall blockdia](https://cloud.githubusercontent.com/assets/12125472/17828135/083bb5b6-663e-11e6-88a3-29ae90eb8f0e.png)
+![mall blockdia](https://cloud.githubusercontent.com/assets/12125472/17828272/df8393d8-6641-11e6-8d92-31d496bfda15.png)
 
 # Overview
 Using voice to interface with devices and services around the home enables a rich and intuitive experience as shown by Amazon's huge successes with FireTV and Echo. However, with the exception of a few 3rd party point solutions such as Wemo, the voice user interface is generally not available in the home. One reason for this is the difficulty and unfamiliarity of the technologies required to enable voice control. 
