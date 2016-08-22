@@ -8,7 +8,7 @@
  * For additional samples, visit the Alexa Skills Kit Getting Started guide at
  * http://amzn.to/1LGWsLG.
  * 
- * Lindo St. Angel 2015/16.
+ * (c) Lindo St. Angel 2015/16.
  */
 
 // Route the incoming request based on type (LaunchRequest, IntentRequest,
