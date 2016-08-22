@@ -145,7 +145,8 @@
 #define RARG_SIZE        256 // max number of characters allowed in argument to the Rscript
 #define ROUT_MAX         256 // max number of characters read from output of Rscript
 #define PCMD_BUF_SIZE    (sizeof(POPEN_FMT) + RARG_SIZE) // size of buffer passed to popen()
-#define RLOGPATH         "/home/pi/all/R/rlog.txt"
+//#define RLOGPATH         "/home/pi/all/R/rlog.txt"
+#define RLOGPATH         "/dev/null"
 #define INTZONES         {26, 27, 28, 29} // list of interior zones (zone numbering starts with 0)
 #define EXITZONE         0 // zone number of front door which is main exit point from house
 #define CONZONELL        0 // lower limit of concurent zone activity in seconds
@@ -807,7 +808,7 @@ static void * predict(void * arg) {
   // detach the thread since we don't care about its return status
   res = pthread_detach(pthread_self());
   if (res) {
-    perror("message i/o thread detach failed\n");
+    perror("predict thread detach failed\n");
     exit(EXIT_FAILURE);
   }
 
