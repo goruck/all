@@ -54,7 +54,7 @@ A related problem is how to train the model in the most intuitive and easiest ma
 
 A typical use case is shown in the figure below, where a person arrives home at a specific time and turns on the TV. The person would tell Alexa this happened and after a fashion the TV would automatically be turned on (and perhaps Fire TV would stream a favorite show) when this pattern is detected.
 
-![problem-flow-chart](https://cloud.githubusercontent.com/assets/12125472/17879638/5e0ff594-68a8-11e6-8129-7809b6260332.png)
+![typ-usecase](https://cloud.githubusercontent.com/assets/12125472/17993233/e53368ba-6b02-11e6-8db7-7632093d8581.png)
 
 ## Data Analysis
 Considerable thought was put into understanding the sensor information required to develop the ML model. The native output from the sensors is binary - the sensor is either activated by movement or its not due to lack of movement. For security monitoring purposes this is normally sufficient but this binary information needs to be transformed into a continuous time series to be useful as inputs to the model described above. This transformation is accomplished by applying a time-stamp to every activation or deactivation of a sensor, which is called the 'absolute' time of an observation. The timestamped sensor data is not used directly to build / update the ML model or predict a pattern. Instead a version of the timestamped data is used which is the last activation / deactivation time of a sensor relative to the current observation time. The relative data is required to ensure that the training data used to build the model are consistent with new data used for prediction. An example transformation for a four sensor zone example is shown in the figure below.
@@ -259,7 +259,7 @@ At this time only subjective real-time prediction performance is available. This
 
 # Updated System Block Diagram
 
-![mall blockdia](https://cloud.githubusercontent.com/assets/12125472/17828272/df8393d8-6641-11e6-8d92-31d496bfda15.png)
+![mall blockdia](https://cloud.githubusercontent.com/assets/12125472/17993280/512bf8e8-6b03-11e6-99c5-4e8784eba2ef.png)
 
 # Overview
 Using voice to interface with devices and services around the home enables a rich and intuitive experience as shown by Amazon's huge successes with FireTV and Echo. However, with the exception of a few 3rd party point solutions such as Wemo, the voice user interface is generally not available in the home. One reason for this is the difficulty and unfamiliarity of the technologies required to enable voice control. 
