@@ -54,7 +54,7 @@ A related problem is how to train the model in the most intuitive and easiest ma
 
 A typical use case is shown in the figure below, where a person arrives home at a specific time and turns on the TV. The person would tell Alexa this happened and after a fashion the TV would automatically be turned on (and perhaps Fire TV would stream a favorite show) when this pattern is detected.
 
-![typ-usecase](https://cloud.githubusercontent.com/assets/12125472/17993233/e53368ba-6b02-11e6-8db7-7632093d8581.png)
+![typ-usecase](https://cloud.githubusercontent.com/assets/12125472/18023973/5f5645ce-6bb5-11e6-8f44-a9162ffa73a8.png)
 
 ## Data Analysis
 Considerable thought was put into understanding the sensor information required to develop the ML model. The native output from the sensors is binary - the sensor is either activated by movement or its not due to lack of movement. For security monitoring purposes this is normally sufficient but this binary information needs to be transformed into a continuous time series to be useful as inputs to the model described above. This transformation is accomplished by applying a time-stamp to every activation or deactivation of a sensor, which is called the 'absolute' time of an observation. The timestamped sensor data is not used directly to build / update the ML model or predict a pattern. Instead a version of the timestamped data is used which is the last activation / deactivation time of a sensor relative to the current observation time. The relative data is required to ensure that the training data used to build the model are consistent with new data used for prediction. An example transformation for a four sensor zone example is shown in the figure below.
@@ -200,7 +200,7 @@ There is also a rather naive approach implemented in the thread to predict the n
 The latency between sensor activity and prediction leading to the activation of a WeMo device is less than a second based on subjective testing. This is acceptable for now but as the dataset grows the model will become more complex (given its non-parametric nature) and so the latency will increase. There is also considerable latency added by using the R script via *popen()* since it adds its own overhead. Although using the R script accelerated overall development (since it was easy to reuse much of the R work from earlier stages in the project), at some point a C SVM library will probably be used in the thread instead of calling the R script in order to reduce latency. R itself uses a C/C++ library implementation of the popular *LIBSVM* package so it would be relatively straightforward to use it in the thread. More information on *LIBSVM* can be found [here](https://www.csie.ntu.edu.tw/~cjlin/libsvm/).
 
 A simplified flowchart of the *predict()* thread operation is shown in the figure below.
-![predict](https://cloud.githubusercontent.com/assets/12125472/17686336/8f334eba-6320-11e6-80fc-71a9ad5b9f41.png)
+![predict](https://cloud.githubusercontent.com/assets/12125472/18023995/d5dea556-6bb5-11e6-8df2-95c8a3641897.png)
 
 ### Alexa Skill Support for Voice Tagging and Prediction
 Firstly, an [AWS SimpleDB](https://aws.amazon.com/simpledb/) database was created to store the observations that the Alexa voice tagging skill generates. The database was created by the code shown below. This assumes that the AWS SDK has been installed on the machine. See [AWS SDK for JavaScript in Node.js](https://aws.amazon.com/sdk-for-node-js/) for how to do this.
