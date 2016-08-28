@@ -8,8 +8,12 @@
  * For additional samples, visit the Alexa Skills Kit Getting Started guide at
  * http://amzn.to/1LGWsLG.
  * 
- * (c) Lindo St. Angel 2015/16.
+ * Copyright (c) 2016 Lindo St. Angel
  */
+
+// External modules. 
+var shared = require('./shared.js');
+var amzn = require('./amzn/trainInSession.js');
 
 // Route the incoming request based on type (LaunchRequest, IntentRequest,
 // etc.) The JSON body of the request is provided in the event parameter.
@@ -89,7 +93,8 @@ function onIntent(intentRequest, session, callback) {
     } else if ("PollyIsIntent" === intentName) {
         sendPolyInSession(intent, session, callback);
     } else if ("TrainIsIntent" === intentName) {
-        trainInSession(intent, session, callback);
+        // Tag observations for machine learning. Store in AWS SimpleDB database.
+        amzn.trainInSession(intent, session, callback);
     } else if ("OccupancyIsIntent" === intentName) {
         anyoneHomeInSession(intent, session, callback);
     } else if ("PredIsIntent" === intentName) {
@@ -125,7 +130,7 @@ function stopSession(callback) {
     var repromptText = "";
 
     callback(sessionAttributes,
-             buildSpeechletResponse(cardTitle, speechOutput, repromptText, shouldEndSession));
+             shared.buildSpeechletResponse(cardTitle, speechOutput, repromptText, shouldEndSession));
 }
 
 function getWelcomeResponse(callback) {
@@ -143,7 +148,7 @@ function getWelcomeResponse(callback) {
     var shouldEndSession = false;
 
     callback(sessionAttributes,
-             buildSpeechletResponse(cardTitle, speechOutput, repromptText, shouldEndSession));
+             shared.buildSpeechletResponse(cardTitle, speechOutput, repromptText, shouldEndSession));
 }
 
 /*
@@ -170,34 +175,34 @@ function sendKeyInSession(intent, session, callback) {
                                  "valid commands are the names of a keypad button," +
                                  "status, or a 4 digit code";
             callback(sessionAttributes,
-                     buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                     shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
         } else {
-            getPanelStatus('idle', function (panelStatus) { // check status first
+            shared.getPanelStatus('idle', function (panelStatus) { // check status first
                 if ((num === 'stay' || num === 'away') && isArmed(panelStatus)) {
                     speechOutput = "System is already armed,";
                     callback(sessionAttributes,
-                             buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                             shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
                 } else if ((num === 'stay' || num === 'away') && !zonesNotActive(panelStatus)) {
                     var placesNotReady = findPlacesNotReady(panelStatus); // get friendly names of zones not ready
                     speechOutput = "System cannot be armed, because these zones are not ready," +placesNotReady;
                     callback(sessionAttributes,
-                             buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                             shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
                 } else {
-                    getPanelStatus(num, function(panelStatus) { // write num to panel and check return status
+                    shared.getPanelStatus(num, function(panelStatus) { // write num to panel and check return status
                         if (!(num === 'stay' || num === 'away')) { // a key that doesn't need verification
                             speechOutput = 'sent,' +num;
                             callback(sessionAttributes,
-                                     buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                                     shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
                         } else {
                             setTimeout(function verifyArmCmd() { // verify stay or away arm command succeeded
-                                getPanelStatus('idle', function checkIfArmed(panelStatus) {
+                                shared.getPanelStatus('idle', function checkIfArmed(panelStatus) {
                                     if (isArmed(panelStatus)) {
                                         speechOutput = 'sent,' +num +',system was armed,';
                                     } else {
                                         speechOutput = 'sent,' +num +',error,, system could not be armed,';
                                     }
                                     callback(sessionAttributes,
-                                             buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                                             shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
                                 });
                             }, 1000); // wait 1 sec for command to take effect
                         }
@@ -232,12 +237,12 @@ function sendCodeInSession(intent, session, callback) {
                                  "codes must be positive 4 digit integers, " +
                                  "not greater than 9999";
             callback(sessionAttributes,
-                buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                     shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
         } else {
-            getPanelStatus(num, function() {
+            shared.getPanelStatus(num, function() {
                 speechOutput = "sent, " +num;
-	        callback(sessionAttributes,
-                         buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                callback(sessionAttributes,
+                         shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
             });
         }
     } else {
@@ -255,7 +260,7 @@ function getStatusFromSession(intent, session, callback) {
         shouldEndSession = true,
         speechOutput = "";
 
-    getPanelStatus('idle', function (panelStatus) {
+    shared.getPanelStatus('idle', function (panelStatus) {
         if (isArmed(panelStatus)) {
             isBypassed(panelStatus) ? speechOutput = 'system is armed and bypassed' : speechOutput = 'system is armed';
         } else if (zonesNotActive(panelStatus)) { // no zones are reporting activity or are tripped
@@ -266,7 +271,7 @@ function getStatusFromSession(intent, session, callback) {
         }
 
         callback(sessionAttributes,
-                 buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                 shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
     });
 }
 
@@ -286,34 +291,34 @@ function sendPolyInSession(intent, session, callback) {
     const MODE = 1; // bypass mode
     const ZONE = 28; // hall motion zone
     
-    getPanelStatus('idle', function (panelStatus) { // check status first
+    shared.getPanelStatus('idle', function (panelStatus) { // check status first
         if (isArmed(panelStatus)) {
             speechOutput = "System is already armed,";
             callback(sessionAttributes,
-                     buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                     shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
         } else if (!zonesNotActive(panelStatus)) {
             var placesNotReady = findPlacesNotReady(panelStatus); // get friendly names of zones not ready
             speechOutput = "System cannot be armed, because these zones are not ready," +placesNotReady;
             callback(sessionAttributes,
-                     buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                     shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
         } else {
-            getPanelStatus('star', function enterCommandMode() { // enter command mode
-                getPanelStatus(MODE, function setMode() { // set bypass mode
+            shared.getPanelStatus('star', function enterCommandMode() { // enter command mode
+                shared.getPanelStatus(MODE, function setMode() { // set bypass mode
                     setTimeout(function() {
-                        getPanelStatus(ZONE, function bypassZone() { // bypass zone
+                        shared.getPanelStatus(ZONE, function bypassZone() { // bypass zone
                             setTimeout(function() {
-                                getPanelStatus('pound', function () { // exit command mode
+                                shared.getPanelStatus('pound', function () { // exit command mode
                                     setTimeout(function() {
-                                        getPanelStatus('away', function armAway() { // set away arm mode
+                                        shared.getPanelStatus('away', function armAway() { // set away arm mode
                                             setTimeout(function verifyArmCmd() { // verify stay or away arm command succeeded
-                                                getPanelStatus('idle', function checkIfArmed(panelStatus) {
+                                                shared.getPanelStatus('idle', function checkIfArmed(panelStatus) {
                                                     if (isArmed(panelStatus)) {
                                                         speechOutput = 'system was armed with hallway motion sensor bypassed';
                                                     } else {
                                                         speechOutput = 'error, system could not be armed';
                                                     }
                                                     callback(sessionAttributes,
-                                                             buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                                                             shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
                                                 });
                                             }, 1000); // wait 1 sec for arm command to take effect
                                         });
@@ -339,7 +344,7 @@ function anyoneHomeInSession(intent, session, callback) {
     var shouldEndSession = true;
     var speechOutput = "";
 
-    getPanelStatus('sendJSON', function (panelStatus) { // 'sendJSON' returns zone status as JSON
+    shared.getPanelStatus('sendJSON', function (panelStatus) { // 'sendJSON' returns zone status as JSON
         var obj = JSON.parse(panelStatus);
         var numOcc = obj.numOcc;
 
@@ -351,7 +356,7 @@ function anyoneHomeInSession(intent, session, callback) {
             speechOutput = "there are probably at least "+numOcc.toString()+" people at home right now";
         }
         callback(sessionAttributes,
-                 buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                 shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
     });
 }
 
@@ -367,7 +372,7 @@ function predInSession(intent, session, callback) {
     var speechOutput = "";
     const offset = -420; // -7 * 60 mins offset between PT and UTC
 
-    getPanelStatus('sendJSON', function (panelStatus) { // 'sendJSON' returns zone status as JSON
+    shared.getPanelStatus('sendJSON', function (panelStatus) { // 'sendJSON' returns zone status as JSON
         var obj = JSON.parse(panelStatus);
         var lastTruePred = obj.lastTruePred; // array containing timestamps of true predictions
 
@@ -416,130 +421,7 @@ function predInSession(intent, session, callback) {
     });
 }
 
-/*
- * Tag observations for machine learning. Store in AWS SimpleDB database.
- * TODO: add error checking. 
- */
-function trainInSession(intent, session, callback) {
-    var cardTitle = intent.name;
-    var patternSlot = intent.slots.Pattern; // names of pattern to train
-    var stateSlot = intent.slots.State; // states of observation
-    var sessionAttributes = {};
-    var repromptText = "";
-    var shouldEndSession = true;
-    var speechOutput = "";
-    
-    var AWS = require('aws-sdk');
-    AWS.config.region = 'us-west-2';
-    var simpledb = new AWS.SimpleDB({apiVersion: '2009-04-15'});
-
-    getPanelStatus('sendJSON', function writeObsToDb(panelStatus) { // 'sendJSON' returns zone status as JSON
-        var d = new Date();
-        var n = d.toISOString(); // use ISO format to enable lexicographical sort in SimpleDB
-        var obj = JSON.parse(panelStatus);
-        var obsTime = obj.obsTime;
-        var zoneAct = obj.zoneAct;
-        var relZoneAct = calcRelT(obsTime, zoneAct);
-        var zoneDeAct = obj.zoneDeAct;
-        var relZoneDeAct = calcRelT(obsTime, zoneDeAct);
-        const NUM_OF_PATTERNS = 10; // max number of patterns to train
-
-        // build SimpleDB attributes
-        var att = [{Name:'clock',Value:n},{Name:'sample',Value:obsTime.toString()}];
-        for (i = 0; i < relZoneAct.length; i++) { // zone active times
-            var name = 'za'+(i+1).toString();
-            var value = relZoneAct[i].toString();
-            var obj = {Name:name,Value:value};
-            att.push(obj);
-        }
-        for (i = 0; i < relZoneDeAct.length; i++) { // zone deactivation times
-            name = 'zd'+(i+1).toString();
-            value = relZoneDeAct[i].toString();
-            obj = {Name:name,Value:value};
-            att.push(obj);
-        }
-        for (i = 0; i < NUM_OF_PATTERNS; i++) { // observation state
-            name = 'zzpattern'+(i+1).toString(); // prepend 'zz' to get ordering right
-            if (patternSlot.value == (i+1)) { // use '==' to force type conversion
-                (stateSlot.value === 'true') ? value = 'TRUE' : value = 'FALSE';
-            } else {
-                value = 'NA'; // set value to NA for all other patterns
-            }
-            obj = {Name:name,Value:value};
-            att.push(obj);
-        }
-
-        // write observations to database
-        var params = {
-            Attributes: att,
-            //DomainName: 'lindoSimpledb',
-            DomainName: 'panelSimpledb',
-            ItemName: n
-        };
-        simpledb.putAttributes(params, function(err, data) {
-            if (err) { 
-                console.log(err, err.stack);
-                speechOutput = "error, unable to tag observation";
-            } else {
-                console.log(data);
-                speechOutput = "tagged pattern,"+patternSlot.value+",as,"+stateSlot.value;
-            }
-            callback(sessionAttributes,
-                     buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-        });
-
-    });
-}
-
 // --------------- global variables and commonly used functions -----------------------
-
-var tls = require('tls'),
-    fs = require('fs'),
-    PORT = fs.readFileSync('port.txt').toString("utf-8", 0, 5),
-    HOST = fs.readFileSync('host.txt').toString("utf-8", 0, 14),
-    CERT = fs.readFileSync('client.crt'),
-    KEY  = fs.readFileSync('client.key'),
-    CA   = fs.readFileSync('ca.crt');
-
-var socketOptions = {
-    host: HOST,
-    port: PORT,
-    cert: CERT,
-    key: KEY,
-    ca: CA,
-    rejectUnauthorized: true
-};
-
-/*
- * Gets the panel status to be used in the intent handlers.
- * This function is also used to send commands to the server.
- * serverCmd = 'sendJSON' returns status as JSON.
- * serverCmd = 'idle' returns status as text (legacy mode).
- *
- */
-function getPanelStatus (serverCmd, callback) {
-    var panelStatus = "";
-
-    var socket = tls.connect(socketOptions, function() {
-        console.log('getPanelStatus socket connected to host: ' +HOST);
-        socket.write(serverCmd +'\n');
-        console.log('getPanelStatus wrote: '+serverCmd);
-    });
-
-    socket.on('data', function(data) {
-        panelStatus += data.toString();
-    });
-	
-    socket.on('close', function () {
-	console.log('getPanelStatus socket disconnected from host: ' +HOST);
-	callback(panelStatus);
-    });
-	
-    socket.on('error', function(ex) {
-	console.log("handled getPanelStatus socket error");
-	console.log(ex);
-    });
-}
 
 function isReady(panelStatus) {
     return (panelStatus.indexOf('LED Status Ready') > -1) ? true : false; // true if system is ready
@@ -680,27 +562,6 @@ function createNumberAttributes(key) {
 }
 
 // --------------- Helpers that build all of the responses -----------------------
-
-function buildSpeechletResponse(title, output, repromptText, shouldEndSession) {
-    return {
-        outputSpeech: {
-            type: "PlainText",
-            text: output
-        },
-        card: {
-            type: "Simple",
-            title: "SessionSpeechlet - " + title,
-            content: "SessionSpeechlet - " + output
-        },
-        reprompt: {
-            outputSpeech: {
-                type: "PlainText",
-                text: repromptText
-            }
-        },
-        shouldEndSession: shouldEndSession
-    };
-}
 
 function buildSpeechletResponseSSML(title, output, repromptText, shouldEndSession) {
     return {
