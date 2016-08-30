@@ -1,1 +1,1 @@
-This project is almost completely licensed under the MIT License unless otherwise specified in a LICENSE.txt file in a source code directory. Currently, the only exception is all/lambda/amzn/trainInSession.js which is licensed under the Amazon Software License (https://aws.amazon.com/asl/).
+
