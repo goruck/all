@@ -1,6 +1,12 @@
-*Version 2.0 of ALL includes many updates to core functionality and adds machine learning capability to the reference design. The V2 README lists the major core updates and goes into detail regarding the machine learning aspects which should be used to mainly understand how it may be used in conjunction with Alexa but it can serve as an introduction to the subject itself. The V1 README should still be used to understand the core ALL details.*
+*Version 2.0 of ALL includes many updates to core functionality and adds machine learning capability to the reference design. The V2 README lists the major core updates and goes into detail regarding the machine learning aspects which should be used to mainly understand how it may be used in conjunction with Alexa. However, it can serve as a very basic introduction to Machine Learning. The [V1 README](https://github.com/goruck/all/blob/master/README.md) should still be used to understand the core ALL details.*
 
-# Major Updates from V1
+# What is Alexa Lambda Linux (ALL) Project?
+* ALL is an end-to-end HW/SW reference design created to enable quick prototyping and realization of the control and monitoring of things using Amazon’s Alexa.
+* ALL includes Amazon’s Alexa Skills Kit and Lambda running in the cloud as well as a local server based on real-time Linux running on the Raspberry Pi.
+* A voice-controlled home security system was built from ALL as an early proof of concept.
+* ALL was introduced in late 2015 at https://github.com/goruck/all.
+
+# Major Updates from ALL V1.0 to V2.0
 * Machine learning model generation based on data from security system sensor data.
 * Machine learning prediction based on data from the security system sensor data.
 * Server optionally sends JSON in addition to default text in response to commands.
@@ -17,10 +23,26 @@ Adding machine learning (ML) capabilities to ALL was mainly motivated by a desir
 
 Its important to note that simple rule based algorithms can be employed instead of ML to trigger actions based on the sensor data. However, this is really only feasible for the most basic patterns of movement around the house. 
 
-## Background Preparation
+## Background Information
+### Training ML Models *(This section adapted from [here](http://docs.aws.amazon.com/machine-learning/latest/dg/training-ml-models.html))*
+The process of training an ML model involves providing an ML algorithm (that is, the learning algorithm) with training data to learn from. The term ML model refers to the model artifact that is created by the training process.
+
+The training data must contain the correct answer, which is known as a response. The learning algorithm finds patterns in the training data that map the input data predictors to the response (the answer that you want to predict), and it outputs an ML model that captures these patterns.
+
+The ML model is used to get predictions on new data for which a response is not known.
+
+### Steps to build and train a predictive ML model
+1. Define the problem that predictive ML model will solve for.
+2. Prepare the data that will be used to train the ML model.
+3. Analyze the training data to help guide ML algo selection. 
+4. Select a suitable algorithm for the ML model. 
+5. Evaluate and optimize the ML model’s predictive accuracy.
+6. Use the ML model to generate predictions.
+
+### R
 The popular open-source software R was selected as the main ML tool and was intended to be used for both modeling and embedded real-time purposes which helps to accelerate development by reusing code. The excellent book [An Introduction to Statistical Learning](http://smile.amazon.com/dp/B01IBM7790) was extensively used as both a learning guide to ML and to R.
 
-The R software package was downloaded from [The R Project for Statistical Computing](https://www.r-project.org/) website and compiled on the Raspberry Pi since there are no recennt pre-compiled packages available for Raspbian Wheezy. The following steps are required to install R on the Pi.
+The R software package was downloaded from [The R Project for Statistical Computing](https://www.r-project.org/) website and compiled on the Raspberry Pi since there are no recent pre-compiled packages available for Raspbian Wheezy. The following steps are required to install R on the Pi.
 
 ```bash
 wget http://cran.rstudio.com/src/base/R-3/R-3.1.2.tar.gz
@@ -245,7 +267,7 @@ A simplified flow diagram of getting a prediction using *predInSession()* and *P
 ### Model Retraining
 The SVM models needs to be periodically refitted as new observations are taken, ground truth tagged by Alexa, and stored in SimpleDB. This is accomplished by a new Node.js routine locally on the Raspberry Pi that is run as a cron job every day at midnight. When the routine, [*simpledb-read.js*](https://github.com/goruck/mall/blob/newstatus/nodejs/simpledb-read.js), is run it reads SimpleDB and compares the latest observation with what was previously read. If there are new observation(s), the data is copied from SimpleDB and appended to a local copy and then the SVM models are refitted with it. The SVM model generation is done using R by a script called [*genSvmModels2.R*](https://github.com/goruck/mall/blob/newstatus/R/genSvmModels2.R) which is called from the Node.js routine. From that point forward, the updated models are used for real-time prediction in the *predict()* thread.
 
-# Results
+## Results
 The model was trained using Alexa to voice tag observations for the patterns listed above. About ten true plus a few explicit false observations were required to get good accuracy prediction. The model was typically trained in the following way.
 
 1. Walk the path through the house in a specific direction, approximate pace, and time (if applicable).
@@ -258,6 +280,12 @@ These steps were repeated about ten times. The pattern prediction will become bi
 The model gets refitted with new data everyday at midnight, this process takes less than 2 minutes on the Raspberry Pi with the current dataset consuming about 85% of one of the Pi's CPU cores. 
 
 At this time only subjective real-time prediction performance is available. This indicates less than one second of latency between the end of a path and the activation of a WeMo light. The prediction accuracy is very high (close to 100%) when the only motion in the house is the person walking the pattern. The accuracy degrades when there is other motion in the house at the same time a pattern is being walked as this makes the sensor data noisy. The accuracy degrades more quickly for the patterns that depend on relatively few factors which suggests that one way to make the system more robust is to increase the number of motion sensors in the house. Also, the patterns that use relatively few factors (e.g., #2) it proved infeasible to make them unidirectional given the sparse dataset.
+
+## Licensing
+This project is almost completely licensed under the [MIT License](http://choosealicense.com/licenses/mit/) unless otherwise specified in a LICENSE.txt file in a source code directory. Currently, the only exception is the file [trainInSession.js](https://github.com/goruck/mall/tree/newstatus/lambda/amzn) and related documentation in this README which is licensed under the [Amazon Software License](https://aws.amazon.com/asl/).
+
+## Contact Information
+For questions or comments about the ALL project please contact the author Lindo St. Angel @lindostangel or lindostangel@gmail.com.
 
 # ALL V1.0 Overview
 Using voice to interface with devices and services around the home enables a rich and intuitive experience as shown by Amazon's huge successes with FireTV and Echo. However, with the exception of a few 3rd party point solutions such as Wemo, the voice user interface is generally not available in the home. One reason for this is the difficulty and unfamiliarity of the technologies required to enable voice control. 
