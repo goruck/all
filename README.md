@@ -1,4 +1,4 @@
-*Version 2.0 of ALL includes many updates to core functionality and adds machine learning capability to the reference design. The V2 README lists the major core updates and goes into detail regarding the machine learning aspects which should be used to mainly understand how it may be used in conjunction with Alexa. However, it can serve as a very basic introduction to Machine Learning. The [V1 README](https://github.com/goruck/all/blob/master/README.md) should still be used to understand the core ALL details.*
+*Version 2.0 of ALL includes many updates to core functionality and adds machine learning capability to the reference design. The V2 README lists the major core updates and goes into detail regarding the machine learning aspects which should be used to mainly understand how it may be used in conjunction with Alexa. Also, the V2 README can serve as a very basic introduction to Machine Learning itself. The [V1 README](https://github.com/goruck/all/blob/master/README.md) should still be used to understand the core ALL details.*
 
 # What is Alexa Lambda Linux (ALL) Project?
 * ALL is an end-to-end HW/SW reference design created to enable quick prototyping and realization of the control and monitoring of things using Amazon’s Alexa.
@@ -282,10 +282,10 @@ The model gets refitted with new data everyday at midnight, this process takes l
 At this time only subjective real-time prediction performance is available. This indicates less than one second of latency between the end of a path and the activation of a WeMo light. The prediction accuracy is very high (close to 100%) when the only motion in the house is the person walking the pattern. The accuracy degrades when there is other motion in the house at the same time a pattern is being walked as this makes the sensor data noisy. The accuracy degrades more quickly for the patterns that depend on relatively few factors which suggests that one way to make the system more robust is to increase the number of motion sensors in the house. Also, the patterns that use relatively few factors (e.g., #2) it proved infeasible to make them unidirectional given the sparse dataset.
 
 ## Licensing
-This project is almost completely licensed under the [MIT License](http://choosealicense.com/licenses/mit/) unless otherwise specified in a LICENSE.txt file in a source code directory. Currently, the only exception is the file [trainInSession.js](https://github.com/goruck/mall/tree/newstatus/lambda/amzn) and related documentation in this README which is licensed under the [Amazon Software License](https://aws.amazon.com/asl/).
+The ALL V2.0 project is almost completely licensed under the [Apache License 2.0](http://choosealicense.com/licenses/apache-2.0/) unless otherwise specified in a LICENSE.txt file in a source code directory. Currently, the only exception is the file [trainInSession.js](https://github.com/goruck/mall/blob/newstatus/lambda/amzn/trainInSession.js) and related documentation in this README which is licensed under the [Amazon Software License](https://aws.amazon.com/asl/).
 
 ## Contact Information
-For questions or comments about the ALL project please contact the author Lindo St. Angel @lindostangel or lindostangel@gmail.com.
+For questions or comments about the ALL project please contact the author Lindo St. Angel at lindostangel@gmail.com.
 
 # ALL V1.0 Overview
 Using voice to interface with devices and services around the home enables a rich and intuitive experience as shown by Amazon's huge successes with FireTV and Echo. However, with the exception of a few 3rd party point solutions such as Wemo, the voice user interface is generally not available in the home. One reason for this is the difficulty and unfamiliarity of the technologies required to enable voice control. 
@@ -802,3 +802,4 @@ Note: connections to AWS Lambda triggered by Alexa
 ## Original schematics with design notes
 ![keybus-gpio-if1](https://cloud.githubusercontent.com/assets/12125472/11919445/f16955be-a707-11e5-8c5d-1de31212bf9a.png)
 ![keybus-gpio-if2](https://cloud.githubusercontent.com/assets/12125472/11919447/f453d4d4-a707-11e5-988a-f284c41c4085.png)
+
