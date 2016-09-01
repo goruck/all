@@ -85,7 +85,7 @@ Creating Alexa Skills (which are essentially voice apps) is done by using the Al
 4. Description
 5. Publishing Information (the *panel* skill is not currently published)
 
-The creation of the *panel* skill required inputting of an [Intent Schema](https://github.com/goruck/mall/blob/newstatus/ask/IntentSchema.txt) (which defines the voice interaction model), [sample utterances](https://github.com/goruck/mall/blob/newstatus/ask/SampleUtterances.txt), and [custom slot definitions](https://github.com/goruck/mall/blob/newstatus/ask/CustomSlotTypes.txt) which are essentially elaborations of the values of parameters used in the Intent Schema. The ASK service will generate a voice model from this inputs. 
+The creation of the *panel* skill required inputting of an [Intent Schema](https://github.com/goruck/mall/blob/newstatus/ask/IntentSchema.txt) (which defines the voice interaction model), [sample utterances](https://github.com/goruck/mall/blob/newstatus/ask/SampleUtterances.txt), and [custom slot definitions](https://github.com/goruck/mall/blob/newstatus/ask/CustomSlotTypes.txt) which are essentially elaborations of the values of parameters used in the Intent Schema. The ASK service will generate a voice model from these inputs. 
 
 The table below shows some of the mapping between example user requests and the sample utterance syntax used in the interaction model. 
 
@@ -123,7 +123,7 @@ An Amazon Web Services account is needed to use Lambda, one can be created at at
 
 The *color* skill and Lambda function example provided by ASK was used as a template to create the Lambda function for *panel*. Since the Lambda function needed to talk to a remote Raspberry Pi server, that functionality was added as well as modifying the logic and speech responses to suit the alarm application. One of the biggest challenges in this development is the placement of the  callbacks that returned responses back to Alexa due to the async nature of Node.js. The rest of the Lambda function development was straightforward. 
 
-Below are a few key parts of the code which is listed in its entirety [elsewhere](https://github.com/goruck/mall/blob/master/lambda/).
+Below are a few key parts of the code which is listed in its entirety [elsewhere](https://github.com/goruck/mall/tree/newstatus/lambda).
 
 The code snippet below sets up the ability to use the tls method to open, read, and write a TCP socket that connects to the remote Pi server which then gets the system status from the panel. The tls method provides both authentication and encryption between the Lambda client and the Pi server. 
 
