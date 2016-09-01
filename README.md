@@ -85,69 +85,9 @@ An Amazon applications developer account is required to get access to the [Alexa
 4. Description
 5. Publishing Information (the *panel* skill is not currently published)
 
-The Intent Schema for the *panel* skill is as follows:
+The creation of the *panel* skill required inputting of an [Intent Schema](https://github.com/goruck/mall/blob/newstatus/ask/IntentSchema.txt) (which defines the voice interaction model), [sample utterances](https://github.com/goruck/mall/blob/newstatus/ask/SampleUtterances.txt), and [custom slot definitions](https://github.com/goruck/mall/blob/newstatus/ask/CustomSlotTypes.txt) which are essentially elaborations of the values of parameters used in the Intent Schema. The ASK service will generate a voice model from this inputs. 
 
-```javascript
-{
-  "intents": [
-    {
-      "intent": "MyNumIsIntent",
-      "slots": [
-        {
-          "name": "Keys",
-          "type": "LIST_OF_KEYS"
-        }
-      ]
-    },
-    {
-      "intent": "MyCodeIsIntent",
-      "slots": [
-        {
-          "name": "Code",
-          "type": "AMAZON.FOUR_DIGIT_NUMBER"
-        }
-      ]
-    },
-    {
-      "intent": "WhatsMyStatusIntent"
-    },
-    {
-      "intent": "AMAZON.HelpIntent"
-    }
-  ]
-}
-```
-
-Where "LIST_OF_KEYS" is a custom slot type defined as:
-
-```javascript
-0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | star | pound | stay | away
-```
-
-The sample utterances for the skill are:
-
-1. WhatsMyStatusIntent status
-2. WhatsMyStatusIntent the status
-3. WhatsMyStatusIntent its status
-4. WhatsMyStatusIntent what is the status
-5. WhatsMyStatusIntent what the status is
-6. WhatsMyStatusIntent what's the status
-7. WhatsMyStatusIntent give me the status
-8. WhatsMyStatusIntent give me its status
-9. WhatsMyStatusIntent tell me the status
-10. WhatsMyStatusIntent tell me its status
-11. MyNumIsIntent key {Keys}
-12. MyNumIsIntent the key {Keys}
-13. MyNumIsIntent the key is {Keys}
-14. MyNumIsIntent key is {Keys}
-15. MyNumIsIntent {Keys}
-16. MyCodeIsIntent the code is {Code}
-17. MyCodeIsIntent code is {Code}
-18. MyCodeIsIntent the code {Code}
-19. MyCodeIsIntent code {Code}
-20. MyCodeIsIntent {Code}
-
-The table below shows the mapping between example user requests and the sample utterance syntax used in the interaction model. 
+The table below shows some of the mapping between example user requests and the sample utterance syntax used in the interaction model. 
 
 Example User Request | Sample Utterance
 ---------------------|------------------
