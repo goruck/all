@@ -66,18 +66,18 @@ In the reference design, the Pi's GPIOs are the primary physical interface to th
 
 The requirements and the analysis above drove a system architecture with the following components.
 
-* An Alexa Intent Schema / Utterance database developed using ASK
+* Alexa Skills developed using the Alexa Skills Kit
 * An AWS Lambda function in Node.js to handle the intent triggers from Alexa and send it back responses from the home device 
 * A home device built on Raspberry PI running real-time Linux with a server application developed in C running in userspace
 * A hardware interface unit that handled the translation of the electrical signals between the Pi and the security system
-* The DSC Power832 security system connected via its Keybus interface to the Pi's GPIOs via the interface unit
+* The DSC Power832 security system connected via its Keybus interface to the Pi's GPIOs via the interface unit.
 
 Note that although the development of the architecture described above appears very waterfall-ish, the reality is that it took many iterations of architecture / design / test to arrive at the final system solution.
 
 # Design and Implementation of the Components
 
-## Alexa Intent Schema / Utterance database
-An Amazon applications developer account is required to get access to the [Alexa Skills Kit (ASK)](https://developer.amazon.com/public/solutions/alexa/alexa-skills-kit), one can be created one at https://developer.amazon.com/appsandservices. There's a [getting started guide](https://developer.amazon.com/appsandservices/solutions/alexa/alexa-skills-kit/getting-started-guide) on the ASK site on how to create a new skill. The skill developed to control the alarm panel, named *panel*, used the example skill *color* as a starting point. Amazon makes the creation of a skill relatively easy but careful thinking through the voice interaction is required. The *panel* skill uses a mental model of attaching a voice command to every button on the alarm's keypad and an extra command to give the status of the system. The alarm system status is the state of the lights on the keypad (e.g., armed, bypass, etc). Four-digit code input is also supported, which is useful for a PIN. The Amazon skill development tool takes you through the following steps in creating the skill:
+## Alexa Skills
+Creating Alexa Skills (which are essentially voice apps) is done by using the Alexa Skills Kit. An Amazon applications developer account is required to get access to the [Alexa Skills Kit (ASK)](https://developer.amazon.com/public/solutions/alexa/alexa-skills-kit), one can be created one at https://developer.amazon.com/appsandservices. There's a [getting started guide](https://developer.amazon.com/appsandservices/solutions/alexa/alexa-skills-kit/getting-started-guide) on the ASK site on how to create a new skill. The skill developed to control the alarm panel, named *panel*, used the example skill *color* as a starting point. Amazon makes the creation of a skill relatively easy but careful thinking through the voice interaction is required. The *panel* skill uses a mental model of attaching a voice command to every button on the alarm's keypad and an extra command to give the status of the system. The alarm system status is the state of the lights on the keypad (e.g., armed, bypass, etc). Four-digit code input is also supported, which is useful for a PIN. The Amazon skill development tool takes you through the following steps in creating the skill:
 
 1. Skill Information - Invocation Name, Version, and Service Endpoint (the Lambda ARN in this project)
 2. Interaction Model - Intent Schema, Custom Slot Types, and Sample Utterances
@@ -123,18 +123,25 @@ An Amazon Web Services account is needed to use Lambda, one can be created at at
 
 The *color* skill and Lambda function example provided by ASK was used as a template to create the Lambda function for *panel*. Since the Lambda function needed to talk to a remote Raspberry Pi server, that functionality was added as well as modifying the logic and speech responses to suit the alarm application. One of the biggest challenges in this development is the placement of the  callbacks that returned responses back to Alexa due to the async nature of Node.js. The rest of the Lambda function development was straightforward. 
 
-Below are a few key parts of the code which is listed in its entirety [elsewhere](https://github.com/goruck/all/blob/master/lambda/all.js).
+Below are a few key parts of the code which is listed in its entirety [elsewhere](https://github.com/goruck/mall/blob/master/lambda/).
 
 The code snippet below sets up the ability to use the tls method to open, read, and write a TCP socket that connects to the remote Pi server which then gets the system status from the panel. The tls method provides both authentication and encryption between the Lambda client and the Pi server. 
 
 ```javascript
+/*
+ * Gets the panel status to be used in the intent handlers.
+ * This function is also used to send commands to the server.
+ * serverCmd = 'sendJSON' returns status as JSON.
+ * serverCmd = 'idle' returns status as text (legacy mode).
+ *
+ */
 var tls = require('tls'),
     fs = require('fs'),
-    PORT = fs.readFileSync('port.txt').toString("utf-8", 0, 5),
-    HOST = fs.readFileSync('host.txt').toString("utf-8", 0, 14),
-    CERT = fs.readFileSync('client.crt'),
-    KEY  = fs.readFileSync('client.key'),
-    CA   = fs.readFileSync('ca.crt');
+    PORT = fs.readFileSync('./port.txt').toString("utf-8", 0, 5),
+    HOST = fs.readFileSync('./host.txt').toString("utf-8", 0, 14),
+    CERT = fs.readFileSync('./client.crt'),
+    KEY  = fs.readFileSync('./client.key'),
+    CA   = fs.readFileSync('./ca.crt');
 
 var socketOptions = {
     host: HOST,
@@ -145,16 +152,13 @@ var socketOptions = {
     rejectUnauthorized: true
 };
 
-/*
- * Gets the panel status to be used in the intent handlers.
- */
-function getPanelStatus (callback) {
+var getPanelStatus = function (serverCmd, callback) {
     var panelStatus = "";
-    var serverCmd = 'idle'; // send idle to server which is a noop
 
     var socket = tls.connect(socketOptions, function() {
         console.log('getPanelStatus socket connected to host: ' +HOST);
         socket.write(serverCmd +'\n');
+        console.log('getPanelStatus wrote: '+serverCmd);
     });
 
     socket.on('data', function(data) {
@@ -171,65 +175,104 @@ function getPanelStatus (callback) {
 	console.log(ex);
     });
 }
+// Export function so it can be used external to this module.
+module.exports.getPanelStatus = getPanelStatus;
 ```
 
 The code snippet below writes a value to the remote Pi server that gets translated into an alarm keypad command. It checks to see if the command succeeded and if not flags a error response to the user.
 
 ```javascript
-var socket = tls.connect(socketOptions, function() {
-    console.log('sendKeyInSession socket connected to host: ' +HOST);
-    socket.write(num +'\n');
-    console.log('wrote ' +num);
-});
+/*
+ * Gets the panel keypress from the user in the session.
+ * Check to make sure keypress is valid.
+ * Prepares the speech to reply to the user.
+ * If valid, sends the keypress to the panel over a TLS TCP socket.
+ */
+function sendKeyInSession(intent, session, callback) {
+    var cardTitle = intent.name;
+    var KeysSlot = intent.slots.Keys;
+    var sessionAttributes = {};
+    var repromptText = "";
+    var shouldEndSession = true; // end session after sending keypress
+    var speechOutput = "";
 
-socket.on('data', function(data) {
-    var dummy; // read status from server to get FIN packet
-    dummy += data.toString();
-});
-
-socket.on('close', function() { // wait for FIN packet from server
-    console.log('sendKeyInSession socket disconnected from host: ' +HOST);
-    if (!(num === 'stay' || num === 'away')) { // a key that doesn't need verification
-        speechOutput = 'sent,' +num;
-        callback(sessionAttributes,
-                 buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-    } else {
-        setTimeout(function verifyArmCmd() { // verify stay or away arm command succeeded
-            getPanelStatus(function checkIfArmed(panelStatus) {
-                if (isArmed(panelStatus)) {
-                    speechOutput = 'sent,' +num +',system was armed,';
+    var ValidValues = ['0','1', '2', '3', '4', '5', '6', '7', '8', '9', 'stay', 'away', 'star', 'pound'];
+    var num = KeysSlot.value;
+    var isValidValue = ValidValues.indexOf(num) > -1; // true if a valid value was passed
+    
+    if (KeysSlot) {
+        if (!isValidValue) {
+            speechOutput = num + ",is an invalid command," +
+                                 "valid commands are the names of a keypad button," +
+                                 "status, or a 4 digit code";
+            callback(sessionAttributes,
+                     shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+        } else {
+            shared.getPanelStatus('idle', function (panelStatus) { // check status first
+                if ((num === 'stay' || num === 'away') && isArmed(panelStatus)) {
+                    speechOutput = "System is already armed,";
+                    callback(sessionAttributes,
+                             shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                } else if ((num === 'stay' || num === 'away') && !zonesNotActive(panelStatus)) {
+                    var placesNotReady = findPlacesNotReady(panelStatus); // get friendly names of zones not ready
+                    speechOutput = "System cannot be armed, because these zones are not ready," +placesNotReady;
+                    callback(sessionAttributes,
+                             shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
                 } else {
-                    speechOutput = 'sent,' +num +',error,, system could not be armed,';
+                    shared.getPanelStatus(num, function(panelStatus) { // write num to panel and check return status
+                        if (!(num === 'stay' || num === 'away')) { // a key that doesn't need verification
+                            speechOutput = 'sent,' +num;
+                            callback(sessionAttributes,
+                                     shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                        } else {
+                            setTimeout(function verifyArmCmd() { // verify stay or away arm command succeeded
+                                shared.getPanelStatus('idle', function checkIfArmed(panelStatus) {
+                                    if (isArmed(panelStatus)) {
+                                        speechOutput = 'sent,' +num +',system was armed,';
+                                    } else {
+                                        speechOutput = 'sent,' +num +',error,, system could not be armed,';
+                                    }
+                                    callback(sessionAttributes,
+                                             shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                                });
+                            }, 1000); // wait 1 sec for command to take effect
+                        }
+                    });
                 }
-                callback(sessionAttributes,
-                         buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
             });
-        }, 1000); // wait 1 sec for command to take effect
+        }
+    } else {
+        console.log('error in SendKeyInSession');
     }
-});
+}
 ```
 
 The code snippet below processes alarm status coming back from the Pi server and sends it to Alexa. 
 
 ```javascript
-function getStatusFromSession(panelStatus, intent, session, callback) {
+/*
+ * Sends panel status to the user and ends session.
+ */
+function getStatusFromSession(intent, session, callback) {
     var cardTitle = intent.name,
-    repromptText = "",
-    sessionAttributes = {},
-    shouldEndSession = true,
-    speechOutput = "";
+        repromptText = "",
+        sessionAttributes = {},
+        shouldEndSession = true,
+        speechOutput = "";
 
-    if (isArmed(panelStatus)) {
-        isBypassed(panelStatus) ? speechOutput = 'system is armed and bypassed' : speechOutput = 'system is armed';
-    } else if (zonesNotActive(panelStatus)) { // no zones are reporting activity or are tripped
-        hasError(panelStatus) ? speechOutput = 'system is ready but has an error' : speechOutput = 'system is ready';
-    } else { // system must not be ready
-        var placesNotReady = findPlacesNotReady(panelStatus); // get friendly names of zones not ready;
-        speechOutput = 'these zones are not ready,' +placesNotReady;
-    }
+    shared.getPanelStatus('idle', function (panelStatus) {
+        if (isArmed(panelStatus)) {
+            isBypassed(panelStatus) ? speechOutput = 'system is armed and bypassed' : speechOutput = 'system is armed';
+        } else if (zonesNotActive(panelStatus)) { // no zones are reporting activity or are tripped
+            hasError(panelStatus) ? speechOutput = 'system is ready but has an error' : speechOutput = 'system is ready';
+        } else { // system must not be ready
+            var placesNotReady = findPlacesNotReady(panelStatus); // get friendly names of zones not ready
+            speechOutput = 'these zones are not ready,' +placesNotReady;
+        }
 
-    callback(sessionAttributes,
-             buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+        callback(sessionAttributes,
+                 shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+    });
 }
 ```
 
