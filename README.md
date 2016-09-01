@@ -72,10 +72,6 @@ The requirements and the analysis above drove a system architecture with the fol
 * A hardware interface unit that handled the translation of the electrical signals between the Pi and the security system
 * The DSC Power832 security system connected via its Keybus interface to the Pi's GPIOs via the interface unit
 
-These components and the interconnections between them are shown in the diagram below.
-
-![all](https://cloud.githubusercontent.com/assets/12125472/11692383/0e4a623e-9e54-11e5-8a78-b6fdf3eb9ba2.png)
-
 Note that although the development of the architecture described above appears very waterfall-ish, the reality is that it took many iterations of architecture / design / test to arrive at the final system solution.
 
 # Design and Implementation of the Components
