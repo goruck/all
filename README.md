@@ -187,7 +187,7 @@ Even though the *panel_io()* is given higher priority than the other two threads
 Based on this, the *panel_io()* thread was locked to its own CPU and the other threads are locked to the other three CPUs (its really great to have four CPUs at one's disposal). The application code sets the thread CPU affinity as shown below. 
 
 ```c
-// CPU(s) for main and message i/o threads
+// CPU(s) for main, predict and message i/o threads
   CPU_ZERO(&cpuset_mio);
   CPU_SET(1, &cpuset_mio);
   CPU_SET(2, &cpuset_mio);
@@ -241,7 +241,7 @@ The application code needs to be compiled with the relevant libraries and execut
 
 ```bash
 $ gcc -Wall -o kprw-server kprw-server.c -lrt -lpthread -lwrap -lssl -lcrypto
-$ sudo ./kprw-server *portnum*
+$ sudo ./kprw-server portnum
 ```
 
 Where *portnum* is the TCP port number for the server to use.
@@ -261,7 +261,7 @@ These GPIOs need to be in a safe state after power on and boot up. Per the Broad
 The code below was added to /etc/rc.local so that the application code would automatically run after powering on the Pi.
 
 ```bash
-sudo /home/pi/all/rpi/kprw-server *portnum* > /dev/null 2>&1 &
+sudo /home/pi/all/rpi/kprw-server portnum > /dev/null 2>&1 &
 ```
 
 Where *portnum* is the TCP port number for the server to use. 
@@ -622,10 +622,10 @@ The interface circuit was first breadboarded and then moved to a prototyping boa
 Note: most components were salvaged from other projects and so the selection and placement is not optimized for either cost or size. 
 
 # Licensing
-The ALL project is almost completely licensed under the [Apache License 2.0](http://choosealicense.com/licenses/apache-2.0/) unless otherwise specified in a LICENSE.txt file in a source code directory. Currently, the only exception is the file [trainInSession.js](https://github.com/goruck/mall/blob/newstatus/lambda/amzn/trainInSession.js) and related documentation in this README which is licensed under the [Amazon Software License](https://aws.amazon.com/asl/).
+The ALL project is almost completely licensed under the [Apache License 2.0](http://choosealicense.com/licenses/apache-2.0/) unless otherwise specified in a LICENSE.txt file in a source code directory. The only exception is the code in the file [trainInSession.js](https://github.com/goruck/mall/blob/newstatus/lambda/amzn/trainInSession.js) and related documentation in this README which are licensed under the [Amazon Software License](https://aws.amazon.com/asl/).
 
 # Contact Information
-For questions or comments about the ALL project please contact the author Lindo St. Angel at lindostangel@gmail.com.
+For questions or comments about the ALL project please contact the author goruck (Lindo St. Angel) at <lindostangel> AT <gmail> DOT <com>.
 
 # Appendix
 
