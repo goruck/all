@@ -40,6 +40,13 @@ End to end SSL/TLS integration | Customer data security
    3. [Raspberry Pi Controller / Server](https://github.com/goruck/all#raspberry-pi-controller--server)
    4. [Keybus to GPIO Interface Unit](https://github.com/goruck/all#keybus-to-gpio-interface-unit)
 3. [Machine Learning with ALL]()
+   1. [Background Information]()
+   2. [Problem Definition]()
+   3. [Data Preparation]()
+   4. [Data Analysis]()
+   5. [Algorithm Evaluation]()
+   6. [Implementation]()
+   7. [Results]()
 4. [Development and Test environment](https://github.com/goruck/all#development-and-test-environment)
 5. [Overall Hardware Design and Considerations](https://github.com/goruck/all#overall-hardware-design-and-considerations)
 6. [Bill of Materials and Service Cost Considerations](https://github.com/goruck/all#bill-of-materials-and-service-cost-considerations)
@@ -121,165 +128,14 @@ The skill is invoked by saying to Alexa "ask panel" or "tell panel".
 ## AWS Lambda function
 An Amazon Web Services account is needed to use Lambda, one can be created at at https://aws.amazon.com/. Like all AWS products, there is good [documentation](https://aws.amazon.com/lambda/) available on the AWS site that should be read to come up to speed, if not already familiar. Still it can be challenging to use the product, if unfamiliar with javascript, Node, and asynchronous programming which are all essential to using Lambda. Several books and articles including [*Sams Teach Yourself Node.js in 24 Hours*](http://smile.amazon.com/dp/0672335956) by Ornbo, [*JavaScript: The Good Parts*](http://smile.amazon.com/dp/0596517742) by Crockford, and [*Asynchronous programming and continuation-passing style in JavaScript*](http://www.2ality.com/2012/06/continuation-passing-style.html) by Rauschmayer can help to accelerate the learning curve. Lambda and Node.js is very well-suited to scale cloud side processing associated with applications like voice control, given that Lambda was designed to handle bursty applications and the non-blocking I/O benefits of Node.js.
 
-The *color* skill and Lambda function example provided by ASK was used as a template to create the Lambda function for *panel*. Since the Lambda function needed to talk to a remote Raspberry Pi server, that functionality was added as well as modifying the logic and speech responses to suit the alarm application. One of the biggest challenges in this development is the placement of the  callbacks that returned responses back to Alexa due to the async nature of Node.js. The rest of the Lambda function development was straightforward. 
+The *color* skill and Lambda function example provided by ASK was used as a template to create the Lambda function for *panel*. Since the Lambda function needed to talk to a remote Raspberry Pi server, that functionality was added as well as modifying the logic and speech responses to suit the alarm application. The Lambda code uses the Node.js tls method to open, read, and write a TCP socket that connects to the remote Pi server which sends commands to and reads status from the panel. The tls method provides both authentication and encryption between the Lambda client and the Pi server. One of the biggest challenges in this development is the placement of the  callbacks that returned responses back to Alexa due to the async nature of Node.js. The rest of the Lambda function development was straightforward. 
 
-Below are a few key parts of the code which is listed in its entirety [elsewhere](https://github.com/goruck/mall/tree/newstatus/lambda).
-
-The code snippet below sets up the ability to use the tls method to open, read, and write a TCP socket that connects to the remote Pi server which then gets the system status from the panel. The tls method provides both authentication and encryption between the Lambda client and the Pi server. 
-
-```javascript
-/*
- * Gets the panel status to be used in the intent handlers.
- * This function is also used to send commands to the server.
- * serverCmd = 'sendJSON' returns status as JSON.
- * serverCmd = 'idle' returns status as text (legacy mode).
- *
- */
-var tls = require('tls'),
-    fs = require('fs'),
-    PORT = fs.readFileSync('./port.txt').toString("utf-8", 0, 5),
-    HOST = fs.readFileSync('./host.txt').toString("utf-8", 0, 14),
-    CERT = fs.readFileSync('./client.crt'),
-    KEY  = fs.readFileSync('./client.key'),
-    CA   = fs.readFileSync('./ca.crt');
-
-var socketOptions = {
-    host: HOST,
-    port: PORT,
-    cert: CERT,
-    key: KEY,
-    ca: CA,
-    rejectUnauthorized: true
-};
-
-var getPanelStatus = function (serverCmd, callback) {
-    var panelStatus = "";
-
-    var socket = tls.connect(socketOptions, function() {
-        console.log('getPanelStatus socket connected to host: ' +HOST);
-        socket.write(serverCmd +'\n');
-        console.log('getPanelStatus wrote: '+serverCmd);
-    });
-
-    socket.on('data', function(data) {
-        panelStatus += data.toString();
-    });
-	
-    socket.on('close', function () {
-	console.log('getPanelStatus socket disconnected from host: ' +HOST);
-	callback(panelStatus);
-    });
-	
-    socket.on('error', function(ex) {
-	console.log("handled getPanelStatus socket error");
-	console.log(ex);
-    });
-}
-// Export function so it can be used external to this module.
-module.exports.getPanelStatus = getPanelStatus;
-```
-
-The code snippet below writes a value to the remote Pi server that gets translated into an alarm keypad command. It checks to see if the command succeeded and if not flags a error response to the user.
-
-```javascript
-/*
- * Gets the panel keypress from the user in the session.
- * Check to make sure keypress is valid.
- * Prepares the speech to reply to the user.
- * If valid, sends the keypress to the panel over a TLS TCP socket.
- */
-function sendKeyInSession(intent, session, callback) {
-    var cardTitle = intent.name;
-    var KeysSlot = intent.slots.Keys;
-    var sessionAttributes = {};
-    var repromptText = "";
-    var shouldEndSession = true; // end session after sending keypress
-    var speechOutput = "";
-
-    var ValidValues = ['0','1', '2', '3', '4', '5', '6', '7', '8', '9', 'stay', 'away', 'star', 'pound'];
-    var num = KeysSlot.value;
-    var isValidValue = ValidValues.indexOf(num) > -1; // true if a valid value was passed
-    
-    if (KeysSlot) {
-        if (!isValidValue) {
-            speechOutput = num + ",is an invalid command," +
-                                 "valid commands are the names of a keypad button," +
-                                 "status, or a 4 digit code";
-            callback(sessionAttributes,
-                     shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-        } else {
-            shared.getPanelStatus('idle', function (panelStatus) { // check status first
-                if ((num === 'stay' || num === 'away') && isArmed(panelStatus)) {
-                    speechOutput = "System is already armed,";
-                    callback(sessionAttributes,
-                             shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-                } else if ((num === 'stay' || num === 'away') && !zonesNotActive(panelStatus)) {
-                    var placesNotReady = findPlacesNotReady(panelStatus); // get friendly names of zones not ready
-                    speechOutput = "System cannot be armed, because these zones are not ready," +placesNotReady;
-                    callback(sessionAttributes,
-                             shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-                } else {
-                    shared.getPanelStatus(num, function(panelStatus) { // write num to panel and check return status
-                        if (!(num === 'stay' || num === 'away')) { // a key that doesn't need verification
-                            speechOutput = 'sent,' +num;
-                            callback(sessionAttributes,
-                                     shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-                        } else {
-                            setTimeout(function verifyArmCmd() { // verify stay or away arm command succeeded
-                                shared.getPanelStatus('idle', function checkIfArmed(panelStatus) {
-                                    if (isArmed(panelStatus)) {
-                                        speechOutput = 'sent,' +num +',system was armed,';
-                                    } else {
-                                        speechOutput = 'sent,' +num +',error,, system could not be armed,';
-                                    }
-                                    callback(sessionAttributes,
-                                             shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-                                });
-                            }, 1000); // wait 1 sec for command to take effect
-                        }
-                    });
-                }
-            });
-        }
-    } else {
-        console.log('error in SendKeyInSession');
-    }
-}
-```
-
-The code snippet below processes alarm status coming back from the Pi server and sends it to Alexa. 
-
-```javascript
-/*
- * Sends panel status to the user and ends session.
- */
-function getStatusFromSession(intent, session, callback) {
-    var cardTitle = intent.name,
-        repromptText = "",
-        sessionAttributes = {},
-        shouldEndSession = true,
-        speechOutput = "";
-
-    shared.getPanelStatus('idle', function (panelStatus) {
-        if (isArmed(panelStatus)) {
-            isBypassed(panelStatus) ? speechOutput = 'system is armed and bypassed' : speechOutput = 'system is armed';
-        } else if (zonesNotActive(panelStatus)) { // no zones are reporting activity or are tripped
-            hasError(panelStatus) ? speechOutput = 'system is ready but has an error' : speechOutput = 'system is ready';
-        } else { // system must not be ready
-            var placesNotReady = findPlacesNotReady(panelStatus); // get friendly names of zones not ready
-            speechOutput = 'these zones are not ready,' +placesNotReady;
-        }
-
-        callback(sessionAttributes,
-                 shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-    });
-}
-```
+The Lambda code is divided up into three parts, [all.js](https://github.com/goruck/mall/blob/newstatus/lambda/all.js) contains most of the functions required to process the speech intents from the Alexa service and interface to the local Pi in a client - server model. However, some Lambda code requires it to be released under the Amazon License which is in the [amzn](https://github.com/goruck/mall/tree/newstatus/lambda/amzn) directory. Lastly, the Lambda code common to all.js and the code in the amzn directory is in [shared.js](https://github.com/goruck/mall/blob/newstatus/lambda/shared.js).
 
 ## Raspberry Pi Controller / Server
 
 ### Real-time Linux
-The Linux disto on the Pi is based on Debian 7.0 "Wheezy" with a fork of the [Raspberry Pi Linux kernel](https://github.com/raspberrypi/linux) patched with rt-patch and configured as a fully preemptible kernel. The patched and configured source code for the Raspberry Pi real-time kernel is available on [GitHub](https://github.com/emlid/linux-rt-rpi). The wiki [real-time Linux](https://rt.wiki.kernel.org/index.php/Main_Page) is an invaluable source of information on the rt-patch and how to write real-time code.
+The Linux disto on the Pi is based on Debian 7.0 "Wheezy" with a fork of the [Raspberry Pi Linux kernel](https://github.com/raspberrypi/linux) patched with rt-patch and configured as a fully preemptible kernel. The patched and configured source code for the Raspberry Pi real-time kernel is available on [GitHub](https://github.com/emlid/linux-rt-rpi). Another how-to for building real-time Linux for the Raspberry Pi can be found on Frank Dürr's blog, [*"Networked and Mobile Systems"*](http://www.frank-durr.de/?p=203). The wiki [real-time Linux](https://rt.wiki.kernel.org/index.php/Main_Page) is an invaluable source of information on the rt-patch and how to write real-time code.
 
 The patched version of the kernel includes the following changes.
 * Replaced default kernel with PREEMPT_RT kernel 3.18.9-rt5-v7+
@@ -307,7 +163,7 @@ The application code consists of three main parts:
 
 The application code directly accesses the GPIO's registers for the fastest possible reads and writes. The direct access code is based on [this](http://elinux.org/RPi_GPIO_Code_Samples#Direct_register_access) information from the Embedded Linux Wiki at elinux.org. The function *setup_io()* in the application code sets up a memory regions to access the GPIOs. The information in the Broadcom BCM2835 ARM Peripherals document is very useful to understand how to safely access the Pi's processor peripherals. It is [here](http://elinux.org/RPi_Documentation) on the Embedded Linux Wiki site.
 
-Inter-thread communication is handled safely via read and write FIFOs without any synchronization (e.g., using a mutext). Its not desirable to use conventional thread synchronization methods since they would block the *panel_io()* thread. There is no way (to my knowledge) to tell the panel not to send data on the keybus, so if *panel_io()* was blocked by another thread accessing a shared FIFO, the application code would drop messages. A good solution to this problem was found in the article [Creating a Thread Safe Producer Consumer Queue in C++ Without Using Locks](http://blogs.msmvps.com/vandooren) by Vandooren, which is what was implemented with a few modifications.
+Inter-thread communication is handled safely via read and write FIFOs without any synchronization (e.g., using a mutext). Its not desirable to use conventional thread synchronization methods since they would block the *panel_io()* thread. There is no way (to my knowledge) to tell the panel not to send data on the keybus, so if *panel_io()* was blocked by another thread accessing a shared FIFO, the application code would drop messages. A good solution to this problem was found in the article [Creating a Thread Safe Producer Consumer Queue in C++ Without Using Locks](http://blogs.msmvps.com/vandooren/2007/01/05/creating-a-thread-safe-producer-consumer-queue-in-c-without-using-locks/) by Vandooren, which is what was implemented with a few modifications.
 
 Running code under real-time Linux requires a few special considerations. Again, the [real-time Linux](https://rt.wiki.kernel.org/index.php/Main_Page) wiki was used extensively to guide the efforts in this regard. The excellent book [The Linux Programming Interface](http://man7.org/tlpi/) by Kerrisk also was very helpful to understand more deeply how the Linux kernel schedules tasks. There are three things needed to be set by a task in order to provide deterministic real time behavior:
 
@@ -385,8 +241,10 @@ The application code needs to be compiled with the relevant libraries and execut
 
 ```bash
 $ gcc -Wall -o kprw-server kprw-server.c -lrt -lpthread -lwrap -lssl -lcrypto
-$ sudo ./kprw-server
+$ sudo ./kprw-server *portnum*
 ```
+
+Where *portnum* is the TCP port number for the server to use.
 
 ### Startup
 The Raspberry Pi is used here as an embedded system so it needs to come up automatically after power on, including after a possible loss of power. The application code defines the GPIOs as follows:
@@ -403,8 +261,9 @@ These GPIOs need to be in a safe state after power on and boot up. Per the Broad
 The code below was added to /etc/rc.local so that the application code would automatically run after powering on the Pi.
 
 ```bash
-/home/pi/all/rpi/kprw-server portnum > /dev/null &
+sudo /home/pi/all/rpi/kprw-server *portnum* > /dev/null 2>&1 &
 ```
+
 Where *portnum* is the TCP port number for the server to use. 
 
 At some point provisions will be added to automatically restart the application code in the event of a crash.
@@ -762,10 +621,10 @@ The interface circuit was first breadboarded and then moved to a prototyping boa
 
 Note: most components were salvaged from other projects and so the selection and placement is not optimized for either cost or size. 
 
-## Licensing
+# Licensing
 The ALL project is almost completely licensed under the [Apache License 2.0](http://choosealicense.com/licenses/apache-2.0/) unless otherwise specified in a LICENSE.txt file in a source code directory. Currently, the only exception is the file [trainInSession.js](https://github.com/goruck/mall/blob/newstatus/lambda/amzn/trainInSession.js) and related documentation in this README which is licensed under the [Amazon Software License](https://aws.amazon.com/asl/).
 
-## Contact Information
+# Contact Information
 For questions or comments about the ALL project please contact the author Lindo St. Angel at lindostangel@gmail.com.
 
 # Appendix
