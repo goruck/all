@@ -14,8 +14,8 @@
  */
 var tls = require('tls'),
     fs = require('fs'),
-    PORT = fs.readFileSync('./port.txt').toString("utf-8", 0, 5),
-    HOST = fs.readFileSync('./host.txt').toString("utf-8", 0, 14),
+    PORT = fs.readFileSync('./port.txt').toString().replace(/\n$/, ''), // Ignore last newline character
+    HOST = fs.readFileSync('./host.txt').toString().replace(/\n$/, ''),
     CERT = fs.readFileSync('./client.crt'),
     KEY  = fs.readFileSync('./client.key'),
     CA   = fs.readFileSync('./ca.crt');
