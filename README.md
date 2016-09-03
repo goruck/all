@@ -347,16 +347,16 @@ The popular open-source software R was selected as the main ML tool and was inte
 The R software package was downloaded from [The R Project for Statistical Computing](https://www.r-project.org/) website and compiled on the Raspberry Pi since there are no recent pre-compiled packages available for Raspbian Wheezy. The following steps are required to install R on the Pi.
 
 ```bash
-wget http://cran.rstudio.com/src/base/R-3/R-3.1.2.tar.gz
-mkdir R_HOME
-mv R-3.1.2.tar.gz R_HOME/
-cd R_HOME/
-tar zxvf R-3.1.2.tar.gz
-cd R-3.1.2/
-sudo apt-get install gfortran libreadline6-dev libx11-dev libxt-dev
-./configure
-make
-sudo make install
+$ wget http://cran.rstudio.com/src/base/R-3/R-3.1.2.tar.gz
+$ mkdir R_HOME
+$ mv R-3.1.2.tar.gz R_HOME/
+$ cd R_HOME/
+$ tar zxvf R-3.1.2.tar.gz
+$ cd R-3.1.2/
+$ sudo apt-get install gfortran libreadline6-dev libx11-dev libxt-dev
+$ ./configure
+$ make
+$ sudo make install
 ```
 
 Note that this installs R version 3.1.2 which is the latest compatible version for Raspbian Wheezy. 
@@ -625,7 +625,7 @@ Note: most components were salvaged from other projects and so the selection and
 The ALL project is almost completely licensed under the [Apache License 2.0](http://choosealicense.com/licenses/apache-2.0/) unless otherwise specified in a LICENSE.txt file in a source code directory. The only exception is the code in the file [trainInSession.js](https://github.com/goruck/mall/blob/newstatus/lambda/amzn/trainInSession.js) and related documentation in this README which are licensed under the [Amazon Software License](https://aws.amazon.com/asl/).
 
 # Contact Information
-For questions or comments about the ALL project please contact the author goruck (Lindo St. Angel) at <lindostangel> AT <gmail> DOT <com>.
+For questions or comments about the ALL project please contact the author goruck (Lindo St. Angel) at \{lindostangel\} AT \{gmail\} DOT \{com\}.
 
 # Appendix
 
