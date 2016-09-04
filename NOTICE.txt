@@ -1,1 +1,1 @@
-
+The ALL project is almost completely licensed under the [Apache License 2.0](http://choosealicense.com/licenses/apache-2.0/) unless otherwise specified in a LICENSE.txt file in a source code directory. The only exception is the code in the file [trainInSession.js](https://github.com/goruck/mall/blob/newstatus/lambda/amzn/trainInSession.js) and related documentation in this README which are licensed under the [Amazon Software License](https://aws.amazon.com/asl/).
