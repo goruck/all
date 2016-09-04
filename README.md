@@ -39,19 +39,19 @@ End to end SSL/TLS integration | Customer data security
    2. [AWS Lambda function](https://github.com/goruck/all#aws-lambda-function)
    3. [Raspberry Pi Controller / Server](https://github.com/goruck/all#raspberry-pi-controller--server)
    4. [Keybus to GPIO Interface Unit](https://github.com/goruck/all#keybus-to-gpio-interface-unit)
-3. [Machine Learning with ALL]()
-   1. [Background Information]()
-   2. [Problem Definition]()
-   3. [Data Preparation]()
-   4. [Data Analysis]()
-   5. [Algorithm Evaluation]()
-   6. [Implementation]()
-   7. [Results]()
+3. [Machine Learning with ALL](https://github.com/goruck/all/blob/master/README.md#machine-learning-with-all)
+   1. [Background Information](https://github.com/goruck/all/blob/master/README.md#background-information)
+   2. [Problem Definition](https://github.com/goruck/all/blob/master/README.md#problem-definition)
+   3. [Data Preparation](https://github.com/goruck/all/blob/master/README.md#data-preparation)
+   4. [Data Analysis](https://github.com/goruck/all/blob/master/README.md#data-analysis)
+   5. [Algorithm Evaluation](https://github.com/goruck/all/blob/master/README.md#algorithm-evaluation)
+   6. [Implementation](https://github.com/goruck/all/blob/master/README.md#implementation)
+   7. [Results](https://github.com/goruck/all/blob/master/README.md#results)
 4. [Development and Test environment](https://github.com/goruck/all#development-and-test-environment)
 5. [Overall Hardware Design and Considerations](https://github.com/goruck/all#overall-hardware-design-and-considerations)
 6. [Bill of Materials and Service Cost Considerations](https://github.com/goruck/all#bill-of-materials-and-service-cost-considerations)
-7. [Licensing]()
-8. [Contact Information]()
+7. [Licensing](https://github.com/goruck/all/blob/master/README.md#licensing)
+8. [Contact Information](https://github.com/goruck/all/blob/master/README.md#contact-information)
 9. [Appendix](https://github.com/goruck/all#appendix)
 
 # Requirements and System Architecture
@@ -92,7 +92,7 @@ Creating Alexa Skills (which are essentially voice apps) is done by using the Al
 4. Description
 5. Publishing Information (the *panel* skill is not currently published)
 
-The creation of the *panel* skill required inputting of an [Intent Schema](https://github.com/goruck/mall/blob/newstatus/ask/IntentSchema.txt) (which defines the voice interaction model), [sample utterances](https://github.com/goruck/mall/blob/newstatus/ask/SampleUtterances.txt), and [custom slot definitions](https://github.com/goruck/mall/blob/newstatus/ask/CustomSlotTypes.txt) which are essentially elaborations of the values of parameters used in the Intent Schema. The ASK service will generate a voice model from these inputs. 
+The creation of the *panel* skill required inputting of an [Intent Schema](https://github.com/goruck/all/blob/master/ask/IntentSchema.txt) (which defines the voice interaction model), [sample utterances](https://github.com/goruck/all/blob/master/ask/SampleUtterances.txt), and [custom slot definitions](https://github.com/goruck/all/blob/master/ask/CustomSlotTypes.txt) which are essentially elaborations of the values of parameters used in the Intent Schema. The ASK service will generate a voice model from these inputs. 
 
 The table below shows some of the mapping between example user requests and the sample utterance syntax used in the interaction model. 
 
@@ -130,7 +130,7 @@ An Amazon Web Services account is needed to use Lambda, one can be created at at
 
 The *color* skill and Lambda function example provided by ASK was used as a template to create the Lambda function for *panel*. Since the Lambda function needed to talk to a remote Raspberry Pi server, that functionality was added as well as modifying the logic and speech responses to suit the alarm application. The Lambda code uses the Node.js tls method to open, read, and write a TCP socket that connects to the remote Pi server which sends commands to and reads status from the panel. The tls method provides both authentication and encryption between the Lambda client and the Pi server. One of the biggest challenges in this development is the placement of the  callbacks that returned responses back to Alexa due to the async nature of Node.js. The rest of the Lambda function development was straightforward. 
 
-The Lambda code is divided up into three parts, [all.js](https://github.com/goruck/mall/blob/newstatus/lambda/all.js) contains most of the functions required to process the speech intents from the Alexa service and interface to the local Pi in a client - server model. However, some Lambda code requires it to be released under the Amazon License which is in the [amzn](https://github.com/goruck/mall/tree/newstatus/lambda/amzn) directory. Lastly, the Lambda code common to all.js and the code in the amzn directory is in [shared.js](https://github.com/goruck/mall/blob/newstatus/lambda/shared.js).
+The Lambda code is divided up into three parts, [all.js](https://github.com/goruck/all/blob/master/lambda/all.js) contains most of the functions required to process the speech intents from the Alexa service and interface to the local Pi in a client - server model. However, some Lambda code requires it to be released under the Amazon License which is in the [amzn](https://github.com/goruck/all/tree/master/lambda/amzn) directory. Lastly, the Lambda code common to all.js and the code in the amzn directory is in [shared.js](https://github.com/goruck/all/blob/master/lambda/shared.js).
 
 ## Raspberry Pi Controller / Server
 
@@ -398,7 +398,7 @@ An example training predictor vector is shown below, where 'clock' is the time a
 | 2016-07-30T21:54:37.950Z | 4134765 | -14172 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -51  | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -8066 | -6541 | -31  | -37  | -12  | -70  | -4134765 | -72  | -14164 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -47  | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -4134765 | -30  | -32  | -6   | -68  | -4134765 | -69  | NA       | NA       | NA       | NA       | NA       | NA       | NA       | TRUE     | NA       | NA        |
 
 ## Data Analysis
-Once it was understood how to form a relevant sensor dataset for the model the next step was to discover and expose the structure in the dataset. Using the above transformations, a dataset of about 300 observations was collected and visualized in scatterplots using R's graphical capabilities. The R code that generated these plots can be found [here](https://github.com/goruck/mall/blob/newstatus/R/genScatterPlots.R) and the observation dataset can be found [here](https://github.com/goruck/mall/blob/newstatus/R/panelSimpledb.csv).
+Once it was understood how to form a relevant sensor dataset for the model the next step was to discover and expose the structure in the dataset. Using the above transformations, a dataset of about 300 observations was collected and visualized in scatterplots using R's graphical capabilities. The R code that generated these plots can be found [here](https://github.com/goruck/all/blob/master/R/genScatterPlots.R) and the observation dataset can be found [here](https://github.com/goruck/all/blob/master/R/panelSimpledb.csv).
 
 Eight unique patterns were used to generate the observations. Each pattern corresponds to a path, direction, and speed of a person walking though the house and the approximate hour of the day this pattern occurred. The training was done by walking the pattern a few times and then invoking an Alexa skill that aquired the sensor data. The patterns and the zones they activate are summarized in the table below.
 
@@ -439,7 +439,7 @@ Now that the structure in the dataset is understood candidate model algorithms w
 
 Given the relatively unstructured decision boundary and non-linear nature of the dataset, the K-Nearest Neighbors (KNN), Random Forests and Support Vector Machine (SVM) algorithms are reasonable choices given that they are well-understood, non-parametric methods and have high flexibility (note that non-parametric models generally have the disadvantage of growing more complex as the number of observations increases). See [An Introduction to Statistical Learning](http://smile.amazon.com/dp/B01IBM7790) for details about the KNN, Random Forests, and SVM algorithms and their relative strengths and weaknesses. In the interest of time, only KNN and SVM approaches were evaluated and overall SVM seemed to offer better over performance (at the expense of more complexity) for the sensor dataset and so therefore was selected. The dataset provides a set of training observations that can be used to build a SVM-based multiple-class classifier. SVM uses the one-versus-one for multiple classification. More information about using SVMs in R can be found [here](https://cran.r-project.org/web/packages/e1071/vignettes/svmdoc.pdf).
 
-An SVM with a radial kernel was selected given the non-linear class boundaries of the datasets. Cross-validation was used to select the best values of the parameters *gamma* and *cost* associated with the model. The R script to generate and test the SVM model can be found [here](https://github.com/goruck/mall/blob/newstatus/R/genSvmTest.R) with the dataset [here](https://github.com/goruck/mall/blob/newstatus/R/panelSimpledb.csv). The script generates confusion matrices for training and validation data.
+An SVM with a radial kernel was selected given the non-linear class boundaries of the datasets. Cross-validation was used to select the best values of the parameters *gamma* and *cost* associated with the model. The R script to generate and test the SVM model can be found [here](https://github.com/goruck/all/blob/master/R/genSvmTest.R) with the dataset [here](https://github.com/goruck/all/blob/master/R/panelSimpledb.csv). The script generates confusion matrices for training and validation data.
 
 The confusion matrix for the training data shown below. The numbers in the row and column headers represent the pattern number classified with 0 being the null case (i.e., no pattern was classified). Note that only patterns 1 through 8 were used and with clock as a factor in these examples. This data indicates that model is trained very well except for pattern 8. This is most likely because pattern does not yet have enough training samples in the current dataset. 
 
@@ -508,7 +508,7 @@ Levels:
 Now that the algorithm was selected, the next step was to implement the real-time prediction of patterns, develop an Alexa skill that performs voice tagging of training observations, and develop a method to periodically re-fit the SVM with new training data.
 
 ### Real-time Prediction and Action
-A new thread called *predict()* was added to the [Raspberry Pi real-time software](https://github.com/goruck/mall/blob/newstatus/rpi/kprw-server.c) which runs periodically and sends sensor data to an R script via the *popen()* Linux system command to make a prediction. The prediction R script is found [here](https://github.com/goruck/mall/blob/newstatus/R/predsvm2.R). The thread reads the prediction from R, applies some confidence checking rules and does something if a true prediction is determined. Currently, various WeMo light switches in the house are controlled by the thread in response to predictions in a hardcoded manner but at some point a more flexible and extensible mapping of predictions to actions will be implemented (perhaps by use of another Alexa skill). The WeMo devices are controlled by a bash script called by a *system()* Linux system command in the thread. The WeMo bash script can be found [here](https://github.com/goruck/mall/blob/newstatus/wemo/wemo.sh). At some point the capability to automatically take action on a prediction will be added. This can be done by including the state of a WeMo switch as a factor in the model. Obviously, any device around the home that can be monitored and controlled through the LAN or Internet can be used as well.
+A new thread called *predict()* was added to the [Raspberry Pi real-time software](https://github.com/goruck/all/blob/master/rpi/kprw-server.c) which runs periodically and sends sensor data to an R script via the *popen()* Linux system command to make a prediction. The prediction R script is found [here](https://github.com/goruck/all/blob/master/R/predsvm2.R). The thread reads the prediction from R, applies some confidence checking rules and does something if a true prediction is determined. Currently, various WeMo light switches in the house are controlled by the thread in response to predictions in a hardcoded manner but at some point a more flexible and extensible mapping of predictions to actions will be implemented (perhaps by use of another Alexa skill). The WeMo devices are controlled by a bash script called by a *system()* Linux system command in the thread. The WeMo bash script can be found [here](https://github.com/goruck/all/blob/master/wemo/wemo.sh). At some point the capability to automatically take action on a prediction will be added. This can be done by including the state of a WeMo switch as a factor in the model. Obviously, any device around the home that can be monitored and controlled through the LAN or Internet can be used as well.
 
 Two models are used in the prediction R script, one that uses the clock as a prediction and one that does not. If both models predict the same pattern, the higher probability prediction is selected (in the case of both models making the same non-null prediction, a higher probability pattern from the model using clock as a predictor is likely a timed pattern that uses the clock). If one model has not identified any pattern and the other has, then the non-null case is selected.
 
@@ -552,13 +552,13 @@ simpledb.createDomain(params, function(err, data) {
 });
 ```
 
-The existing Alexa skill's schema and utterance database was modified to include three new speech intents, *OccupancyIsIntent*, *PredIsIntent*, and *TrainIsIntent*. This code can be found [here](https://github.com/goruck/mall/tree/newstatus/ask). When the user's speech triggers it, *OccupancyIsIntent* causes Alexa to return the occupancy prediction generated by the *predict()* thread as explained above, *PredIsIntent* causes Alexa to return the last true prediction, and *TrainIsIntent* associates a particular observation with a pattern using voice (i.e., voice tagging) and then stores it in SimpleDB.
+The existing Alexa skill's schema and utterance database was modified to include three new speech intents, *OccupancyIsIntent*, *PredIsIntent*, and *TrainIsIntent*. This code can be found [here](https://github.com/goruck/all/tree/master/ask). When the user's speech triggers it, *OccupancyIsIntent* causes Alexa to return the occupancy prediction generated by the *predict()* thread as explained above, *PredIsIntent* causes Alexa to return the last true prediction, and *TrainIsIntent* associates a particular observation with a pattern using voice (i.e., voice tagging) and then stores it in SimpleDB.
 
-The existing Lambda Node.js code in [all.js](https://github.com/goruck/mall/blob/newstatus/lambda/all.js) that services the Alexa speech intents was modified to include three new functions to support the new intents. A function called [*trainInSession()*](https://github.com/goruck/mall/blob/newstatus/lambda/amzn/trainInSession.js) handles the *TrainIsIntent* intent, the function called *predInSession()* handles the *PredIsIntent* intent, and the function called *anyoneHomeInSession()*, handles the *OccupancyIsIntent* intent.
+The existing [Lambda Node.js code](https://github.com/goruck/all/tree/master/lambda) that services the Alexa speech intents was modified to include three new functions to support the new intents. A function called [*trainInSession()*](https://github.com/goruck/all/blob/master/lambda/amzn/trainInSession.js) handles the *TrainIsIntent* intent, the function called *predInSession()* handles the *PredIsIntent* intent, and the function called *anyoneHomeInSession()*, handles the *OccupancyIsIntent* intent.
 
 Currently, *TrainIsIntent* and *trainInSession()* uses 10 fixed patterns with the mapping to specific paths through the home as shown above. This forces the user to remember the mapping during training. Although acceptable for test purposes, a more flexible approach is required whereby the user is asked to provide the path name during training or is offered to select a path from a menu in case the path already exists. These enhancements will be added in a future revision of the skill.
 
-The existing thread *msg_io()* in the [Raspberry Pi real-time software](https://github.com/goruck/mall/blob/newstatus/rpi/kprw-server.c) was modified to calculate the timestamped sensor data as described above and the Pi's server was modified to return that along with other information as JSON in response to a command from the Alexa skill running in AWS Lambda. Using JSON instead of raw text greatly simplifies the Node.js code running in Lambda.
+The existing thread *msg_io()* in the [Raspberry Pi real-time software](https://github.com/goruck/all/blob/master/rpi/kprw-server.c) was modified to calculate the timestamped sensor data as described above and the Pi's server was modified to return that along with other information as JSON in response to a command from the Alexa skill running in AWS Lambda. Using JSON instead of raw text greatly simplifies the Node.js code running in Lambda.
 
 A simplified flow diagram of voice tagging using the *TrainIsIntent* and *trainInSession()* functionality is shown in the figure below.
 ![train-flow-chart](https://cloud.githubusercontent.com/assets/12125472/17685887/e047bf92-631c-11e6-9c81-8d9390074ada.png)
@@ -567,7 +567,7 @@ A simplified flow diagram of getting a prediction using *predInSession()* and *P
 ![predict-flow-chart](https://cloud.githubusercontent.com/assets/12125472/17686224/9cdcf13e-631f-11e6-89a2-4c164cdfedbd.png)
 
 ### Model Retraining
-The SVM models needs to be periodically refitted as new observations are taken, ground truth tagged by Alexa, and stored in SimpleDB. This is accomplished by a new Node.js routine locally on the Raspberry Pi that is run as a cron job every day at midnight. When the routine, [*simpledb-read.js*](https://github.com/goruck/mall/blob/newstatus/nodejs/simpledb-read.js), is run it reads SimpleDB and compares the latest observation with what was previously read. If there are new observation(s), the data is copied from SimpleDB and appended to a local copy and then the SVM models are refitted with it. The SVM model generation is done using R by a script called [*genSvmModels2.R*](https://github.com/goruck/mall/blob/newstatus/R/genSvmModels2.R) which is called from the Node.js routine. From that point forward, the updated models are used for real-time prediction in the *predict()* thread.
+The SVM models needs to be periodically refitted as new observations are taken, ground truth tagged by Alexa, and stored in SimpleDB. This is accomplished by a new Node.js routine locally on the Raspberry Pi that is run as a cron job every day at midnight. When the routine, [*simpledb-read.js*](https://github.com/goruck/all/blob/master/nodejs/simpledb-read.js), is run it reads SimpleDB and compares the latest observation with what was previously read. If there are new observation(s), the data is copied from SimpleDB and appended to a local copy and then the SVM models are refitted with it. The SVM model generation is done using R by a script called [*genSvmModels2.R*](https://github.com/goruck/all/blob/master/R/genSvmModels2.R) which is called from the Node.js routine. From that point forward, the updated models are used for real-time prediction in the *predict()* thread.
 
 ## Results
 The model was trained using Alexa to voice tag observations for the patterns listed above. About ten true plus a few explicit false observations were required to get good accuracy prediction. The model was typically trained in the following way.
@@ -622,7 +622,7 @@ The interface circuit was first breadboarded and then moved to a prototyping boa
 Note: most components were salvaged from other projects and so the selection and placement is not optimized for either cost or size. 
 
 # Licensing
-The ALL project is almost completely licensed under the [Apache License 2.0](http://choosealicense.com/licenses/apache-2.0/) unless otherwise specified in a LICENSE.txt file in a source code directory. The only exception is the code in the file [trainInSession.js](https://github.com/goruck/mall/blob/newstatus/lambda/amzn/trainInSession.js) and related documentation in this README which are licensed under the [Amazon Software License](https://aws.amazon.com/asl/).
+The ALL project is almost completely licensed under the [Apache License 2.0](http://choosealicense.com/licenses/apache-2.0/) unless otherwise specified in a LICENSE.txt file in a source code directory. The only exception is the code in the file [trainInSession.js](https://github.com/goruck/all/blob/master/lambda/amzn/trainInSession.js) and related documentation in this README which are licensed under the [Amazon Software License](https://aws.amazon.com/asl/).
 
 # Contact Information
 For questions or comments about the ALL project please contact the author goruck (Lindo St. Angel) at \{lindostangel\} AT \{gmail\} DOT \{com\}.
