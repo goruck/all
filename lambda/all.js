@@ -380,7 +380,7 @@ function predInSession(intent, session, callback) {
         var maxms = 0,
             lastTrueIdx = NaN, // array index of last true prediction in lastTruePred
             ms = 0;
-        for (i = 0; i < lastTruePred.length; i++) {
+        for (var i = 0; i < lastTruePred.length; i++) {
             if (lastTruePred[i] != "") {
                 ms = Date.parse(lastTruePred[i]); // milliseconds since January 1, 1970, 00:00:00 UTC
                 if (ms > maxms) {
@@ -509,11 +509,11 @@ function findPlacesNotReady(panelStatus) {
     var zoneRegex = /(Zone\d \d{1,2})((, \d{1,2}){1,8})?/g;
     var zonesNotReady = panelStatus.match(zoneRegex); // array with zones not ready
     var placesNotReady = "";
-    for(i = 0; i < zonesNotReady.length; i++) {
+    for (var i = 0; i < zonesNotReady.length; i++) {
         var zoneNotReady = zonesNotReady[i].slice(0,5);
         var sensorRegex = /\d{1,2}/g;
         var sensorsNotReady = zonesNotReady[i].slice(6).match(sensorRegex); // array with sensors in zone not ready
-        for(j = 0; j < sensorsNotReady.length; j++) {
+        for (var j = 0; j < sensorsNotReady.length; j++) {
             var sensorNotReady = sensorsNotReady[j];
             var place = zoneToPlace(zoneNotReady, sensorNotReady);
             if (place.indexOf("motion") === -1) { // ignore motion sensors
@@ -549,7 +549,7 @@ function predToPatt(predNum) {
  */
 function calcRelT (time, value) {
     var relT = [];
-    for (i = 0; i < value.length; i++) {
+    for (var i = 0; i < value.length; i++) {
         relT[i] = value[i] - time;
     }
     return relT;
