@@ -1,7 +1,7 @@
 /*
  * Read out new observations from SimpleDB and update database and models.
  *
- * (c) Lindo St. Angel 2016
+ * Copyright (c) Lindo St. Angel 2016
  */
 
 var AWS = require('/usr/lib/node_modules/aws-sdk');
@@ -26,7 +26,7 @@ simpledb.select(params, function(err, data) {
     var lastItem = fs.readFileSync('/home/pi/all/nodejs/lastItem.txt').toString();
     var newData = false;
 
-    for (i = 0; i < data.Items.length; i++) {
+    for (var i = 0; i < data.Items.length; i++) {
       if (data.Items[i].Name > lastItem) { // there's new data
         newData = true;
         // alphanumeric sort
@@ -48,7 +48,7 @@ simpledb.select(params, function(err, data) {
 
         // convert to array
         var arr = [];
-        for (j = 0; j < sortedItem.length; j++) {
+        for (var j = 0; j < sortedItem.length; j++) {
           arr.push(sortedItem[j].Value);
         }
 
