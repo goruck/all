@@ -61,7 +61,7 @@ module.exports.getPanelStatus = getPanelStatus;
  */
 var calcRelT = function (time, value) {
     var relT = [];
-    for (i = 0; i < value.length; i++) {
+    for (var i = 0; i < value.length; i++) {
         relT[i] = value[i] - time;
     }
     return relT;
