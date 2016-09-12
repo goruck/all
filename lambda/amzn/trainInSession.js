@@ -41,7 +41,7 @@ var trainInSession = function(intent, session, callback) {
 
             // build SimpleDB attributes
             var att = [{Name:'clock',Value:n},{Name:'sample',Value:obsTime.toString()}];
-            for (i = 0; i < relZoneAct.length; i++) { // zone active times
+            for (var i = 0; i < relZoneAct.length; i++) { // zone active times
                 var name = 'za'+(i+1).toString();
                 var value = relZoneAct[i].toString();
                 var obj = {Name:name,Value:value};
