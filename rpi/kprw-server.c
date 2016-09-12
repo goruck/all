@@ -14,7 +14,7 @@
  *
  * See https://github.com/goruck/mall for details. 
  *
- * (c) Lindo St. Angel 2015/16. 
+ * Copyright (c) 2016 by Lindo St. Angel.
  *
  */
 
@@ -265,9 +265,9 @@ static void setup_io(void) {
 
   // mmap GPIO
   gpio_map = mmap(
-    NULL,             		//Any adddress in our space will do
+    NULL,             		//Any address in our space will do
     BLOCK_SIZE,			//Map length
-    PROT_READ|PROT_WRITE,	//Enable reading & writting to mapped memory
+    PROT_READ|PROT_WRITE,	//Enable reading & writing to mapped memory
     MAP_SHARED,			//Shared with other processes
     mem_fd,           		//File to map
     GPIO_BASE         		//Offset to GPIO peripheral
@@ -308,21 +308,9 @@ static inline void tnorm(struct timespec *tp)
    }
 }
 
-// Wait for a change in clock level and measure the time it took.
-static inline unsigned long waitCLKchange(struct timespec *tp, int currentState)
-{
-  unsigned long c = 0;
-
-  while (GET_GPIO(PI_CLOCK_IN) == currentState) {
-    clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, tp, NULL);
-    tp->tv_nsec += INTERVAL;
-    tnorm(tp);
-    c += INTERVAL;
-  }
-
-  return c; // time between change in nanoseconds
-} // waitCLKchange
-
+/*
+ * Calculate difference between two timespec variables. 
+ */
 static inline long ts_diff(struct timespec *a, struct timespec *b)
 {
   long x, y;
@@ -333,6 +321,11 @@ static inline long ts_diff(struct timespec *a, struct timespec *b)
   return (x - y);
 }
 
+/*
+ * Convert straight binary (represented by a char array) into an integer.
+ * Variable offset defines where in the array to begin the conversion.
+ * Variable length defines the size of the binary word to convert.
+ */
 static inline unsigned int getBinaryData(char *st, int offset, int length)
 {
   unsigned int buf = 0, j;
@@ -346,7 +339,7 @@ static inline unsigned int getBinaryData(char *st, int offset, int length)
 }
 
 /* 
- * Fifos are thread safe without using any sychronization (e.g., mutext).
+ * Fifos are thread safe without using any synchronization (e.g., mutext).
  * But each fifo must have exactly one producer and one consumer to be used safely.
  * See "Creating a Thread Safe Producer Consumer Queue in C++ Without Using Locks",
  * http://blogs.msmvps.com/vandooren
@@ -619,7 +612,7 @@ static void * panel_io(void *arg) {
          * If invalid, repeat last keypad write by not fetching new data from fifo.
          * Also, do not store either panel or keypad data.
          *
-         * Invalid words may be due to a real-time task with higher prority
+         * Invalid words may be due to a real-time task with higher priority
          *   than this thread preempting it, or latencies caused by page faults.
          * Despite best efforts to make ensure robust real-time performance
          *   these error checks are still required to be 100% safe. 
