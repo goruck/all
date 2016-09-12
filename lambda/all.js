@@ -543,18 +543,6 @@ function predToPatt(predNum) {
     return pattern[predNum];
 }
 
-/*
- * Calculate zone changes relative to last observation time.
- *
- */
-function calcRelT (time, value) {
-    var relT = [];
-    for (var i = 0; i < value.length; i++) {
-        relT[i] = value[i] - time;
-    }
-    return relT;
-}
-
 function createNumberAttributes(key) {
     return {
         key : key
