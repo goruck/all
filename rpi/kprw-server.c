@@ -12,7 +12,7 @@
  *
  * Must run under linux PREEMPT_RT kernel 3.18.9-rt5-v7 and as su.
  *
- * See https://github.com/goruck/mall for details. 
+ * See https://github.com/goruck/all for details. 
  *
  * Copyright (c) 2016 by Lindo St. Angel.
  *
