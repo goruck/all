@@ -320,13 +320,13 @@ function sendPolyInSession(intent, session, callback) {
                                                     callback(sessionAttributes,
                                                              shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
                                                 });
-                                            }, 500); // wait 500 ms for arm command to take effect
+                                            }, 1000); // wait 1 s for arm command to take effect
                                         });
                                     }, 500); // wait 500 ms to exit bypass mode
                                 });
                             }, 500); // wait 500 ms for zone to bypass
                         });
-                    }, 500); // wait 500 ms for bypass mode to take effect 
+                    }, 1000); // wait 1 s for bypass mode to take effect 
                 });
             });
         }
