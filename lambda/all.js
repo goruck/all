@@ -182,7 +182,7 @@ function sendKeyInSession(intent, session, callback) {
                     speechOutput = "System is already armed,";
                     callback(sessionAttributes,
                              shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-                } else if ((num === 'stay' || num === 'away') && !zonesNotActive(panelStatus)) {
+                } else if ((num === 'stay' || num === 'away') && !findPlacesNotReady(panelStatus)) {
                     var placesNotReady = findPlacesNotReady(panelStatus); // get friendly names of zones not ready
                     speechOutput = "System cannot be armed, because these zones are not ready," +placesNotReady;
                     callback(sessionAttributes,
@@ -263,7 +263,7 @@ function getStatusFromSession(intent, session, callback) {
     shared.getPanelStatus('idle', function (panelStatus) {
         if (isArmed(panelStatus)) {
             isBypassed(panelStatus) ? speechOutput = 'system is armed and bypassed' : speechOutput = 'system is armed';
-        } else if (zonesNotActive(panelStatus)) { // no zones are reporting activity or are tripped
+        } else if (!findPlacesNotReady(panelStatus)) { // no zones are reporting activity or are tripped
             hasError(panelStatus) ? speechOutput = 'system is ready but has an error' : speechOutput = 'system is ready';
         } else { // system must not be ready
             var placesNotReady = findPlacesNotReady(panelStatus); // get friendly names of zones not ready
@@ -296,7 +296,7 @@ function sendPolyInSession(intent, session, callback) {
             speechOutput = "System is already armed,";
             callback(sessionAttributes,
                      shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-        } else if (!zonesNotActive(panelStatus)) {
+        } else if (!findPlacesNotReady(panelStatus)) {
             var placesNotReady = findPlacesNotReady(panelStatus); // get friendly names of zones not ready
             speechOutput = "System cannot be armed, because these zones are not ready," +placesNotReady;
             callback(sessionAttributes,
@@ -444,6 +444,7 @@ function isBypassed(panelStatus) {
  * isReady() can also be used but is prone to falsing because the motion sensors cause the system
  * to momentarly report a not ready condition which causes problems later on when finding out which zones aren't ready.
  *
+ * NOTE: function replaced by findPlacesNotReady() since it ignores motion sensors which desired to check before arming. 
  */
 function zonesNotActive(panelStatus) {
     var zoneRegex = /(Zone\d \d{1,2})((, \d{1,2}){1,8})?/g; // find zones with numbers, indicating activity
@@ -506,18 +507,20 @@ function zoneToPlace(zone, sensor) {
  * Ignores motion sensors since they aren't relevant for arming. 
  */
 function findPlacesNotReady(panelStatus) {
+    var placesNotReady = '';
     var zoneRegex = /(Zone\d \d{1,2})((, \d{1,2}){1,8})?/g;
     var zonesNotReady = panelStatus.match(zoneRegex); // array with zones not ready
-    var placesNotReady = "";
-    for (var i = 0; i < zonesNotReady.length; i++) {
-        var zoneNotReady = zonesNotReady[i].slice(0,5);
-        var sensorRegex = /\d{1,2}/g;
-        var sensorsNotReady = zonesNotReady[i].slice(6).match(sensorRegex); // array with sensors in zone not ready
-        for (var j = 0; j < sensorsNotReady.length; j++) {
-            var sensorNotReady = sensorsNotReady[j];
-            var place = zoneToPlace(zoneNotReady, sensorNotReady);
-            if (place.indexOf("motion") === -1) { // ignore motion sensors
-	        placesNotReady += place +',';
+    if (zonesNotReady) { // one or more zones aren't ready...find out which one(s)
+        for (var i = 0; i < zonesNotReady.length; i++) {
+            var zoneNotReady = zonesNotReady[i].slice(0,5);
+            var sensorRegex = /\d{1,2}/g;
+            var sensorsNotReady = zonesNotReady[i].slice(6).match(sensorRegex); // array with sensors in zone not ready
+            for (var j = 0; j < sensorsNotReady.length; j++) {
+                var sensorNotReady = sensorsNotReady[j];
+                var place = zoneToPlace(zoneNotReady, sensorNotReady);
+                if (place.indexOf("motion") === -1) { // ignore motion sensors
+	            placesNotReady += place +',';
+                }
             }
         }
     }
