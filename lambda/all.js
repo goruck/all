@@ -296,7 +296,7 @@ function sendPolyInSession(intent, session, callback) {
             speechOutput = "System is already armed,";
             callback(sessionAttributes,
                      shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-        } else if (!findPlacesNotReady(panelStatus)) {
+        } else if (findPlacesNotReady(panelStatus)) {
             var placesNotReady = findPlacesNotReady(panelStatus); // get friendly names of zones not ready
             speechOutput = "System cannot be armed, because these zones are not ready," +placesNotReady;
             callback(sessionAttributes,
