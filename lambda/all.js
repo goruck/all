@@ -182,7 +182,7 @@ function sendKeyInSession(intent, session, callback) {
                     speechOutput = "System is already armed,";
                     callback(sessionAttributes,
                              shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
-                } else if ((num === 'stay' || num === 'away') && !findPlacesNotReady(panelStatus)) {
+                } else if ((num === 'stay' || num === 'away') && findPlacesNotReady(panelStatus)) {
                     var placesNotReady = findPlacesNotReady(panelStatus); // get friendly names of zones not ready
                     speechOutput = "System cannot be armed, because these zones are not ready," +placesNotReady;
                     callback(sessionAttributes,
@@ -504,7 +504,8 @@ function zoneToPlace(zone, sensor) {
 /*
  * Find friendly names of places not ready to be armed.
  * Assumes at least one zone is not ready. Will fail otherwise.
- * Ignores motion sensors since they aren't relevant for arming. 
+ * Ignores motion sensors since they aren't relevant for arming.
+ * Returns empty string if all zones are ready.
  */
 function findPlacesNotReady(panelStatus) {
     var placesNotReady = '';
