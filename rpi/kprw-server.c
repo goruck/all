@@ -1383,6 +1383,12 @@ int main(int argc, char *argv[])
   cpu_set_t cpuset_mio, cpuset_pio, cpuset_main;
   FILE *fd;
 
+  // Check if user is running program as root. If not, exit. 
+  if(geteuid() != 0) {
+    fprintf(stderr, "Program must be run as root\n");
+    exit(EXIT_FAILURE);
+  }
+
   // Check program args and get server port number.
   if (argc != 2) {
     fprintf(stderr, "usage: %s port<49152–65535>\n", argv[0]);
@@ -1407,8 +1413,6 @@ int main(int argc, char *argv[])
     fprintf(stderr, "Can't run under a vanilla kernel\n");
     exit(EXIT_FAILURE);
   }
-
-  // todo: add checks if running with su priv and raspberry pi 2 hw. 
 
   // CPU(s) for main, predict and message i/o threads
   CPU_ZERO(&cpuset_mio);
