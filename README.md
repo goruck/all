@@ -203,7 +203,7 @@ Based on this, the *panel_io()* thread was locked to its own CPU and the other t
 
 With the threads pinning to the CPUs in this way and with the priority of *panel_io()* being greater than the other two threads in the application code (but not greater than the kernel's critical threads), the system exhibits robust real-time performance.
 
-The server uses openSSL for authentication and encryption. For development and test purposes, self-signed certificates and the IP address of the server is used instead of a Fully Qualified Domain Name. The cert and key pairs are generated with the following commands.
+The server uses openSSL for authentication and encryption. For development and test purposes self-signed certificates are used. The cert and key pairs are generated with the following commands.
 
 ```bash
 # Step 1. Generate ca private key
@@ -235,7 +235,7 @@ $ cp /home/pi/certs/ca/ca.crt /home/pi/all/lambda
 
 Note: replace the X's in key.ext with the IP address or hostname of your server.
 
-Production code should use certificates signed by a real CA and a FQDN for the server, registered with a DNS. The server also uses TCP Wrapper daemon for secure access. TCP Wrapper uses the *hosts_ctl()* system call from libwrap library to limit client access via the rules defined in /etc/host.deny and /etc/host.allow files. The rules are set so that only clients with local IP addresses and AWS IP addresses are allowed access to the server.
+Production code should use certificates signed by a real CA. The server also uses TCP Wrapper daemon for secure access. TCP Wrapper uses the *hosts_ctl()* system call from libwrap library to limit client access via the rules defined in /etc/host.deny and /etc/host.allow files. The rules are set so that only clients with local IP addresses and AWS IP addresses are allowed access to the server.
 
 The application code needs to be compiled with the relevant libraries and executed with su privileges, per the following.
 
@@ -285,14 +285,15 @@ if [ $? != 0 ]
 then
     # Restart the wireless interface
     /sbin/ifdown --force wlan0
-    /sbin/ifup wlan0
+    /bin/sleep 5
+    /sbin/ifup --force wlan0
 fi
 ```
 
 ## Keybus to GPIO Interface Unit
 
 ### Keybus Electrical and Timing Characteristics
-The keybus is a DSC proprietary serial bus that runs from the panel to the sensors and controller keypads in the house. This bus needs to understood from an electrical, timing, and protocol point of view (see above) before the Pi can be interfaced to the panel. There isn't a lot of information on the keybus other than what's in the DSC installation manual and miscellaneous info on the Internet posted by hackers. Essentially, this is a two wire bus with clock and data, plus ground and the supply from the panel. The supply is 13.8 V (nominal) and the clock and data transition between 0 and 13.8 V. (The large voltage swings make sense given that it provides good noise immunity against interference picked up from long runs of the bus through the house.) The DSC manual states the bus supply can source a max of 550 mA. The sum of the current from all the devices presently on the bus was about 400 mA. This meant that the interface unit could draw no more than 150 mA.
+The keybus is a DSC proprietary serial bus that runs from the panel to the sensors and controller keypads in the house. This bus needs to understood from an electrical, timing, and protocol point of view (see above) before the Pi can be interfaced to the panel. There isn't a lot of information on the keybus other than what's in the DSC installation manual and miscellaneous info on the Internet posted by hackers. Essentially, this is a two wire bus with clock and data, plus ground and the supply from the panel. The supply is 12 V (nominal) and the clock and data transition between zero volts and the supply voltage level (i.e., 0 to 12 V nominally but could be a bit more or less (~ +/-10%) depending on the specific panel). The large voltage swings make sense given that it provides good noise immunity against interference picked up from long runs of the bus through the house. The DSC manual states that the bus supply can source a max of 550 mA. The sum of the current from all the devices presently on the bus was about 400 mA. This meant that the interface unit could draw no more than 150 mA.
 
 An oscilloscope was used to reverse engineer the protocol. Some screen-shots and analysis from them are below.
 
@@ -635,6 +636,9 @@ Technical manuals and general overview information about the Power832 can be fou
 ## Proof of Concept Output to Terminal
 ![screenshot from 2015-12-09 19 46 40](https://cloud.githubusercontent.com/assets/12125472/11706514/3819320c-9eae-11e5-95d0-af8bdee6ed24.png)
 Note: connections to AWS Lambda triggered by Alexa
+
+## Installed System Photo
+![installed system](https://cloud.githubusercontent.com/assets/12125472/21471429/f078da24-ca67-11e6-81bc-dd41e5e70e2d.jpg)
 
 ## Early Proof of Concept Photo
 ![proto pic1](https://cloud.githubusercontent.com/assets/12125472/11706674/a8721fcc-9eaf-11e5-8707-f780ae4ef86a.png)
