@@ -178,7 +178,11 @@ function sendKeyInSession(intent, session, callback) {
                      shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
         } else {
             shared.getPanelStatus('idle', function (panelStatus) { // check status first
-                if ((num === 'stay' || num === 'away') && isArmed(panelStatus)) {
+                if (!panelStatus) { // panelStatus should never be an empty string...
+                    speechOutput = "Error, request could not be completed,";
+                    callback(sessionAttributes,
+                             shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+                } else if ((num === 'stay' || num === 'away') && isArmed(panelStatus)) {
                     speechOutput = "System is already armed,";
                     callback(sessionAttributes,
                              shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
@@ -261,7 +265,9 @@ function getStatusFromSession(intent, session, callback) {
         speechOutput = "";
 
     shared.getPanelStatus('idle', function (panelStatus) {
-        if (isArmed(panelStatus)) {
+        if (!panelStatus) { // panelStatus should never be an empty string...
+            speechOutput = "Error, request could not be completed,";
+        } else if (isArmed(panelStatus)) {
             isBypassed(panelStatus) ? speechOutput = 'system is armed and bypassed' : speechOutput = 'system is armed';
         } else if (!findPlacesNotReady(panelStatus)) { // no zones are reporting activity or are tripped
             hasError(panelStatus) ? speechOutput = 'system is ready but has an error' : speechOutput = 'system is ready';
@@ -292,7 +298,11 @@ function sendPolyInSession(intent, session, callback) {
     const ZONE = 28; // hall motion zone
     
     shared.getPanelStatus('idle', function (panelStatus) { // check status first
-        if (isArmed(panelStatus)) {
+        if (!panelStatus) { // panelStatus should never be an empty string...
+            speechOutput = "Error, request could not be completed,";
+            callback(sessionAttributes,
+                     shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
+        } else if (isArmed(panelStatus)) {
             speechOutput = "System is already armed,";
             callback(sessionAttributes,
                      shared.buildSpeechletResponse(intent.name, speechOutput, repromptText, shouldEndSession));
