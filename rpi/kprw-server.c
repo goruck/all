@@ -615,10 +615,18 @@ static void * panel_io(void *arg) {
          * Invalid words may be due to a real-time task with higher priority
          *   than this thread preempting it, or latencies caused by page faults.
          * Despite best efforts to make ensure robust real-time performance
-         *   these error checks are still required to be 100% safe. 
+         *   these error checks are still required to be 100% safe.
          *
-         * Panel also outputs a 9-bit word which is ignored as invalid
-         *   because thread needs at least 20 bits to send a valid data word to keypad. 
+         * Panel also outputs short words (usually 9-bits) which are ignored as invalid
+         *   because thread needs at least 20 bits to send a valid data word to the panel
+         *   and to mitigate data corruption on the keybus since these short words are 
+         *   usually associated with the simultaneous transfer of keypad data to the panel
+         *   (the keybus is bidirectional and bits are transferred on the rising and 
+         *   falling edge of the clock). This keypad data is sent in response to a panel
+         *   keypad query command that was sent previously. These commands include those
+         *   messages starting with 0x051, 0x0593, 0x11 and possibly others. Note that
+         *   this means keypad to panel writes will not be logged since reads are skipped
+         *   when this condition is detected. 
          */
         if (bit_cnt < 20) {
           fprintf(stderr, "panel_io: bit count < 20 (%i)! Repeating panel writes and ignoring reads.\n", bit_cnt);
