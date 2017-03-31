@@ -307,6 +307,8 @@ This shows a closer view of the clock and data, with data being sent between the
 
 From this data, it is clear that the panel's data line is bidirectional (with direction switched by clock level) and pulled up internally when configured as an input. The strength of the pull-up resister needs to be known in order to design the interface circuit correctly and via experimentation it was determined to be approximately 5 KΩ.
 
+Note that a means to prevent or mitigate keybus data corruption needs to be implemented since ALL may try to write to the panel at the same time as a keypad. This is done in the rpi code by checking for very short words sent by the panel on the keybus. The panel outputs short words (usually 9-bits) which are ignored as invalid since these short words are usually associated with the simultaneous transfer of keypad data to the panel (recall from above the keybus is bidirectional and bits are transferred on the rising and falling edge of the clock). This keypad data is sent in response to a panel keypad query command that was sent previously. These commands include those messages starting with 0x051, 0x0593, 0x11 and possibly others.
+
 ### Raspberry Pi GPIO Electrical Characteristics
 Data on the electrical characteristics of the Pi's GPIOs is also required to design the interface. There is not really the right level of detail available from the Raspberry Pi standard information. But there is excellent information on the Mosaic Industries' website [here](http://www.mosaic-industries.com/embedded-systems/microcontroller-projects/raspberry-pi/gpio-pin-electrical-specifications). This information is super helpful and detailed. Some of the key points from the article are below. 
 
