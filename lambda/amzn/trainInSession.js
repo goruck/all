@@ -56,7 +56,8 @@ var trainInSession = function(intent, session, callback) {
             for (i = 0; i < NUM_OF_PATTERNS; i++) { // observation state
                 name = 'zzpattern'+(i+1).toString(); // prepend 'zz' to get ordering right
                 if (patternSlot.value == (i+1)) { // use '==' to force type conversion
-                    (stateSlot.value === 'true') ? value = 'TRUE' : value = 'FALSE';
+                    // no guarantee that Alexa ASR will return value in lower case
+                    (stateSlot.value.toLowerCase() === 'true') ? value = 'TRUE' : value = 'FALSE';
                 } else {
                     value = 'NA'; // set value to NA for all other patterns
                 }
