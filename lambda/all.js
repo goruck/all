@@ -166,7 +166,7 @@ function sendKeyInSession(intent, session, callback) {
     var speechOutput = "";
 
     var ValidValues = ['0','1', '2', '3', '4', '5', '6', '7', '8', '9', 'stay', 'away', 'star', 'pound'];
-    var num = KeysSlot.value;
+    var num = KeysSlot.value.toLowerCase(); // no guarantee that Alexa ASR will return value in lower case 
     var isValidValue = ValidValues.indexOf(num) > -1; // true if a valid value was passed
     
     if (KeysSlot) {
