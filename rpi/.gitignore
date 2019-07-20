@@ -1,3 +1,5 @@
 *.o
 *.txt
+.Rhistory
+kprw-server
 data
