@@ -319,9 +319,9 @@ Data on the electrical characteristics of the Pi's GPIOs is also required to des
 * Do not drive capacitive loads. Do not place a capacitive load directly across the pin. Limit current into any capacitive load to a maximum transient current of 16 mA. For example, if you use a low pass filter on an output pin, you must provide a series resistance of at least 3.3V/16mA = 200 Ω
 
 ### Interface Circuit Design
-Its desirable to electrically isolate the panel and Pi to prevent ground loops and optoisolators are an obvious choice. But they do consume a fair amount of current and the keybus data and clock lines cannot supply enough to directly drive them. Therefore, the keybus clock and data lines have buffers (CD4010) between them and the optoisolators. Out of an abundance of caution, buffers (74HC126) were also added between the clock and data optoisolators and the Pi's GPIOs, but they are not really needed since the Pi's GPIOs come out of reset being able to supply or sink 8 mA while the interface circuit only needs a 2 mA supply. The '126 buffers were removed in the final design. A high Current Transfer Ratio (CTR) optoisolator configured to drive a FET with logic-level gate voltage threshold was used to pull down the data line with sufficient strength. The other optoisolators are not high CTR (high CTR = $$). The interface schematic is shown below.
+Its desirable to electrically isolate the panel and Pi to prevent ground loops and optoisolators are an obvious choice. But they do consume a fair amount of current and the keybus data and clock lines cannot supply enough to directly drive them. Therefore, the keybus clock and data lines have buffers (CD4050) between them and the optoisolators. Out of an abundance of caution, buffers (74HC126) were also added between the clock and data optoisolators and the Pi's GPIOs, but they are not really needed since the Pi's GPIOs come out of reset being able to supply or sink 8 mA while the interface circuit only needs a 2 mA supply. The '126 buffers were removed in the final design. A high Current Transfer Ratio (CTR) optoisolator configured to drive a FET with logic-level gate voltage threshold was used to pull down the data line with sufficient strength. The other optoisolators are high CTR as well to minimize current draw from the panel. The interface schematic is shown below.
 
-![interface](https://cloud.githubusercontent.com/assets/12125472/11998220/3d1befd6-aa4a-11e5-83bf-9cc1cec3bb72.png)
+![interface](./kgiu/kicad_sch.jpg)
 
 # Machine Learning with ALL
 Adding machine learning (ML) capabilities to ALL was mainly motivated by a desire to use Alexa to help train a ML algorithm in an intuitive and low-friction manner by employing voice to ground truth (or 'tag') observations. Also since ALL uses a home security system as a proof-of-concept, ML seemed to be a natural fit given the amount of data captured by the security system's sensors. Door, window, and motion data is continually captured which reflects the movement of people into and around the house. Of course, normally this data is used for security monitoring purposes but here the goal of adding machine learning to ALL was to use this data to reliably predict patterns of people movement around the house that would trigger appropriate actions automatically. Using ML as described below can also be used to become familiar with the topic itself since the application is fairly straightforward and tractable.
@@ -612,7 +612,7 @@ The Lambda service cost will vary according to how often the Alexa skill is invo
 See the [AWS website](https://aws.amazon.com/lambda/pricing/) for complete pricing information.
 
 # Overall Hardware Design and Considerations
-The interface circuit was first breadboarded and then moved to a prototyping board that fits in an extended Raspberry Pi enclosure. The prototyping board is from [JBtek®](http://smile.amazon.com/dp/B00WPFF9OA) and the enclosure is from [MODMYPI](http://www.modmypi.com/raspberry-pi/cases/highpi/highpi-raspberry-pi-b-plus2-case). The extended Pi enclosure also offers more height for components. However, there isn't a lot of area to fit the components; the interface circuit fit nicely but it would get increasingly difficult to fit additional components if required. There is height in the enclosure to stack another prototyping board but the component heights would have to be kept to a minimum. If there's a need to move beyond the circuit complexity required by the interface then a custom designed PCB would probably be the best route. Photographs of the current prototype are shown below.
+The interface circuit was first breadboarded and then moved to a prototyping board that fits in an extended Raspberry Pi enclosure. The prototyping board is from [JBtek®](http://smile.amazon.com/dp/B00WPFF9OA) and the enclosure is from [MODMYPI](http://www.modmypi.com/raspberry-pi/cases/highpi/highpi-raspberry-pi-b-plus2-case). The extended Pi enclosure also offers more height for components. However, there isn't a lot of area to fit the components; the interface circuit fit nicely but it would get increasingly difficult to fit additional components if required. There is height in the enclosure to stack another prototyping board but the component heights would have to be kept to a minimum. Photographs of the prototype are shown below.
 
 ![img_0619](https://cloud.githubusercontent.com/assets/12125472/12216367/b6de26a4-b693-11e5-8ca5-6b1e528edb9f.JPG)
 
@@ -622,7 +622,15 @@ The interface circuit was first breadboarded and then moved to a prototyping boa
 
 ![img_0625](https://cloud.githubusercontent.com/assets/12125472/12216373/c5025aac-b693-11e5-8cd4-05d1c2cce285.JPG)
 
-Note: most components were salvaged from other projects and so the selection and placement is not optimized for either cost or size. 
+Note: most components were salvaged from other projects and so the selection and placement is not optimized for either cost or size.
+
+The prototype board was later replaced by a printed circuit board that I designed. A rendering of the front side of the PCB is shown below.
+
+![layout](./kgiu/kicad_pcb_front.jpg)
+
+Photographs of the PCB assembled in the Pi enclosure are shown below.
+
+TBA
 
 # Licensing
 The ALL project is almost completely licensed under the [Apache License 2.0](http://choosealicense.com/licenses/apache-2.0/) unless otherwise specified in a LICENSE.txt file in a source code directory. The only exception is the code in the file [trainInSession.js](https://github.com/goruck/all/blob/master/lambda/amzn/trainInSession.js) and related documentation in this README which are licensed under the [Amazon Software License](https://aws.amazon.com/asl/).
