@@ -1,13 +1,13 @@
 EESchema Schematic File Version 4
 LIBS:kicad-cache
-EELAYER 29 0
+EELAYER 30 0
 EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
 Sheet 1 1
 Title "Keybus to GPIO Interface Unit"
-Date "2019-07-14"
-Rev "2"
+Date "2019-07-30"
+Rev "2.1"
 Comp ""
 Comment1 "Designed by Lindo St. Angel"
 Comment2 "Part of the ALL Project - See https://github.com/goruck/all for more information."
@@ -145,9 +145,9 @@ P 9100 4000
 F 0 "J2" H 9750 5350 50  0000 C CNN
 F 1 "Raspberry_Pi_2_3" H 9750 5250 50  0000 C CNN
 F 2 "Connector_PinSocket_2.54mm:PinSocket_2x20_P2.54mm_Vertical" H 9100 4000 50  0001 C CNN
-F 3 "https://drawings-pdf.s3.amazonaws.com/10492.pdf" H 9100 4000 50  0001 C CNN
-F 4 "S6106-ND" H 9100 4000 50  0001 C CNN "Digi-Key-PN"
-F 5 "PPPC102LFBN-RC" H 9100 4000 50  0001 C CNN "MFP"
+F 3 "https://media.digikey.com/pdf/Data%20Sheets/Sullins%20PDFs/Female_Headers.100_DS.pdf" H 9100 4000 50  0001 C CNN
+F 4 "S6104-ND" H 9100 4000 50  0001 C CNN "Digi-Key-PN"
+F 5 "PPTC202LFBN-RC" H 9100 4000 50  0001 C CNN "MFP"
 	1    9100 4000
 	1    0    0    -1  
 $EndComp
@@ -564,7 +564,7 @@ U 1 1 5D302BFE
 P 1400 4300
 F 0 "J3" V 1175 4383 50  0000 C CNN
 F 1 "OSTTC020162" V 1266 4383 50  0000 C CNN
-F 2 "digikey-footprints:Term_Block_1x2_P5mm" H 1600 4500 60  0001 L CNN
+F 2 "dk_Source_Footprints:Term_Block_1x2_P5mm" H 1600 4500 60  0001 L CNN
 F 3 "http://www.on-shore.com/wp-content/uploads/OSTTCXX0162.pdf" H 1600 4600 60  0001 L CNN
 F 4 "ED2600-ND" H 1600 4700 60  0001 L CNN "Digi-Key_PN"
 F 5 "OSTTC020162" H 1600 4800 60  0001 L CNN "MPN"
@@ -584,7 +584,7 @@ U 1 1 5D30DC4F
 P 1450 1250
 F 0 "J1" V 1225 1333 50  0000 C CNN
 F 1 "OSTTC020162" V 1316 1333 50  0000 C CNN
-F 2 "digikey-footprints:Term_Block_1x2_P5mm" H 1650 1450 60  0001 L CNN
+F 2 "dk_Source_Footprints:Term_Block_1x2_P5mm" H 1650 1450 60  0001 L CNN
 F 3 "http://www.on-shore.com/wp-content/uploads/OSTTCXX0162.pdf" H 1650 1550 60  0001 L CNN
 F 4 "ED2600-ND" H 1650 1650 60  0001 L CNN "Digi-Key_PN"
 F 5 "OSTTC020162" H 1650 1750 60  0001 L CNN "MPN"

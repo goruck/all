@@ -1,13 +1,13 @@
 EESchema Schematic File Version 4
 LIBS:kicad-cache
-EELAYER 29 0
+EELAYER 30 0
 EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
 Sheet 1 1
 Title "Keybus to GPIO Interface Unit"
-Date "2019-07-14"
-Rev "2"
+Date "2019-07-30"
+Rev "2.1"
 Comp ""
 Comment1 "Designed by Lindo St. Angel"
 Comment2 "Part of the ALL Project - See https://github.com/goruck/all for more information."
