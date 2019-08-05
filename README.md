@@ -596,7 +596,7 @@ The ASK and Lambda test tools available in the SDK and Lambda status information
 Schematic entry was done using gEDA's Schematic Editor.
 
 # Bill of materials and service cost considerations
-The hardware bill of materials total $85 and are as follows.
+The hardware bill of materials (BOM) total $85 and are as follows. This BOM is for the prototype version, the PCB version costs about the same. 
 
 Item | Qty | Cost
 -----|-----|-----
@@ -612,7 +612,9 @@ The Lambda service cost will vary according to how often the Alexa skill is invo
 See the [AWS website](https://aws.amazon.com/lambda/pricing/) for complete pricing information.
 
 # Overall Hardware Design and Considerations
-The interface circuit was first breadboarded and then moved to a prototyping board that fits in an extended Raspberry Pi enclosure. The prototyping board is from [JBtek®](http://smile.amazon.com/dp/B00WPFF9OA) and the enclosure is from [MODMYPI](http://www.modmypi.com/raspberry-pi/cases/highpi/highpi-raspberry-pi-b-plus2-case). The extended Pi enclosure also offers more height for components. However, there isn't a lot of area to fit the components; the interface circuit fit nicely but it would get increasingly difficult to fit additional components if required. There is height in the enclosure to stack another prototyping board but the component heights would have to be kept to a minimum. Photographs of the prototype are shown below.
+The interface circuit was first breadboarded and then moved to a prototyping board and later a custom design printed circuit board (PCB) that fits in an extended Raspberry Pi enclosure.
+
+The prototyping board is from [JBtek®](http://smile.amazon.com/dp/B00WPFF9OA) and the enclosure is from [MODMYPI](http://www.modmypi.com/raspberry-pi/cases/highpi/highpi-raspberry-pi-b-plus2-case). The extended Pi enclosure also offers more height for components. However, there isn't a lot of area to fit the components; the interface circuit fit nicely but it would get increasingly difficult to fit additional components if required. There is height in the enclosure to stack another prototyping board but the component heights would have to be kept to a minimum. Photographs of the prototype are shown below.
 
 ![img_0619](https://cloud.githubusercontent.com/assets/12125472/12216367/b6de26a4-b693-11e5-8ca5-6b1e528edb9f.JPG)
 
@@ -624,13 +626,13 @@ The interface circuit was first breadboarded and then moved to a prototyping boa
 
 Note: most components were salvaged from other projects and so the selection and placement is not optimized for either cost or size.
 
-The prototype board was later replaced by a printed circuit board that I designed. A rendering of the front side of the PCB is shown below.
+The prototype board was later replaced by a PCB that I designed in [kicad](http://www.kicad-pcb.org/) and had fabricated by [OSHPARK](https://oshpark.com/). All PCB design files are [here](./kgiu) A rendering of the front side of the PCB is shown below.
 
 ![layout](./kgiu/kicad_pcb_front.jpg)
 
-Photographs of the PCB assembled in the Pi enclosure are shown below.
+Photograph of the PCB assembled in the Pi enclosure is shown below.
 
-TBA
+![pcb_in_enclosure](./kgiu/pcb_in_enclosure.jpg)
 
 # Licensing
 The ALL project is almost completely licensed under the [Apache License 2.0](http://choosealicense.com/licenses/apache-2.0/) unless otherwise specified in a LICENSE.txt file in a source code directory. The only exception is the code in the file [trainInSession.js](https://github.com/goruck/all/blob/master/lambda/amzn/trainInSession.js) and related documentation in this README which are licensed under the [Amazon Software License](https://aws.amazon.com/asl/).
