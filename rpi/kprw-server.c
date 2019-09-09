@@ -585,7 +585,7 @@ static int decode(char * word, char * msg, int * allZones) {
  *
  */
 static void * panel_io(void *arg) {
-  char word[MAX_BITS] = "", wordkw[MAX_BITS], wordkr[MAX_BITS] ="", wordkr_temp = '0';
+  char word[MAX_BITS] = "", wordkw[MAX_BITS] = "", wordkr[MAX_BITS] = "", wordkr_temp = '0';
   int flag = 0, bit_cnt = 0, res;
   struct timespec t, tmark;
 
@@ -596,7 +596,7 @@ static void * panel_io(void *arg) {
     exit(EXIT_FAILURE);
   }
 
-  strncpy(wordkw, IDLE, MAX_BITS);
+  memcpy(wordkw, IDLE, MAX_BITS);
   clock_gettime(CLOCK_MONOTONIC, &t);
   tmark = t;
   while (1) {
@@ -643,7 +643,7 @@ static void * panel_io(void *arg) {
 
           res = popElement2(wordkw, MAX_BITS); // get a keypad command to send to panel
           if (res != MAX_BITS) { // fifo is empty so output idle instead of repeating previous
-            strncpy(wordkw, IDLE, MAX_BITS);
+            memcpy(wordkw, IDLE, MAX_BITS);
           }
         }
 
@@ -718,7 +718,7 @@ static void * msg_io(void * arg) {
   // clear zone activity marker arrays
   memset(&allZones, 0, sizeof(allZones));
 
-  strncpy(wordk, IDLE, MAX_BITS);
+  memcpy(wordk, IDLE, MAX_BITS);
   clock_gettime(CLOCK_MONOTONIC, &t);
   while (1) {
     t.tv_nsec += MSG_IO_UPDATE; // thread runs every MSG_IO_UPDATE seconds
@@ -1237,21 +1237,21 @@ static void panserv(struct status * pstat, int port) {
     // process commands
     if (!isdigit(buffer[i])) { // not a number, but a command
       if (!strncmp(buffer, "star", 4))
-        strncpy(wordk, STAR, MAX_BITS);
+        memcpy(wordk, STAR, MAX_BITS);
       else if (!strncmp(buffer, "pound", 5))
-        strncpy(wordk, POUND, MAX_BITS);
+        memcpy(wordk, POUND, MAX_BITS);
       else if (!strncmp(buffer, "stay", 4))
-        strncpy(wordk, STAY, MAX_BITS);
+        memcpy(wordk, STAY, MAX_BITS);
       else if (!strncmp(buffer, "away", 4))
-        strncpy(wordk, AWAY, MAX_BITS);
+        memcpy(wordk, AWAY, MAX_BITS);
       else if (!strncmp(buffer, "idle", 4))
-        strncpy(wordk, IDLE, MAX_BITS);
+        memcpy(wordk, IDLE, MAX_BITS);
       else if (!strncmp(buffer, "sendJSON", 8)) {
-        strncpy(wordk, IDLE, MAX_BITS);
+        memcpy(wordk, IDLE, MAX_BITS);
         sendJSON = 1;
       } else {
         fprintf(stderr, "server: invalid panel command\n");
-        strncpy(wordk, IDLE, MAX_BITS);
+        memcpy(wordk, IDLE, MAX_BITS);
       }
       // send keypad data to panel
       res = pushElement2(wordk, MAX_BITS);
@@ -1269,38 +1269,38 @@ static void panserv(struct status * pstat, int port) {
         num = buffer[i] - '0';
         switch (num) {
           case 0 :
-            strncpy(wordk, ZERO, MAX_BITS);
+            memcpy(wordk, ZERO, MAX_BITS);
             break;
           case 1 :
-            strncpy(wordk, ONE, MAX_BITS);
+            memcpy(wordk, ONE, MAX_BITS);
             break;
           case 2 :
-            strncpy(wordk, TWO, MAX_BITS);
+            memcpy(wordk, TWO, MAX_BITS);
             break;
           case 3 :
-            strncpy(wordk, THREE, MAX_BITS);
+            memcpy(wordk, THREE, MAX_BITS);
             break;
           case 4 :
-            strncpy(wordk, FOUR, MAX_BITS);
+            memcpy(wordk, FOUR, MAX_BITS);
             break;
           case 5 :
-            strncpy(wordk, FIVE, MAX_BITS);
+            memcpy(wordk, FIVE, MAX_BITS);
             break;
           case 6 :
-            strncpy(wordk, SIX, MAX_BITS);
+            memcpy(wordk, SIX, MAX_BITS);
             break;
           case 7 :
-            strncpy(wordk, SEVEN, MAX_BITS);
+            memcpy(wordk, SEVEN, MAX_BITS);
             break;
           case 8 :
-            strncpy(wordk, EIGHT, MAX_BITS);
+            memcpy(wordk, EIGHT, MAX_BITS);
             break;
           case 9 :
-            strncpy(wordk, NINE, MAX_BITS);
+            memcpy(wordk, NINE, MAX_BITS);
             break;
           default :
             fprintf(stderr, "server: invalid panel command\n");
-            strncpy(wordk, IDLE, MAX_BITS);
+            memcpy(wordk, IDLE, MAX_BITS);
         }
         // send keypad data to panel
         res = pushElement2(wordk, MAX_BITS);
