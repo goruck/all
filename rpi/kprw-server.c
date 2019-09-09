@@ -144,7 +144,8 @@
 #define POPEN_FMT        "/home/pi/R_HOME/R-3.6.1/bin/Rscript --vanilla /home/pi/all/R/predsvm2.R %s %s %s 2> /dev/null"
 #define RARG_SIZE        256 // max number of characters allowed in argument to the Rscript
 #define ROUT_MAX         256 // max number of characters read from output of Rscript
-#define PCMD_BUF_SIZE    (sizeof(POPEN_FMT) + RARG_SIZE) // size of buffer passed to popen()
+#define TS_BUF_SIZE      sizeof("2016-05-22T12:15:22Z")
+#define PCMD_BUF_SIZE    (sizeof(POPEN_FMT) + TS_BUF_SIZE + 2 * RARG_SIZE) // size of buffer passed to popen()
 //#define RLOGPATH         "/home/pi/all/R/rlog.txt"
 #define RLOGPATH         "/dev/null"
 #define INTZONES         {26, 27, 28, 29} // list of interior zones (zone numbering starts with 0)
@@ -159,7 +160,6 @@
 #define SCMD_BUF_SIZE    sizeof("/home/pi/all/wemo/wemo.sh 192.168.1.105 OFF > /dev/null")
 #define SCMD_FMT         "/home/pi/all/wemo/wemo.sh %s %s > /dev/null"
 #define NUMPRED          10 // max number of predictions
-#define TS_BUF_SIZE      sizeof("2016-05-22T12:15:22Z")
 #define MINPROB          50 // min probability estimate (in %) to be taken as valid
 
 // message i/o thread
