@@ -424,7 +424,8 @@ static inline int popElement2(char *element, int num) {
 
 // Decode bits from panel into commands and messages.
 static int decode(char * word, char * msg, int * allZones) {
-  int cmd = 0, zones = 0, button = 0, i = 0;
+  int cmd = 0, zones = 0, button = 0;
+  unsigned short i = 0;
   char year3[2],year4[2],month[2],day[2],hour[2],minute[2],str[2];
 
   cmd = getBinaryData(word,0,8);
