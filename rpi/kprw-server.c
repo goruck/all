@@ -141,7 +141,7 @@
 #define AWAY	"1111111111011000111111111111111111111111111111111111111111111111"
 
 // predict thread
-#define POPEN_FMT        "/home/pi/R_HOME/R-3.6.1/bin/Rscript --vanilla /home/pi/all/R/predsvm2.R %s %s %s 2> /dev/null"
+#define POPEN_FMT        "Rscript --vanilla /home/pi/all/R/predsvm2.R %s %s %s 2> /dev/null"
 #define RARG_SIZE        256 // max number of characters allowed in argument to the Rscript
 #define ROUT_MAX         256 // max number of characters read from output of Rscript
 #define TS_BUF_SIZE      sizeof("2016-05-22T12:15:22Z")
@@ -736,9 +736,7 @@ static void * msg_io(void * arg) {
       continue;
     } else if (res == MAX_BITS) { // fifo has valid data
       // todo : add CRC check of raw data
-
       cmd = decode(word, msg, allZones); // decode word from panel into a message
-
       // update LED and zone status information
       if (cmd == 0x05) strcpy(sptr->ledStatus, msg);
       if (cmd == 0x27) strcpy(sptr->zone1Status, msg);
@@ -857,7 +855,6 @@ static void * predict(void * arg) {
              sptr->zoneDeAct[28], sptr->zoneDeAct[29], sptr->zoneDeAct[30], sptr->zoneDeAct[31]);
     
     if (strcmp(zoneBuf, oldZoneBuf)) { // only run on zone changes
-      
       // try to predict number of occupants based on sensor activity
       if (sptr->zoneDeAct[EXITZONE] > lastDoorCloseTime) { // exterior zone triggered
         maxOcc = 0; // reset occupant counter since at least one person probably exited the house
