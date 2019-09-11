@@ -1,20 +1,22 @@
 /*
  *
- * kprw-server.c, V2.0
+ * kprw-server.c, V2.1
  *
  * Emulates a DSC Power832 keypad controller. Reads and writes over the keybus are supported.
  *
- * This version supports machine learning via R. 
+ * This version supports machine learning via R.
  *
  * Compile with "gcc -Wall -o kprw-server kprw-server.c -lrt -lpthread -lwrap -lssl -lcrypto"
  *
- * Tested with Raspberry Pi 2.
+ * Tested with:
+ *  Raspberry Pi 2 and Wheezy + PREEMPT_RT patched kernel 3.18.9-rt5-v7.
+ *  Raspberry Pi 3 and Buster + PREEMPT-RT patched kernel 4.19.59-rt23-v7+.
  *
- * Must run under linux PREEMPT_RT kernel 3.18.9-rt5-v7 and as su.
+ * Must run under linux a Linux PREEMPT_RT patched kernel and as su.
  *
- * See https://github.com/goruck/all for details. 
+ * See https://github.com/goruck/all for details.
  *
- * Copyright (c) 2016 by Lindo St. Angel.
+ * Copyright (c) 2016 - 2019 by Lindo St. Angel.
  *
  */
 
@@ -54,8 +56,8 @@
 
 // GPIO Access from ARM Running Linux. Based on Dom and Gert rev 15-feb-13
 #define BCM2708_PERI_BASE 0x3F000000 // modified for Pi 2
-#define GPIO_BASE	  (BCM2708_PERI_BASE + 0x200000) // GPIO controller
-#define BLOCK_SIZE	  (4*1024) // size of memory for direct gpio access
+#define GPIO_BASE         (BCM2708_PERI_BASE + 0x200000) // GPIO controller
+#define BLOCK_SIZE        (4*1024) // size of memory for direct gpio access
 
 // GPIO setup macros. Always use INP_GPIO(x) before using OUT_GPIO(x) or SET_GPIO_ALT(x,y).
 #define INP_GPIO(g) *(gpio+((g)/10)) &= ~(7<<(((g)%10)*3))
@@ -87,31 +89,31 @@
 #define INV(g,s)	((1<<g) - s)
 
 // real-time
-#define MAIN_PRI	(70) // main thread priority
-#define MSG_IO_PRI	(70) // message io thread priority
-#define PREDICT_PRI	(50) // predict thread priority
-#define PANEL_IO_PRI	(90) // panel io thread priority - panel io pri must be highest
-#define MAX_SAFE_STACK	(32*1024*1024) // 32MB pagefault free buffer
-#define MY_STACK_SIZE   (100*1024) // 100KB thread stack size
+#define MAIN_PRI       (70) // main thread priority
+#define MSG_IO_PRI     (70) // message io thread priority
+#define PREDICT_PRI    (50) // predict thread priority
+#define PANEL_IO_PRI   (90) // panel io thread priority - panel io pri must be highest
+#define MAX_SAFE_STACK (32*1024*1024) // 32MB pagefault free buffer
+#define MY_STACK_SIZE  (100*1024) // 100KB thread stack size
 
 // panel i/o thread
-#define NSEC_PER_SEC    (1000000000LU) // 1 second.
-#define INTERVAL        (20*1000) // 20 us timeslice.
-#define CLK_PER		(1000000L) // 1 ms clock period.
-#define HALF_CLK_PER	(500000L) // 0.5 ms half clock period.
-#define SAMPLE_OFFSET   (120000L) // 0.12 ms sample offset from clk edge for panel read
-#define KSAMPLE_OFFSET	(300000L) // 0.30 ms sample offset from clk edge for keypad read
-#define HOLD_DATA	(220000L) // 0.22 ms data hold time from clk edge for keypad write
-#define CLK_BLANK	(5000000L) // 5 ms min clock blank.
-#define NEW_WORD_VALID	(2500000L) // if a bit arrives > 2.5 ms after last one, declare start of new word.
-#define MAX_BITS	(64) // max 64-bit word read from panel
-#define MAX_DATA 	(1*1024) // 1 KB data buffer of 64-bit data words - ~66 seconds @ 1 kHz.
-#define FIFO_SIZE	(MAX_BITS*MAX_DATA) // FIFO depth
+#define NSEC_PER_SEC   (1000000000LU) // 1 second.
+#define INTERVAL       (20*1000) // 20 us timeslice.
+#define CLK_PER        (1000000L) // 1 ms clock period.
+#define HALF_CLK_PER   (500000L) // 0.5 ms half clock period.
+#define SAMPLE_OFFSET  (120000L) // 0.12 ms sample offset from clk edge for panel read
+#define KSAMPLE_OFFSET (300000L) // 0.30 ms sample offset from clk edge for keypad read
+#define HOLD_DATA      (220000L) // 0.22 ms data hold time from clk edge for keypad write
+#define CLK_BLANK      (5000000L) // 5 ms min clock blank.
+#define NEW_WORD_VALID (2500000L) // if a bit arrives > 2.5 ms after last one, declare start of new word.
+#define MAX_BITS       (64) // max 64-bit word read from panel
+#define MAX_DATA       (1*1024) // 1 KB data buffer of 64-bit data words - ~66 seconds @ 1 kHz.
+#define FIFO_SIZE      (MAX_BITS*MAX_DATA) // FIFO depth
 
 // keypad button bit mappings
 // no button:	0xff 0xff 0xff 0xff 0xff 0xff 0xff 0xff
 #define IDLE	"1111111111111111111111111111111111111111111111111111111111111111"
-// *:		0xff 0x94 0x7f 0xff 0xff 0xff 0xff 0xff        
+// *:		0xff 0x94 0x7f 0xff 0xff 0xff 0xff 0xff
 #define STAR	"1111111110010100011111111111111111111111111111111111111111111111"
 // #:		0xff 0x96 0xff 0xff 0xff 0xff 0xff 0xff
 #define POUND	"1111111110010110111111111111111111111111111111111111111111111111"
@@ -176,7 +178,7 @@ struct status {
   long unsigned obsTime;                    // zone sensor absolute observation time
   long unsigned zoneAct[32];                // zone sensor absolute activation times
   long unsigned zoneDeAct[32];              // zone sensor absolute deactivation times
-  int numOcc;		                    // estimated number of occupants in house
+  int numOcc;                               // estimated number of occupants in house
   char lastTruePred[NUMPRED][TS_BUF_SIZE];  // time of last true predictions
 };
 
@@ -188,40 +190,40 @@ volatile int m_Read1, m_Write1, m_Read2, m_Write2;
 volatile char m_Data1[FIFO_SIZE], m_Data2[FIFO_SIZE];
 
 // show_new_pagefault_count
-static void show_new_pagefault_count(const char* logtext, 
-   			      const char* allowed_maj,
-   			      const char* allowed_min) {
+static void show_new_pagefault_count(const char* logtext,
+               const char* allowed_maj,
+               const char* allowed_min) {
   static int last_majflt = 0, last_minflt = 0;
   struct rusage usage;
-   
+
   getrusage(RUSAGE_SELF, &usage);
-   
+
   fprintf(stdout, "%-30.30s: Pagefaults, Major:%ld (Allowed %s), " \
-   	 "Minor:%ld (Allowed %s)\n", logtext,
-   	 usage.ru_majflt - last_majflt, allowed_maj,
-   	 usage.ru_minflt - last_minflt, allowed_min);
-   	
-  last_majflt = usage.ru_majflt; 
+      "Minor:%ld (Allowed %s)\n", logtext,
+      usage.ru_majflt - last_majflt, allowed_maj,
+      usage.ru_minflt - last_minflt, allowed_min);
+
+  last_majflt = usage.ru_majflt;
   last_minflt = usage.ru_minflt;
 } // show_new_pagefault_count
 
 /* prove_thread_stack_use_is_safe
  *
- * Note: gcc -Wall will complain here that buffer is set but not used. 
+ * Note: gcc -Wall will complain here that buffer is set but not used.
  * This is because buffer is a local variable on the stack
  *   but not used outside the scope of this function.
- * This is why buffer is a volatile because otherwise complier would optimize it away. 
+ * This is why buffer is a volatile because otherwise complier would optimize it away.
  */
 static void prove_thread_stack_use_is_safe(int stacksize) {
   volatile char buffer[stacksize];
   int i;
-   
+
   // Prove that this thread is behaving well
   for (i = 0; i < stacksize; i += sysconf(_SC_PAGESIZE)) {
     // Each write to this buffer shall NOT generate a pagefault.
     buffer[i] = i;
   }
-   
+
   show_new_pagefault_count("Caused by using thread stack", "0", "0");
 } // prove_thread_stack_use_is_safe
 
@@ -229,9 +231,9 @@ static void prove_thread_stack_use_is_safe(int stacksize) {
 static void reserve_process_memory(int size) {
   int i;
   char *buffer;
-   
+
   buffer = malloc(size);
-   
+
   // Touch each page in this piece of memory to get it mapped into RAM
   for (i = 0; i < size; i += sysconf(_SC_PAGESIZE)) {
     /* Each write to this buffer will generate a pagefault.
@@ -239,8 +241,8 @@ static void reserve_process_memory(int size) {
        memory and never given back to the system. */
     buffer[i] = 0;
   }
-   
-  /* buffer will now be released. As Glibc is configured such that it 
+
+  /* buffer will now be released. As Glibc is configured such that it
   never gives back memory to the kernel, the memory allocated above is
   locked for this process. All malloc() and new() calls come from
   the memory pool reserved and locked above. Issuing free() and
@@ -266,9 +268,9 @@ static void setup_io(void) {
   // mmap GPIO
   gpio_map = mmap(
     NULL,             		//Any address in our space will do
-    BLOCK_SIZE,			//Map length
+    BLOCK_SIZE,						//Map length
     PROT_READ|PROT_WRITE,	//Enable reading & writing to mapped memory
-    MAP_SHARED,			//Shared with other processes
+    MAP_SHARED,						//Shared with other processes
     mem_fd,           		//File to map
     GPIO_BASE         		//Offset to GPIO peripheral
   );
@@ -292,7 +294,7 @@ extern int clock_nanosleep(clockid_t __clock_id, int __flags,
                            __const struct timespec *__req,
                            struct timespec *__rem);
 
-/* 
+/*
  * the struct timespec consists of nanoseconds
  * and seconds. if the nanoseconds are getting
  * bigger than 1000000000 (= 1 second) the
@@ -309,7 +311,7 @@ static inline void tnorm(struct timespec *tp)
 }
 
 /*
- * Calculate difference between two timespec variables. 
+ * Calculate difference between two timespec variables.
  */
 static inline long ts_diff(struct timespec *a, struct timespec *b)
 {
@@ -338,7 +340,7 @@ static inline unsigned int getBinaryData(char *st, int offset, int length)
   return buf;
 }
 
-/* 
+/*
  * Fifos are thread safe without using any synchronization (e.g., mutext).
  * But each fifo must have exactly one producer and one consumer to be used safely.
  * See "Creating a Thread Safe Producer Consumer Queue in C++ Without Using Locks",
@@ -357,7 +359,7 @@ static inline int pushElement1(char *element, int num) {
       m_Data1[m_Write1 + i] = element[i];
     }
   }
-  
+
   // if fifo was full, data will be overwritten
   m_Write1 = nextElement;
 
@@ -432,7 +434,7 @@ static int decode(char * word, char * msg, int * allZones) {
   cmd = getBinaryData(word,0,8);
   strcpy(msg, "");
 
-  if (cmd == 0x05) { 
+  if (cmd == 0x05) {
     strcpy(msg, "LED Status ");
     if (getBinaryData(word,16,1))
       strcat(msg, "Ready, ");
@@ -540,7 +542,7 @@ static int decode(char * word, char * msg, int * allZones) {
     if (getBinaryData(word,8,32) == 0xffffffff)
       strcat(msg, "idle");
     else { //bits 11~14 data; 15~16 CRC (not used)
-      button = getBinaryData(word,8,20); 
+      button = getBinaryData(word,8,20);
       if (button == 0x947ff)
         strcat(msg, "button * pressed");
       else if (button == 0x96fff)
@@ -608,9 +610,9 @@ static void * panel_io(void *arg) {
 
     if ((GET_GPIO(PI_CLOCK_IN) == PI_CLOCK_HI) && !flag) { // write/read keypad data
       if (ts_diff(&t, &tmark) > NEW_WORD_VALID) { // check for new word
-        /* 
+        /*
          * Check to see if last word was less than 20 bits.
-         * Consider words with fewer than 20 bits to be invalid. 
+         * Consider words with fewer than 20 bits to be invalid.
          * If invalid, repeat last keypad write by not fetching new data from fifo.
          * Also, do not store either panel or keypad data.
          *
@@ -621,14 +623,14 @@ static void * panel_io(void *arg) {
          *
          * Panel also outputs short words (usually 9-bits) which are ignored as invalid
          *   because thread needs at least 20 bits to send a valid data word to the panel
-         *   and to mitigate data corruption on the keybus since these short words are 
+         *   and to mitigate data corruption on the keybus since these short words are
          *   usually associated with the simultaneous transfer of keypad data to the panel
-         *   (the keybus is bidirectional and bits are transferred on the rising and 
+         *   (the keybus is bidirectional and bits are transferred on the rising and
          *   falling edge of the clock). This keypad data is sent in response to a panel
          *   keypad query command that was sent previously. These commands include those
          *   messages starting with 0x051, 0x0593, 0x11 and possibly others. Note that
          *   this means keypad to panel writes will not be logged since reads are skipped
-         *   when this condition is detected. 
+         *   when this condition is detected.
          */
         if (bit_cnt < 20) {
           fprintf(stderr, "panel_io: bit count < 20 (%i)! Repeating panel writes and ignoring reads.\n", bit_cnt);
@@ -650,7 +652,7 @@ static void * panel_io(void *arg) {
         }
 
         // reset bit counter and arrays
-        bit_cnt = 0; 
+        bit_cnt = 0;
         memset(&word, 0, MAX_BITS);
         memset(&wordkr, 0, MAX_BITS);
       }
@@ -694,10 +696,10 @@ static void * panel_io(void *arg) {
   }
 } // panel_io thread
 
-/* 
+/*
  * message i/o thread
  * This thread runs every MSG_IO_UPDATE seconds and decodes the messages created by the panel i/o thread.
- * It also prints the panel and keypad traffic to stdout. 
+ * It also prints the panel and keypad traffic to stdout.
  *
  */
 static void * msg_io(void * arg) {
@@ -727,7 +729,7 @@ static void * msg_io(void * arg) {
     tnorm(&t);
     clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &t, NULL);
 
-    // Get raw data from fifo. Panel and keypad data are interleaved in the fifo. 
+    // Get raw data from fifo. Panel and keypad data are interleaved in the fifo.
     res = popElement1(word, MAX_BITS);
     if (!res) { // fifo is empty (res == 0)
       continue;
@@ -777,7 +779,7 @@ static void * msg_io(void * arg) {
 
 } // msg_io
 
-/* 
+/*
  * predict thread
  * This thread runs every PREDICT_UPDATE seconds and sends sensor data to R to make a prediction.
  * It also reads the prediction from R and does something if true.
@@ -805,7 +807,7 @@ static void * predict(void * arg) {
   struct tm *tmp;
   time_t tstamp;
   FILE * fp;
-  
+
   // detach the thread since we don't care about its return status
   res = pthread_detach(pthread_self());
   if (res) {
@@ -853,7 +855,7 @@ static void * predict(void * arg) {
              sptr->zoneDeAct[20], sptr->zoneDeAct[21], sptr->zoneDeAct[22], sptr->zoneDeAct[23],
              sptr->zoneDeAct[24], sptr->zoneDeAct[25], sptr->zoneDeAct[26], sptr->zoneDeAct[27],
              sptr->zoneDeAct[28], sptr->zoneDeAct[29], sptr->zoneDeAct[30], sptr->zoneDeAct[31]);
-    
+
     if (strcmp(zoneBuf, oldZoneBuf)) { // only run on zone changes
       // try to predict number of occupants based on sensor activity
       if (sptr->zoneDeAct[EXITZONE] > lastDoorCloseTime) { // exterior zone triggered
@@ -874,8 +876,8 @@ static void * predict(void * arg) {
       sptr->numOcc = maxOcc;
       occ = 0;
 
-      /* Open the R log file for writing. If it exists, append to it; 
-         otherwise, create a new file.  */ 
+      /* Open the R log file for writing. If it exists, append to it;
+         otherwise, create a new file.  */
       rLogFp = open(RLOGPATH, O_WRONLY | O_CREAT | O_APPEND, 0666);
       if (rLogFp == -1) {
         perror ("R log open() failed\n");
@@ -889,7 +891,7 @@ static void * predict(void * arg) {
         fprintf(stderr, "popen() failed\n");
         continue;
       }
-  
+
       // Read output of Rscript until EOF, log and act on R's predictions
       while (fgets(rout, ROUT_MAX, fp) != NULL) {
         res = write(rLogFp, rout, strlen(rout));
@@ -945,7 +947,7 @@ static void * predict(void * arg) {
           }
 
           /*
-           * Do something with the prediction. 
+           * Do something with the prediction.
            * For now, just call a script to turn on / off the Wemo switches in the house.
            * A more flexible mapping of predictions to actions will be needed at some point.
            *
@@ -1004,7 +1006,7 @@ static void * predict(void * arg) {
         }
       }
 
-      res = close(rLogFp); 
+      res = close(rLogFp);
       if (res == -1) {
         perror ("R log close() failed\n");
         exit(EXIT_FAILURE);
@@ -1015,7 +1017,7 @@ static void * predict(void * arg) {
         perror("pclose() failed\n");
         exit(EXIT_FAILURE);
       }
-      
+
     }
 
     strcpy(oldZoneBuf, zoneBuf);
@@ -1029,17 +1031,17 @@ static int create_socket(int port)
 {
   int listenfd = 0, res;
   struct sockaddr_in server_addr;
-  
+
   listenfd = socket(AF_INET, SOCK_STREAM, 0);
   if (listenfd == -1) {
     perror("server: could not open socket\n");
     exit(EXIT_FAILURE);;
   }
 
-  memset(&server_addr, 0, sizeof(server_addr)); 
+  memset(&server_addr, 0, sizeof(server_addr));
   server_addr.sin_family = AF_INET;
   server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-  server_addr.sin_port = htons(port); 
+  server_addr.sin_port = htons(port);
   res = bind(listenfd, (struct sockaddr *) &server_addr, sizeof(server_addr));
   if (res) {
     perror("server: bind() failed\n");
@@ -1059,8 +1061,8 @@ static int create_socket(int port)
 
 static void init_openssl() {
   SSL_library_init();
-  OpenSSL_add_all_algorithms(); 
-  SSL_load_error_strings();	
+  OpenSSL_add_all_algorithms();
+  SSL_load_error_strings();
 } // openssl()
 
 static void cleanup_openssl() {
@@ -1165,7 +1167,7 @@ static void panserv(struct status * pstat, int port) {
                         "\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"]}\n";
   int listenfd= 0, connfd = 0, res, num, i, sendJSON = 0;
   long chkbuf;
-  socklen_t addrlen;  
+  socklen_t addrlen;
   struct sockaddr_in client_addr;
   SSL_CTX *ctx;
   SSL *ssl;
@@ -1314,7 +1316,7 @@ static void panserv(struct status * pstat, int port) {
         }
       }
     }
-    
+
     // send back zone and system status, either as JSON or text
     if (sendJSON) { // send zone data as JSON
       snprintf(txBuf, sizeof(txBuf), jsonFmt,
@@ -1347,7 +1349,7 @@ static void panserv(struct status * pstat, int port) {
         close(connfd);
         continue;
       }
-      
+
       sendJSON = 0;
     } else { // send zone data as text, this is the default format
       snprintf(txBuf, sizeof(txBuf), "%s, %s, %s, %s, %s,",
@@ -1368,7 +1370,7 @@ static void panserv(struct status * pstat, int port) {
     if (res == -1) {
       perror("server: error closing connection");
       continue;
-    }   
+    }
 
   }
 
@@ -1390,7 +1392,7 @@ int main(int argc, char *argv[])
   cpu_set_t cpuset_mio, cpuset_pio, cpuset_main;
   FILE *fd;
 
-  // Check if user is running program as root. If not, exit. 
+  // Check if user is running program as root. If not, exit.
   if(geteuid() != 0) {
     fprintf(stderr, "Program must be run as root\n");
     exit(EXIT_FAILURE);
@@ -1457,7 +1459,7 @@ int main(int argc, char *argv[])
 
   // Turn off malloc trimming.
   mallopt(M_TRIM_THRESHOLD, -1);
-   
+
   // Turn off mmap usage.
   mallopt(M_MMAP_MAX, 0);
 
