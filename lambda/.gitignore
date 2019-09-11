@@ -3,5 +3,4 @@ client.crt
 client.key
 host.txt
 port.txt
-mkzip.sh
 all.zip
