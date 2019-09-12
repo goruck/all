@@ -1498,6 +1498,7 @@ int main(int argc, char *argv[])
 
   // create panel input / output thread
   pthread_attr_init(&my_attr);
+  pthread_attr_setinheritsched (&my_attr, PTHREAD_EXPLICIT_SCHED);
   pthread_attr_setaffinity_np(&my_attr, sizeof(cpuset_pio), &cpuset_pio);
   pthread_attr_setschedpolicy(&my_attr, SCHED_FIFO);
   // Set the requested stacksize for this thread
@@ -1517,6 +1518,7 @@ int main(int argc, char *argv[])
 
   // create message input / output thread
   pthread_attr_init(&my_attr);
+  pthread_attr_setinheritsched (&my_attr, PTHREAD_EXPLICIT_SCHED);
   pthread_attr_setaffinity_np(&my_attr, sizeof(cpuset_mio), &cpuset_mio);
   pthread_attr_setschedpolicy(&my_attr, SCHED_FIFO);
   // Set the requested stacksize for this thread
@@ -1536,6 +1538,7 @@ int main(int argc, char *argv[])
 
   // create predict thread
   pthread_attr_init(&my_attr);
+  pthread_attr_setinheritsched (&my_attr, PTHREAD_EXPLICIT_SCHED);
   pthread_attr_setaffinity_np(&my_attr, sizeof(cpuset_mio), &cpuset_mio);
   pthread_attr_setschedpolicy(&my_attr, SCHED_FIFO);
   // Set the requested stacksize for this thread
