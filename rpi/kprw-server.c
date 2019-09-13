@@ -6,7 +6,8 @@
  *
  * This version supports machine learning via R.
  *
- * Compile with "gcc -Wall -o kprw-server kprw-server.c -lrt -lpthread -lwrap -lssl -lcrypto"
+ * Compile with "gcc -Wall -o kprw-server kprw-server.c -lrt -lpthread -lwrap -lssl -lcrypto".
+ * To enable R prediction script logging, add the "-DRLOGGING" option. 
  *
  * Tested with:
  *  Raspberry Pi 2 and Wheezy + PREEMPT_RT patched kernel 3.18.9-rt5-v7.
@@ -148,8 +149,7 @@
 #define ROUT_MAX         256 // max number of characters read from output of Rscript
 #define TS_BUF_SIZE      sizeof("2016-05-22T12:15:22Z")
 #define PCMD_BUF_SIZE    (sizeof(POPEN_FMT) + TS_BUF_SIZE + 2 * RARG_SIZE) // size of buffer passed to popen()
-//#define RLOGPATH         "/home/pi/all/R/rlog.txt"
-#define RLOGPATH         "/dev/null"
+#define RLOGPATH         "/home/pi/all/R/rlog.txt"
 #define INTZONES         {26, 27, 28, 29} // list of interior zones (zone numbering starts with 0)
 #define EXITZONE         0 // zone number of front door which is main exit point from house
 #define CONZONELL        0 // lower limit of concurent zone activity in seconds
@@ -786,7 +786,7 @@ static void * msg_io(void * arg) {
  *
  */
 static void * predict(void * arg) {
-  int res, rLogFp;
+  int res;
   int i, j, occ = 0, val, lastDoorCloseTime = 0, maxOcc = 0;
   int intZone[] = INTZONES;
   int size = sizeof(intZone) / sizeof *(intZone);
@@ -876,6 +876,8 @@ static void * predict(void * arg) {
       sptr->numOcc = maxOcc;
       occ = 0;
 
+      #ifdef RLOGGING
+      int rLogFp;
       /* Open the R log file for writing. If it exists, append to it;
          otherwise, create a new file.  */
       rLogFp = open(RLOGPATH, O_WRONLY | O_CREAT | O_APPEND, 0666);
@@ -883,6 +885,7 @@ static void * predict(void * arg) {
         perror ("R log open() failed\n");
         continue;
       }
+      #endif
 
       // Build and execute command to run Rscript
       snprintf(popenCmd, PCMD_BUF_SIZE, POPEN_FMT, tsBuf, obsTimeBuf, zoneBuf);
@@ -894,11 +897,13 @@ static void * predict(void * arg) {
 
       // Read output of Rscript until EOF, log and act on R's predictions
       while (fgets(rout, ROUT_MAX, fp) != NULL) {
+        #ifdef RLOGGING
         res = write(rLogFp, rout, strlen(rout));
         if (res != strlen(rout)) {
           perror("R log write() failed\n");
           continue;
         }
+        #endif
 
         fprintf(stdout, "%s", rout);
 
@@ -1006,11 +1011,13 @@ static void * predict(void * arg) {
         }
       }
 
+      #ifdef RLOGGING
       res = close(rLogFp);
       if (res == -1) {
         perror ("R log close() failed\n");
         exit(EXIT_FAILURE);
       }
+      #endif
 
       res = pclose(fp);
       if (res == -1) {
