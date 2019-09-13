@@ -98,7 +98,7 @@
 
 // panel i/o thread
 #define NSEC_PER_SEC   (1000000000LU) // 1 second.
-#define INTERVAL       (20*1000) // 20 us timeslice.
+#define INTERVAL       (100*1000) // 100 us timeslice.
 #define CLK_PER        (1000000L) // 1 ms clock period.
 #define HALF_CLK_PER   (500000L) // 0.5 ms half clock period.
 #define SAMPLE_OFFSET  (120000L) // 0.12 ms sample offset from clk edge for panel read
