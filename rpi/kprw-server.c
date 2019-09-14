@@ -7,7 +7,8 @@
  * This version supports machine learning via R.
  *
  * Compile with "gcc -Wall -o kprw-server kprw-server.c -lrt -lpthread -lwrap -lssl -lcrypto".
- * To enable R prediction script logging, add the "-DRLOGGING" option. 
+ * To enable R prediction script file logging, add the "-DRLOGGING" option.
+ * To output status messages to stdout, add the "-DVERBOSE" option. 
  *
  * Tested with:
  *  Raspberry Pi 2 and Wheezy + PREEMPT_RT patched kernel 3.18.9-rt5-v7.
@@ -704,13 +705,17 @@ static void * panel_io(void *arg) {
  */
 static void * msg_io(void * arg) {
   int cmd, res, zone, allZones[NUMZONES];
-  int data0, data1, data2, data3;
-  int data4, data5, data6, data7;
-  long unsigned int index = 0;
   char msg[50] = "";
-  char word[MAX_BITS] = "", wordk[MAX_BITS] = "", buf[4*128] = "";
+  char word[MAX_BITS] = "", wordk[MAX_BITS] = "";
   struct timespec t;
   struct status * sptr = (struct status *) arg;
+
+  #ifdef VERBOSE
+  long unsigned int index = 0;
+  int data0, data1, data2, data3;
+  int data4, data5, data6, data7;
+  char buf[4*128] = "";
+  #endif
 
   // detach the thread since we don't care about its return status
   res = pthread_detach(pthread_self());
@@ -762,17 +767,18 @@ static void * msg_io(void * arg) {
       // update zone sensor observation time
       sptr->obsTime = t.tv_sec;
 
+      #ifdef VERBOSE
       // get raw data bytes
       data0 = getBinaryData(word,0,8);  data1 = getBinaryData(word,8,8);
       data2 = getBinaryData(word,16,8); data3 = getBinaryData(word,24,8);
       data4 = getBinaryData(word,32,8); data5 = getBinaryData(word,40,8);
       data6 = getBinaryData(word,48,8); data7 = getBinaryData(word,56,8);
-
       snprintf(buf, sizeof(buf),
                "index:%lu,%-50s, data: 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n",
                index++, msg, data0, data1, data2, data3, data4, data5, data6, data7);
       fputs(buf, stdout); // display message output of panel and keypad data
       fflush(stdout);
+      #endif
     }
 
   } // while
@@ -905,7 +911,9 @@ static void * predict(void * arg) {
         }
         #endif
 
+        #ifdef VERBOSE
         fprintf(stdout, "%s", rout);
+        #endif
 
         /*
          * Parse prediction number and its probability from R's output.
@@ -1203,7 +1211,10 @@ static void panserv(struct status * pstat, int port) {
       snprintf(addrStr, ADDRSTRLEN, "(%s, %s)", host, service);
     else
       snprintf(addrStr, ADDRSTRLEN, "(?UNKNOWN?)");
+
+    #ifdef VERBOSE
     fprintf(stdout, "server: connection requested from %s\n", addrStr);
+    #endif
 
     if (!hosts_ctl("kprw-server", STRING_UNKNOWN, host, STRING_UNKNOWN)) {
       fprintf(stderr, "Client %s connection disallowed\n", inet_ntoa(client_addr.sin_addr));
@@ -1221,8 +1232,10 @@ static void panserv(struct status * pstat, int port) {
       continue;
     }
 
+    #ifdef VERBOSE
     fprintf(stdout, "server: client %s connected with %s encryption\n",
             inet_ntoa(client_addr.sin_addr), SSL_get_cipher(ssl));
+    #endif
 
     memset(&buffer, 0, BUF_LEN);
     res = SSL_read(ssl, buffer, (BUF_LEN-1)); // read command from socket
@@ -1233,7 +1246,9 @@ static void panserv(struct status * pstat, int port) {
       continue;
     }
 
+    #ifdef VERBOSE
     fprintf(stdout, "server: panel received command %s", buffer);
+    #endif
 
     /*
      * Decode and process a command sent from client.
