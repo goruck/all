@@ -634,7 +634,9 @@ static void * panel_io(void *arg) {
          *   when this condition is detected.
          */
         if (bit_cnt < 20) {
-          fprintf(stderr, "panel_io: bit count < 20 (%i)! Repeating panel writes and ignoring reads.\n", bit_cnt);
+          #ifdef VERBOSE
+          fprintf(stdout, "panel_io: bit count < 20 (%i)! Repeating panel writes and ignoring reads.\n", bit_cnt);
+          #endif
         } else {
           res = pushElement1(word, MAX_BITS); // store panel-> keypad data
           if (res != MAX_BITS) {
