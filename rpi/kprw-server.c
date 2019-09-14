@@ -190,6 +190,7 @@ volatile unsigned *gpio;
 volatile int m_Read1, m_Write1, m_Read2, m_Write2;
 volatile char m_Data1[FIFO_SIZE], m_Data2[FIFO_SIZE];
 
+#ifdef TESTRT
 // show_new_pagefault_count
 static void show_new_pagefault_count(const char* logtext,
                const char* allowed_maj,
@@ -227,6 +228,7 @@ static void prove_thread_stack_use_is_safe(int stacksize) {
 
   show_new_pagefault_count("Caused by using thread stack", "0", "0");
 } // prove_thread_stack_use_is_safe
+#endif
 
 // reserve_process_memory
 static void reserve_process_memory(int size) {
@@ -1487,13 +1489,22 @@ int main(int argc, char *argv[])
   // Turn off mmap usage.
   mallopt(M_MMAP_MAX, 0);
 
-  // Pre-fault our stack and display page fault stats
+  // Pre-fault our stack
   reserve_process_memory(MAX_SAFE_STACK);
+
+  #ifdef TESTRT
+  // display page fault status after pre-fault
+  // number of pagefaults will not be zero
   show_new_pagefault_count("malloc() and touch generated", ">=0", ">=0");
 
-  // test to see if pre-faulting worked
+  // Now allocate the memory for the 2nd time
+  // number of pagefaults should be zero
   reserve_process_memory(MAX_SAFE_STACK);
   show_new_pagefault_count("2nd malloc() and use generated", "0", "0");
+
+  // test that threads are safe
+  prove_thread_stack_use_is_safe(100*1024);
+  #endif
 
   // Set up gpio pointer for direct register access
   setup_io();
