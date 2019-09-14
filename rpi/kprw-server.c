@@ -8,7 +8,8 @@
  *
  * Compile with "gcc -Wall -o kprw-server kprw-server.c -lrt -lpthread -lwrap -lssl -lcrypto".
  * To enable R prediction script file logging, add the "-DRLOGGING" option.
- * To output status messages to stdout, add the "-DVERBOSE" option. 
+ * To output status messages to stdout, add the "-DVERBOSE" option.
+ * To run a real-time safe test at start of program, add the "-DTESTRT" option.
  *
  * Tested with:
  *  Raspberry Pi 2 and Wheezy + PREEMPT_RT patched kernel 3.18.9-rt5-v7.
@@ -57,9 +58,9 @@
 #include <openssl/evp.h>
 
 // GPIO Access from ARM Running Linux. Based on Dom and Gert rev 15-feb-13
-#define BCM2708_PERI_BASE 0x3F000000 // modified for Pi 2
-#define GPIO_BASE         (BCM2708_PERI_BASE + 0x200000) // GPIO controller
-#define BLOCK_SIZE        (4*1024) // size of memory for direct gpio access
+#define BCM_PERI_BASE 0x3F000000 // modified for Pi 2/3
+#define GPIO_BASE     (BCM_PERI_BASE + 0x200000) // GPIO controller
+#define BLOCK_SIZE    (4*1024) // size of memory for direct gpio access
 
 // GPIO setup macros. Always use INP_GPIO(x) before using OUT_GPIO(x) or SET_GPIO_ALT(x,y).
 #define INP_GPIO(g) *(gpio+((g)/10)) &= ~(7<<(((g)%10)*3))
@@ -145,25 +146,25 @@
 #define AWAY	"1111111111011000111111111111111111111111111111111111111111111111"
 
 // predict thread
-#define POPEN_FMT        "Rscript --vanilla /home/pi/all/R/predsvm2.R %s %s %s 2> /dev/null"
-#define RARG_SIZE        256 // max number of characters allowed in argument to the Rscript
-#define ROUT_MAX         256 // max number of characters read from output of Rscript
-#define TS_BUF_SIZE      sizeof("2016-05-22T12:15:22Z")
-#define PCMD_BUF_SIZE    (sizeof(POPEN_FMT) + TS_BUF_SIZE + 2 * RARG_SIZE) // size of buffer passed to popen()
-#define RLOGPATH         "/home/pi/all/R/rlog.txt"
-#define INTZONES         {26, 27, 28, 29} // list of interior zones (zone numbering starts with 0)
-#define EXITZONE         0 // zone number of front door which is main exit point from house
-#define CONZONELL        0 // lower limit of concurent zone activity in seconds
-#define CONZONEUL        10 // upper limit of concurent zone activity in seconds
-#define PREDICT_UPDATE   5000000 // 5 ms predict thread update period in nanoseconds
-#define PRLIGHTIP        "192.168.1.105" // IP addr of Playroom Light switch
-#define MBLIGHTIP        "192.168.1.115" // Master Bedroom Light
-#define BPLIGHTIP        "192.168.1.101" // Back Porch Light
-#define FPLIGHTIP        "192.168.1.116" // Master Bedroom Light
-#define SCMD_BUF_SIZE    sizeof("/home/pi/all/wemo/wemo.sh 192.168.1.105 OFF > /dev/null")
-#define SCMD_FMT         "/home/pi/all/wemo/wemo.sh %s %s > /dev/null"
-#define NUMPRED          10 // max number of predictions
-#define MINPROB          50 // min probability estimate (in %) to be taken as valid
+#define POPEN_FMT      "Rscript --vanilla /home/pi/all/R/predsvm2.R %s %s %s 2> /dev/null"
+#define RARG_SIZE      256 // max number of characters allowed in argument to the Rscript
+#define ROUT_MAX       256 // max number of characters read from output of Rscript
+#define TS_BUF_SIZE    sizeof("2016-05-22T12:15:22Z")
+#define PCMD_BUF_SIZE  (sizeof(POPEN_FMT) + TS_BUF_SIZE + 2 * RARG_SIZE) // size of buffer passed to popen()
+#define RLOGPATH       "/home/pi/all/R/rlog.txt"
+#define INTZONES       {26, 27, 28, 29} // list of interior zones (zone numbering starts with 0)
+#define EXITZONE       0 // zone number of front door which is main exit point from house
+#define CONZONELL      0 // lower limit of concurent zone activity in seconds
+#define CONZONEUL      10 // upper limit of concurent zone activity in seconds
+#define PREDICT_UPDATE 5000000 // 5 ms predict thread update period in nanoseconds
+#define PRLIGHTIP      "192.168.1.105" // IP addr of Playroom Light switch
+#define MBLIGHTIP      "192.168.1.115" // Master Bedroom Light
+#define BPLIGHTIP      "192.168.1.101" // Back Porch Light
+#define FPLIGHTIP      "192.168.1.116" // Master Bedroom Light
+#define SCMD_BUF_SIZE  sizeof("/home/pi/all/wemo/wemo.sh 192.168.1.105 OFF > /dev/null")
+#define SCMD_FMT       "/home/pi/all/wemo/wemo.sh %s %s > /dev/null"
+#define NUMPRED        10 // max number of predictions
+#define MINPROB        50 // min probability estimate (in %) to be taken as valid
 
 // message i/o thread
 #define NUMZONES        32 // number of zones in system
@@ -1443,9 +1444,8 @@ int main(int argc, char *argv[])
     crit2 = ((fscanf(fd, "%d", &flag) == 1) && (flag == 1));
     fclose(fd);
   }
-  fprintf(stdout, "This is a %s kernel.\n", (crit1 && crit2)  ? "PREEMPT RT" : "vanilla");
   if (!(crit1 && crit2)) {
-    fprintf(stderr, "Can't run under a vanilla kernel\n");
+    fprintf(stderr, "Can't run under a vanilla kernel. Must be patched with PREEMPT RT.\n");
     exit(EXIT_FAILURE);
   }
 
