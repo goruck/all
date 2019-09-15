@@ -1,25 +1,18 @@
-*Version 2.0 of ALL includes many updates to core functionality and adds machine learning capability to the V1 reference design. The README contains an in depth discussion about the core functionality, lists the major core updates from V1 to V2 and goes into detail regarding the machine learning aspects which should be used to mainly understand how it may be used in conjunction with Alexa. However, it is expected that some users may find that the README can serve as a very basic introduction to Machine Learning itself.*
+*NEW - ALL now supports Raspberry Pi 3 running Raspbian Buster + PREEMPT-RT patched kernel 4.19.59-rt23-v7+.*
 
 # What is Alexa Lambda Linux (ALL) Project?
 * ALL is an end-to-end HW/SW reference design created to enable quick prototyping and realization of the control and monitoring of things using Amazon’s Alexa.
 * ALL includes Amazon’s Alexa Skills Kit and Lambda running in the cloud as well as a local server based on real-time Linux running on the Raspberry Pi.
+* ALL also includes machine learning capabilities at the edge. 
 * A voice-controlled home security system was built from ALL as an early proof of concept.
 * ALL was introduced in late 2015 at https://github.com/goruck/all.
 
-# What's new in ALL V2.0?
-* Machine learning model generation based on data from security system sensor data.
-* Machine learning prediction based on data from the security system sensor data.
-* Server optionally sends JSON in addition to default text in response to commands.
-* More robust error handling, in particular to the Raspberry PI real-time code.
-* Expanded Alexa skills including handling zones that aren’t ready and arming for pets.
-* Fixed misc bugs and addressed corner cases.
-
-# ALL V2.0 System Block Diagram
+# ALL System Block Diagram
 
 ![mall blockdia](https://cloud.githubusercontent.com/assets/12125472/18031080/8919d892-6c84-11e6-85c8-293c239eb325.png)
 
 # ALL Overview
-Using voice to interface with devices and services around the home enables a rich and intuitive experience as shown by Amazon's huge successes with FireTV and Echo. However, with the exception of a few 3rd party point solutions such as WeMo, the voice user interface is generally not available in the home. One reason for this is the difficulty and unfamiliarity of the technologies required to enable voice control. 
+Using voice to interface with devices and services around the home enables a rich and intuitive experience as shown by Amazon's huge successes with FireTV and Echo. However, with the exception of a few 3rd party point solutions such as WeMo, the voice user interface is generally not available in the home. One reason for this is the difficulty and unfamiliarity of the technologies required to enable voice control.
 
 Alexa Lambda Linux (ALL) was developed to help accelerate this learning curve. ALL is a HW/SW reference design meant to enable quick prototyping and realization of the control and monitoring of things using Amazon's Alexa. A voice-controlled home security system was first built from the reference design as proof of concept which was later extended to support machine learning. 
 
@@ -67,7 +60,7 @@ Meeting these requirements would prove this project useful to a very wide variet
 
 The system needs both cloud and (home-side) device components. Amazon's Alexa was selected as the cloud speech service and Amazon Web Services' Lambda was selected to handle the cloud side processing required to interface between Alexa and the home-side devices. Alexa is a good choice given that its already integrated with Lambda and has a variety of voice endpoints including Echo and FireTV and it costs nothing to develop voice applications via the [Alexa Skills Kit](https://developer.amazon.com/public/solutions/alexa/alexa-skills-kit). [Lambda](https://aws.amazon.com/lambda/) is ideal for quickly handling bursty processing loads, which is exactly what is needed to control things with voice. It also has a free tier under a certain amount of processing and above that its still very inexpensive. So, Alexa and Lambda are reasonable cloud choices given the requirements above.
 
-The [Raspberry Pi 2](https://www.raspberrypi.org/blog/raspberry-pi-2-on-sale/) was designated as the platform to develop the home-side device components. The platform has a powerful CPU, plenty RAM, a wide variety of physical interfaces, has support for many OSs, and is inexpensive. It is possible to use an even more inexpensive platform like [Arduino](https://www.arduino.cc/) but given its lower capabilities vis-a-vis the Raspberry PI this would limit the types of home-side applications that could be developed. For example, use of GNU/Linux is desirable in this project for extensibility and rapid development reasons. Arduino isn't really capable of running Linux but the Pi is. The downside of using the Pi plus a high-level OS like vanilla Linux is that the system cannot process quickly changing events (i.e., in "real-time"). On the other hand, the Arduino running bare metal code is a very capable real-time machine. To be as extensible as possible, the system needs to support the development of real-time voice controlled applications and without complex device side architectures like using an Arduino to handle the fast events connected to a Pi to handle the complex events. Such an architecture would be inconsistent with the project requirements. Therefore [real-time Linux](https://rt.wiki.kernel.org/index.php/Main_Page) was chosen as the OS on the Pi. However, this comes with the downsides of using a non-standard kernel and real-time programming is less straightforward than standard application development in Linux userspace.
+The [Raspberry Pi 2](https://www.raspberrypi.org/blog/raspberry-pi-2-on-sale/) was designated as the platform to develop the home-side device components( All also supports the Raspberry Pi 3.) The platform has a powerful CPU, plenty RAM, a wide variety of physical interfaces, has support for many OSs, and is inexpensive. It is possible to use an even more inexpensive platform like [Arduino](https://www.arduino.cc/) but given its lower capabilities vis-a-vis the Raspberry PI this would limit the types of home-side applications that could be developed. For example, use of GNU/Linux is desirable in this project for extensibility and rapid development reasons. Arduino isn't really capable of running Linux but the Pi is. The downside of using the Pi plus a high-level OS like vanilla Linux is that the system cannot process quickly changing events (i.e., in "real-time"). On the other hand, the Arduino running bare metal code is a very capable real-time machine. To be as extensible as possible, the system needs to support the development of real-time voice controlled applications and without complex device side architectures like using an Arduino to handle the fast events connected to a Pi to handle the complex events. Such an architecture would be inconsistent with the project requirements. Therefore [real-time Linux](https://wiki.linuxfoundation.org/realtime/start) was chosen as the OS on the Pi. However, this comes with the downsides of using a non-standard kernel and real-time programming is less straightforward than standard application development in Linux userspace.
 
 In the reference design, the Pi's GPIOs are the primary physical interface to the devices around the home that are enabled with a voice UI. This allows maximum interface flexibility, and with using real-time Linux, the GPIO interface runs fast. The reference design enables GPIO reads and writes with less than 60 us latency, vanilla Linux at best can do about 20 ms. Of course, all the other physical interfaces (SPI, I2C, etc.) on the Pi are accessible in the reference design though the normal Linux methods.
 
@@ -135,20 +128,13 @@ The Lambda code is divided up into three parts, [all.js](https://github.com/goru
 ## Raspberry Pi Controller / Server
 
 ### Real-time Linux
-The Linux disto on the Pi is based on Debian 7.0 "Wheezy" with a fork of the [Raspberry Pi Linux kernel](https://github.com/raspberrypi/linux) patched with rt-patch and configured as a fully preemptible kernel. The patched and configured source code for the Raspberry Pi real-time kernel is available on [GitHub](https://github.com/emlid/linux-rt-rpi). Another how-to for building real-time Linux for the Raspberry Pi can be found on Frank Dürr's blog, [*"Networked and Mobile Systems"*](http://www.frank-durr.de/?p=203). The wiki [real-time Linux](https://rt.wiki.kernel.org/index.php/Main_Page) is an invaluable source of information on the rt-patch and how to write real-time code.
+The Linux disto on the Pi is based on Debian 10 "Buster" with a custom built [Raspberry Pi Linux 4.19.y kernel](https://github.com/raspberrypi/linux/tree/rpi-4.19.y-rt) patched with rt-patch and configured as a fully preemptible kernel. The kernel was cross-compiled on a Linux host using the official [Raspberry Pi instructions](https://www.raspberrypi.org/documentation/linux/kernel/building.md) and [LeMaRiva's excellent HOWTO](https://lemariva.com/blog/2019/09/raspberry-pi-4b-preempt-rt-kernel-419y-performance-test) as guides. Also the wiki [real-time Linux](https://wiki.linuxfoundation.org/realtime/start) is an invaluable source of information on the rt-patch and how to write real-time code.
 
-The patched version of the kernel includes the following changes.
-* Replaced default kernel with PREEMPT_RT kernel 3.18.9-rt5-v7+
-* Enabled non-FIQ USB driver (currently FIQ driver is not compatible with RT-patch on RPi2)
-* Enabled camera, SPI, I2C and set its speed to 1MHz
-* Disabled serial console
-* Changed default WiFi network parameters
-
-The latency of the patched kernel was measured using [Cyclictest](https://rt.wiki.kernel.org/index.php/Cyclictest) which showed a worse case of less than 60 us. So, that seemed to indicate that applications could respond to events at up to about 15 kHz. The typical latency of a vanilla 3.18 kernel on the Pi was measured at 20 ms.
+The latency of the patched kernel was measured using [Cyclictest](https://wiki.linuxfoundation.org/realtime/documentation/howto/tools/cyclictest/start) which showed a worse case latency of less than 135 us. So, that seemed to indicate that applications could reliably respond to events up to about 7.4 kHz which is sufficient for this application which needs to respond to events at a 1 KHz rate (see below).
 
 The distribution of the latency on the patched kernel as measure by Cyclictest is shown below.
 
-![pi latency](https://cloud.githubusercontent.com/assets/12125472/11770022/4d3df3fe-a1a9-11e5-91b7-281b4b064da6.gif)
+![pi latency](./test/pi-rt-histogram.jpg)
 
 ### Controller / Server Application
 The application code on the Pi emulates a DSC keypad controller running in the Linux system's userspace. The application code in its entirety can be found [here](https://github.com/goruck/all/blob/master/rpi/kprw-server.c), this section captures important design considerations that are not obvious from the code itself or the comments therein.
@@ -161,7 +147,7 @@ The application code consists of three main parts:
 * A thread called *msg_io()* that handles the message-level output processing
 * A server called *panserv()* running in the main thread that communicates with an external client for commands and status
 
-The application code directly accesses the GPIO's registers for the fastest possible reads and writes. The direct access code is based on [this](http://elinux.org/RPi_GPIO_Code_Samples#Direct_register_access) information from the Embedded Linux Wiki at elinux.org. The function *setup_io()* in the application code sets up a memory regions to access the GPIOs. The information in the Broadcom BCM2835 ARM Peripherals document is very useful to understand how to safely access the Pi's processor peripherals. It is [here](http://elinux.org/RPi_Documentation) on the Embedded Linux Wiki site.
+The application code directly accesses the GPIO's registers for the fastest possible reads and writes. The direct access code is based on [this](http://elinux.org/RPi_GPIO_Code_Samples#Direct_register_access) information from the Embedded Linux Wiki at elinux.org. The function *setup_io()* in the application code sets up a memory regions to access the GPIOs. The information in the Broadcom BCM2835/6 ARM Peripherals document is very useful to understand how to safely access the Pi's processor peripherals. It is [here](http://elinux.org/RPi_Documentation) on the Embedded Linux Wiki site.
 
 Inter-thread communication is handled safely via read and write FIFOs without any synchronization (e.g., using a mutext). Its not desirable to use conventional thread synchronization methods since they would block the *panel_io()* thread. There is no way (to my knowledge) to tell the panel not to send data on the keybus, so if *panel_io()* was blocked by another thread accessing a shared FIFO, the application code would drop messages. A good solution to this problem was found in the article [Creating a Thread Safe Producer Consumer Queue in C++ Without Using Locks](http://blogs.msmvps.com/vandooren/2007/01/05/creating-a-thread-safe-producer-consumer-queue-in-c-without-using-locks/) by Vandooren, which is what was implemented with a few modifications.
 
@@ -240,11 +226,17 @@ Production code should use certificates signed by a real CA. The server also use
 The application code needs to be compiled with the relevant libraries and executed with su privileges, per the following.
 
 ```bash
+# Install libs if needed.
+$ sudo apt install libwrap0-dev libssl-dev
+# Compile kprw-server.c.
+# To enable R logging, add -DRLOG=\"/home/pi/all/R/rlog.txt\" (change path as required).
+# To output status messages to stdout, add -DVERBOSE.
+# To run a real-time safe test at start of program, add -DTESTRT.
 $ gcc -Wall -o kprw-server kprw-server.c -lrt -lpthread -lwrap -lssl -lcrypto
-$ sudo ./kprw-server portnum
+# Start program.
+# PORTNUM=69840 # TCP port number for the server to use (change as required).
+$ sudo ./kprw-server $PORTNUM
 ```
-
-Where *portnum* is the TCP port number for the server to use.
 
 ### Startup
 The Raspberry Pi is used here as an embedded system so it needs to come up automatically after power on, including after a possible loss of power. The application code defines the GPIOs as follows:
@@ -256,39 +248,11 @@ The Raspberry Pi is used here as an embedded system so it needs to come up autom
 #define PI_DATA_OUT	(16) // BRCM GPIO16 / PI J8 Pin 36
 ``` 
 
-These GPIOs need to be in a safe state after power on and boot up. Per the Broadcom BCM2835 ARM Peripherals document, these GPIOs are configured as inputs at reset and the kernel doesn't change that during boot, so they won't cause any the keybus serial data line to be pulled down before the application code initializes them. The BRCM GPIO16 was selected for the active high signal that drives the keybus data line since that GPIO has the option of being driven low from an external pull down. Other GPIOs have optional pull-ups. Even though the pull resistors are disabled by default, this removes the possibility of the keybus data line becoming active if software somehow enabled the pull resistor by mistake. 
+These GPIOs need to be in a safe state after power on and boot up. Per the Broadcom BCM2835/6 ARM Peripherals document, these GPIOs are configured as inputs at reset and the kernel doesn't change that during boot, so they won't cause any the keybus serial data line to be pulled down before the application code initializes them. The BRCM GPIO16 was selected for the active high signal that drives the keybus data line since that GPIO has the option of being driven low from an external pull down. Other GPIOs have optional pull-ups. Even though the pull resistors are disabled by default, this removes the possibility of the keybus data line becoming active if software somehow enabled the pull resistor by mistake.
 
-The code below was added to /etc/rc.local so that the application code would automatically run after powering on the Pi.
+A known problem of the Raspbian Preempt-RT patches is that the IRQ/39-dwc_otg process can use a lot the CPU (~30%) which is caused by servicing the USB irq. Although this should not affect the real-time performance of this application given the thread priority settings, the USB ports can be disabled if they are not being. Since the RPi3's wifi chip is connected via SDIO to the processor and nothing else was needed to be connected to the USB ports they are disabled on startup in this configuration to improve the responsiveness of the system. This is done by [power-off-usb.sh](./scripts/power-off-usb.sh) script which is run by /etc/rc.local at startup. 
 
-```bash
-sudo /home/pi/all/rpi/kprw-server portnum > /dev/null 2>&1 &
-```
-
-Where *portnum* is the TCP port number for the server to use. 
-
-At some point provisions will be added to automatically restart the application code in the event of a crash.
-
-In testing it was observed that the Pi sometimes disconnected from the wireless network and did not automatically reconnect, especially when it was connected to a monitor via HDMI (it may have a desense problem). In the event the Pi's wifi does not automatically reconnect to the network after it loses the connection, a special script is run by cron. The script checks for network connectivity every 5 minutes and if the network is down, the wireless interface is automatically restarted. The script and cron entry are shown below are are based off of [this](http://alexba.in/blog/2015/01/14/automatically-reconnecting-wifi-on-a-raspberrypi/) technical blog. 
-
-/usr/local/bin/wifi_rebooter.sh:
-```bash
-#!/bin/bash
-
-# IP for the server you wish to ping (8.8.8.8 is a public Google DNS server)
-SERVER=8.8.8.8
-
-# Only send two pings, sending output to /dev/null
-/bin/ping -c2 ${SERVER} > /dev/null
-
-# If the return code from ping ($?) is not 0 (meaning there was an error)
-if [ $? != 0 ]
-then
-    # Restart the wireless interface
-    /sbin/ifdown --force wlan0
-    /bin/sleep 5
-    /sbin/ifup --force wlan0
-fi
-```
+The kprw-server application is run as a Linux service enabled to run at boot time. See [kprw-server.service](./rpi/kprw-server.service).
 
 ## Keybus to GPIO Interface Unit
 
@@ -350,19 +314,21 @@ The popular open-source software R was selected as the main ML tool and was inte
 The R software package was downloaded from [The R Project for Statistical Computing](https://www.r-project.org/) website and compiled on the Raspberry Pi since there are no recent pre-compiled packages available for Raspbian Wheezy. The following steps are required to install R on the Pi.
 
 ```bash
-$ wget http://cran.rstudio.com/src/base/R-3/R-3.1.2.tar.gz
+$ cd ~
+$ wget http://cran.rstudio.com/src/base/R-3/R-3.6.1.tar.gz
 $ mkdir R_HOME
-$ mv R-3.1.2.tar.gz R_HOME/
+$ mv R-3.6.1.tar.gz R_HOME/
 $ cd R_HOME/
-$ tar zxvf R-3.1.2.tar.gz
-$ cd R-3.1.2/
-$ sudo apt-get install gfortran libreadline6-dev libx11-dev libxt-dev
+$ tar zxvf R-3.6.1.tar.gz
+$ cd R-3.6.1/
+$ sudo apt-get install gfortran libreadline-dev libx11-dev libxt-dev \
+libbz2-dev liblzma-dev libpcre3-dev libcurl4-gnutls-dev
 $ ./configure
 $ make
 $ sudo make install
 ```
 
-Note that this installs R version 3.1.2 which is the latest compatible version for Raspbian Wheezy. 
+Note that this installs R version 3.6.1 which is the latest compatible version for Raspbian Buster.
 
 ## Problem Definition
 It is important to first understand and clearly describe the problem that is being solved including how training will be done. Here, the problem is to accurately predict a person's movement into and through the house using the security system's motion and door sensors (the window sensors are ignored for the present) and to take action on that prediction.
@@ -511,7 +477,7 @@ Levels:
 Now that the algorithm was selected, the next step was to implement the real-time prediction of patterns, develop an Alexa skill that performs voice tagging of training observations, and develop a method to periodically re-fit the SVM with new training data.
 
 ### Real-time Prediction and Action
-A new thread called *predict()* was added to the [Raspberry Pi real-time software](https://github.com/goruck/all/blob/master/rpi/kprw-server.c) which runs periodically and sends sensor data to an R script via the *popen()* Linux system command to make a prediction. The prediction R script is found [here](https://github.com/goruck/all/blob/master/R/predsvm2.R). The thread reads the prediction from R, applies some confidence checking rules and does something if a true prediction is determined. Currently, various WeMo light switches in the house are controlled by the thread in response to predictions in a hardcoded manner but at some point a more flexible and extensible mapping of predictions to actions will be implemented (perhaps by use of another Alexa skill). The WeMo devices are controlled by a bash script called by a *system()* Linux system command in the thread. The WeMo bash script can be found [here](https://github.com/goruck/all/blob/master/wemo/wemo.sh). At some point the capability to automatically take action on a prediction will be added. This can be done by including the state of a WeMo switch as a factor in the model. Obviously, any device around the home that can be monitored and controlled through the LAN or Internet can be used as well.
+A new thread called *predict()* was added to the [Raspberry Pi real-time software](https://github.com/goruck/all/blob/master/rpi/kprw-server.c) which runs periodically and sends sensor data to an R script via the *popen()* Linux system command to make a prediction. The prediction R script is found [here](https://github.com/goruck/all/blob/master/R/predsvm2.R). The thread reads the prediction from R, applies some confidence checking rules and does something if a true prediction is determined. Currently, various WeMo light switches in the house are controlled by the thread in response to predictions in a hardcoded manner but at some point a more flexible and extensible mapping of predictions to actions will be implemented (perhaps by use of another Alexa skill). The WeMo devices are controlled by a bash script called by a *system()* Linux system command in the thread. The WeMo bash script can be found [here](./scripts/wemo.sh). At some point the capability to automatically take action on a prediction will be added. This can be done by including the state of a WeMo switch as a factor in the model. Obviously, any device around the home that can be monitored and controlled through the LAN or Internet can be used as well.
 
 Two models are used in the prediction R script, one that uses the clock as a prediction and one that does not. If both models predict the same pattern, the higher probability prediction is selected (in the case of both models making the same non-null prediction, a higher probability pattern from the model using clock as a predictor is likely a timed pattern that uses the clock). If one model has not identified any pattern and the other has, then the non-null case is selected.
 
@@ -537,7 +503,7 @@ A simplified flowchart of the *predict()* thread operation is shown in the figur
 Firstly, an [AWS SimpleDB](https://aws.amazon.com/simpledb/) database was created to store the observations that the Alexa voice tagging skill generates. The database was created by the code shown below. This assumes that the AWS SDK has been installed on the machine. See [AWS SDK for JavaScript in Node.js](https://aws.amazon.com/sdk-for-node-js/) for how to do this.
 
 ```javascript
-var AWS = require('/usr/local/lib/node_modules/aws-sdk');
+var AWS = require('/home/pi/nodejs/node_modules/aws-sdk');
 
 var fs = require('fs');
 
@@ -555,13 +521,13 @@ simpledb.createDomain(params, function(err, data) {
 });
 ```
 
-The existing Alexa skill's schema and utterance database was modified to include three new speech intents, *OccupancyIsIntent*, *PredIsIntent*, and *TrainIsIntent*. This code can be found [here](https://github.com/goruck/all/tree/master/ask). When the user's speech triggers it, *OccupancyIsIntent* causes Alexa to return the occupancy prediction generated by the *predict()* thread as explained above, *PredIsIntent* causes Alexa to return the last true prediction, and *TrainIsIntent* associates a particular observation with a pattern using voice (i.e., voice tagging) and then stores it in SimpleDB.
+The Alexa skill's schema and utterance database includes three speech intents, *OccupancyIsIntent*, *PredIsIntent*, and *TrainIsIntent*. This code can be found [here](https://github.com/goruck/all/tree/master/ask). When the user's speech triggers it, *OccupancyIsIntent* causes Alexa to return the occupancy prediction generated by the *predict()* thread as explained above, *PredIsIntent* causes Alexa to return the last true prediction, and *TrainIsIntent* associates a particular observation with a pattern using voice (i.e., voice tagging) and then stores it in SimpleDB.
 
-The existing [Lambda Node.js code](https://github.com/goruck/all/tree/master/lambda) that services the Alexa speech intents was modified to include three new functions to support the new intents. A function called [*trainInSession()*](https://github.com/goruck/all/blob/master/lambda/amzn/trainInSession.js) handles the *TrainIsIntent* intent, the function called *predInSession()* handles the *PredIsIntent* intent, and the function called *anyoneHomeInSession()*, handles the *OccupancyIsIntent* intent.
+The [Lambda Node.js code](https://github.com/goruck/all/tree/master/lambda) that services the Alexa speech intents includes three functions to support these intents. A function called [*trainInSession()*](https://github.com/goruck/all/blob/master/lambda/amzn/trainInSession.js) handles the *TrainIsIntent* intent, the function called *predInSession()* handles the *PredIsIntent* intent, and the function called *anyoneHomeInSession()*, handles the *OccupancyIsIntent* intent.
 
 Currently, *TrainIsIntent* and *trainInSession()* uses 10 fixed patterns with the mapping to specific paths through the home as shown above. This forces the user to remember the mapping during training. Although acceptable for test purposes, a more flexible approach is required whereby the user is asked to provide the path name during training or is offered to select a path from a menu in case the path already exists. These enhancements will be added in a future revision of the skill.
 
-The existing thread *msg_io()* in the [Raspberry Pi real-time software](https://github.com/goruck/all/blob/master/rpi/kprw-server.c) was modified to calculate the timestamped sensor data as described above and the Pi's server was modified to return that along with other information as JSON in response to a command from the Alexa skill running in AWS Lambda. Using JSON instead of raw text greatly simplifies the Node.js code running in Lambda.
+The thread *msg_io()* in the [Raspberry Pi real-time software](https://github.com/goruck/all/blob/master/rpi/kprw-server.c) calculates the timestamped sensor data as described above and the Pi's server was returns that along with other information as JSON in response to a command from the Alexa skill running in AWS Lambda.
 
 A simplified flow diagram of voice tagging using the *TrainIsIntent* and *trainInSession()* functionality is shown in the figure below.
 ![train-flow-chart](https://cloud.githubusercontent.com/assets/12125472/17685887/e047bf92-631c-11e6-9c81-8d9390074ada.png)
@@ -593,7 +559,7 @@ Clients written in Node.js and C were used to test the server before integration
 
 The ASK and Lambda test tools available in the SDK and Lambda status information from AWS Cloudwatch Logs were used extensively during development and test.
 
-Schematic entry was done using gEDA's Schematic Editor.
+Schematic entry and PCB layout was done using [KiCad](http://kicad-pcb.org/).
 
 # Bill of materials and service cost considerations
 The hardware bill of materials (BOM) total $85 and are as follows. This BOM is for the prototype version, the PCB version costs about the same. 
@@ -659,4 +625,3 @@ Note: connections to AWS Lambda triggered by Alexa
 ## Original schematics with design notes
 ![keybus-gpio-if1](https://cloud.githubusercontent.com/assets/12125472/11919445/f16955be-a707-11e5-8c5d-1de31212bf9a.png)
 ![keybus-gpio-if2](https://cloud.githubusercontent.com/assets/12125472/11919447/f453d4d4-a707-11e5-988a-f284c41c4085.png)
-
