@@ -1,10 +1,10 @@
 /*
  * Read out new observations from SimpleDB and update database and models.
  *
- * Copyright (c) Lindo St. Angel 2016
+ * Copyright (c) Lindo St. Angel 2016 ~ 2019.
  */
 
-var AWS = require('/usr/lib/node_modules/aws-sdk');
+var AWS = require('/home/pi/all/nodejs/node_modules/aws-sdk');
 AWS.config.region = 'us-west-2';
 var simpledb = new AWS.SimpleDB({apiVersion: '2009-04-15'});
 var fs = require('fs');
@@ -67,7 +67,7 @@ simpledb.select(params, function(err, data) {
 
       // regenerate svm models with new data
       var exec = require('child_process').exec;
-      var cmd = '/home/pi/R_HOME/R-3.1.2/bin/Rscript --vanilla /home/pi/all/R/genSvmModels2.R';
+      var cmd = 'Rscript --vanilla /home/pi/all/R/genSvmModels2.R';
 
       exec(cmd, function(error, stdout, stderr) {
         console.log('stdout: ' + stdout);
