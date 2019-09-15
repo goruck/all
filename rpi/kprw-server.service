@@ -1,0 +1,16 @@
+# Copy to /lib/systemd/system/kprw-server@.service
+[Unit]
+Description=ALL's kprw-server service on %I
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=root
+WorkingDirectory=/home/pi/all/rpi
+ExecStart=/home/pi/all/rpi/kprw-server %I
+
+[Install]
+WantedBy=multi-user.target
