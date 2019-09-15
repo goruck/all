@@ -12,8 +12,8 @@
  * To run a real-time safe test at start of program, add -DTESTRT.
  *
  * Tested with:
- *  Raspberry Pi 2 and Wheezy + PREEMPT_RT patched kernel 3.18.9-rt5-v7.
- *  Raspberry Pi 3 and Buster + PREEMPT-RT patched kernel 4.19.59-rt23-v7+.
+ *  Raspberry Pi 2 and Raspbian Wheezy + PREEMPT_RT patched kernel 3.18.9-rt5-v7.
+ *  Raspberry Pi 3 and Raspbian Buster + PREEMPT-RT patched kernel 4.19.59-rt23-v7+.
  *
  * Must run under linux a Linux PREEMPT_RT patched kernel and as su.
  *
@@ -160,8 +160,8 @@
 #define MBLIGHTIP      "192.168.1.115" // Master Bedroom Light
 #define BPLIGHTIP      "192.168.1.101" // Back Porch Light
 #define FPLIGHTIP      "192.168.1.116" // Master Bedroom Light
-#define SCMD_BUF_SIZE  sizeof("/home/pi/all/wemo/wemo.sh 192.168.1.105 OFF > /dev/null")
-#define SCMD_FMT       "/home/pi/all/wemo/wemo.sh %s %s > /dev/null"
+#define SCMD_BUF_SIZE  sizeof("/home/pi/all/scripts/wemo.sh 192.168.1.105 OFF > /dev/null")
+#define SCMD_FMT       "/home/pi/all/scripts/wemo.sh %s %s > /dev/null"
 #define NUMPRED        10 // max number of predictions
 #define MINPROB        50 // min probability estimate (in %) to be taken as valid
 
