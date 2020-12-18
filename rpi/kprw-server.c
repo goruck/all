@@ -975,6 +975,7 @@ static void * predict(void * arg) {
              strcpy(sptr->lastTruePred[pred], tsBuf); // record timestamp of last true prediction
             }
 
+            /* disable toggling lights for now
             switch(pred) {
               case 0: // null case - no predictions were true
                 //
@@ -1018,7 +1019,7 @@ static void * predict(void * arg) {
               default:
                 //;
               break;
-            }
+            }*/
           }
         }
       }
